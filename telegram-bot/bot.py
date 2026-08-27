@@ -16,17 +16,19 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 from client import SYSTEM_PROMPT, SecuroClient
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 log = logging.getLogger("securo-telegram")
 
 ENV_FILES = [
     Path("/root/.credentials/securo-telegram.env"),
     Path("/root/.credentials/money.planetfinance.cloud.env"),
-    Path("/root/apps/hermes-agent/data/.env"),
 ]
 
 
 def load_env() -> dict[str, str]:
-    out: dict[str, str] = {}
+    # Credential files win over ambient process env (Hermes/cc-vibe URLs).
+    out: dict[str, str] = {k: v for k, v in os.environ.items() if v}
     for path in ENV_FILES:
         if not path.exists():
             continue
@@ -35,8 +37,9 @@ def load_env() -> dict[str, str]:
             if not line or line.startswith("#") or "=" not in line:
                 continue
             key, val = line.split("=", 1)
-            out[key] = val.strip().strip('"').strip("'")
-    out.update({k: v for k, v in os.environ.items() if v})
+            val = val.strip().strip('"').strip("'")
+            if val:
+                out[key] = val
     return out
 
 
@@ -49,7 +52,11 @@ class AgentLoop:
         self.securo = securo
         self.model = env.get("OPENROUTER_MODEL", "google/gemini-2.5-flash")
         self.api_key = env["OPENROUTER_API_KEY"]
-        self.base = env.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/")
+        self.base = (
+            env.get("OPENROUTER_BASE_URL")
+            or env.get("OPENROUTER_API_BASE")
+            or "https://openrouter.ai/api/v1"
+        ).rstrip("/")
         self.max_turns = int(env.get("LLM_MAX_TURNS", "8"))
 
     def complete(self, messages: list[dict]) -> dict:
