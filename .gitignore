@@ -1,4 +1,5 @@
 .venv/
+telegram-bot/.venv/
 .env
 secrets/
 .worktrees/
