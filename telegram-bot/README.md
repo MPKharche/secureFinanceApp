@@ -1,15 +1,12 @@
-# Securo Telegram bot (`myPersonalFinanceAgent`)
+# Telegram poller (retired)
 
-Binds every Securo MCP function tool (plus a guarded REST fallback) to the Telegram bot **myPersonalFinanceAgent**.
+The live bot is **Hermes profile `securo`**: `hermes-gateway-securo.service` → `@myPersonal_FinanceBot`.
 
-- MCP: `http://127.0.0.1:8765/mcp` (29 tools)
-- REST fallback: `securo_http` for `/api/*` (password / 2FA / create-admin blocked)
-- India defaults: INR, Asia/Kolkata, DD/MM/YYYY
-- Allowlist: Telegram user `613463569`
+This directory is the old Python MCP wrapper (`securo-telegram.service`). It is **disabled**. Do not start it while the Hermes gateway is polling the same BotFather token.
 
-Secrets: `/root/.credentials/securo-telegram.env` and `/root/.credentials/money.planetfinance.cloud.env`.
+Rollback (emergency only):
 
 ```bash
+systemctl stop hermes-gateway-securo.service
 systemctl start securo-telegram.service
-/root/apps/secureFinanceApp/telegram-bot/.venv/bin/python -m unittest test_unit.py
 ```
