@@ -58,6 +58,27 @@ def test_registry_contains_v1_tools():
         "list_recurring_transactions",
         "list_assets",
         "list_goals",
+        "get_transaction",
+        "propose_create_account",
+        "propose_update_account",
+        "propose_close_account",
+        "propose_create_transfer",
+        "propose_create_payee",
+        "propose_update_payee",
+        "propose_delete_payee",
+        "propose_update_category",
+        "propose_delete_category",
+        "propose_update_budget",
+        "propose_delete_budget",
+        "propose_update_goal",
+        "propose_delete_goal",
+        "propose_create_asset",
+        "propose_update_asset",
+        "propose_delete_asset",
+        "propose_asset_trade",
+        "propose_create_group",
+        "propose_add_group_member",
+        "propose_create_settlement",
     }
     assert expected.issubset(set(REGISTRY.keys())), (
         f"missing: {expected - set(REGISTRY.keys())}"
@@ -65,16 +86,9 @@ def test_registry_contains_v1_tools():
 
 
 def test_proposal_tools_marked_is_proposal():
-    for name in (
-        "propose_categorize",
-        "propose_create_category",
-        "propose_create_budget",
-        "propose_create_payee_rule",
-        "propose_update_transaction",
-        "propose_delete_transaction",
-    ):
-        spec = REGISTRY[name]
-        assert spec.is_proposal, f"{name} should have is_proposal=True"
+    for name, spec in REGISTRY.items():
+        if name.startswith("propose_"):
+            assert spec.is_proposal, f"{name} should have is_proposal=True"
 
 
 def test_each_tool_has_input_schema():

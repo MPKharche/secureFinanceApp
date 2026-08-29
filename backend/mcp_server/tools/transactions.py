@@ -224,3 +224,75 @@ async def list_transactions(
         "sort_by": sort_by,
         "sort_dir": sort_dir,
     }
+
+
+@tool(
+    name="get_transaction",
+    description=(
+        "Fetch one booked transaction by id. Use after list_transactions "
+        "when you need the full row before editing or deleting."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "transaction_id": {"type": "string", "format": "uuid"},
+        },
+        "required": ["transaction_id"],
+        "additionalProperties": False,
+    },
+    tags=["read", "transactions"],
+)
+async def get_transaction(
+    *,
+    session: AsyncSession,
+    ctx: CallContext,
+    transaction_id: str,
+) -> dict[str, Any]:
+    ws_id = await resolve_workspace_id(session, ctx)
+    tid = parse_uuid(transaction_id)
+    if tid is None:
+        return {"error": "invalid transaction id"}
+    tx = await transaction_service.get_transaction(session, tid, ws_id)
+    if tx is None:
+        return {"error": "transaction not found"}
+    account_name = None
+    if tx.account_id:
+        from app.services import account_service as _account_service
+
+        acc = await _account_service.get_account(session, tx.account_id, ws_id)
+        account_name = acc.name if acc else None
+    return {
+        "id": str(tx.id),
+        "date": tx.date.isoformat() if tx.date else None,
+        "description": tx.description,
+        "amount": num(tx.amount),
+        "currency": tx.currency,
+        "amount_primary": num(getattr(tx, "amount_primary", None)),
+        "type": tx.type,
+        "status": getattr(tx, "status", None),
+        "category_id": str(tx.category_id) if tx.category_id else None,
+        "category_name": tx.category.name if tx.category else None,
+        "account_id": str(tx.account_id) if tx.account_id else None,
+        "account_name": account_name,
+        "payee_id": str(tx.payee_id) if getattr(tx, "payee_id", None) else None,
+        "payee_name": tx.payee_entity.name if tx.payee_entity else None,
+        "is_transfer": bool(getattr(tx, "transfer_pair_id", None)),
+        "notes": getattr(tx, "notes", None),
+        "is_ignored": bool(getattr(tx, "is_ignored", False)),
+        "splits": (
+            {
+                "is_split": True,
+                "members": [
+                    {
+                        "member_id": str(s.group_member_id),
+                        "share_amount": num(s.share_amount),
+                        "share_type": s.share_type,
+                        "share_pct": num(s.share_pct),
+                    }
+                    for s in (getattr(tx, "splits", None) or [])
+                ],
+            }
+            if getattr(tx, "splits", None)
+            else None
+        ),
+    }
