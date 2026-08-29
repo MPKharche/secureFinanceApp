@@ -79,6 +79,8 @@ def test_registry_contains_v1_tools():
         "propose_create_group",
         "propose_add_group_member",
         "propose_create_settlement",
+        "get_last_location",
+        "record_location",
     }
     assert expected.issubset(set(REGISTRY.keys())), (
         f"missing: {expected - set(REGISTRY.keys())}"

@@ -709,6 +709,10 @@ async def create_transaction(
     # Resolve currency: explicit value > account currency
     currency = data.currency or account.currency
 
+    from app.services.location_service import with_fresh_location_note
+
+    notes, _loc = await with_fresh_location_note(session, user_id, data.notes)
+
     transaction = Transaction(
         user_id=user_id,
         workspace_id=workspace_id,
@@ -725,7 +729,7 @@ async def create_transaction(
         # matching the model default. Callers may still create them as
         # "pending" (not yet settled) via TransactionCreate.status.
         status=data.status or "posted",
-        notes=data.notes,
+        notes=notes,
         effective_bill_date=data.effective_bill_date,
         installment_number=data.installment_number,
         total_installments=data.total_installments,

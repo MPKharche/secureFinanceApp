@@ -16,10 +16,12 @@ from app.core.database import async_session_maker
 from mcp_server import tools as _tools_pkg  # noqa: F401  triggers tool registration
 from mcp_server.auth import verify_request
 from mcp_server.registry import REGISTRY, call_tool, list_tools
+from app.api.location import router as location_router
 
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Securo MCP Server", openapi_url=None, docs_url=None)
+app.include_router(location_router)
 
 
 SERVER_INFO = {

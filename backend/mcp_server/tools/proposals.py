@@ -47,6 +47,7 @@ from app.services import (
     rule_service,
     transaction_service,
 )
+from app.services.location_service import with_fresh_location_note
 from mcp_server.auth import CallContext
 from mcp_server.registry import tool
 from mcp_server.tools._helpers import (
@@ -574,6 +575,7 @@ async def propose_create_transaction(
                 )
 
     target_date = parse_date(date) or _today()
+    notes, loc = await with_fresh_location_note(session, ctx.user_id, notes)
     proposed: dict[str, Any] = {
         "description": description.strip(),
         "amount": float(amount),
@@ -599,6 +601,11 @@ async def propose_create_transaction(
         "proposed": proposed,
         "apply_endpoint": "POST /api/transactions",
     }
+    if loc:
+        preview["location"] = {
+            "area": loc.get("area"),
+            "age_minutes": loc.get("age_minutes"),
+        }
 
     if _can_apply(ctx, apply):
         # Re-shape splits for the service. The propose tool used `member_id`

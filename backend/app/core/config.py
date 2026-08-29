@@ -121,6 +121,14 @@ class Settings(BaseSettings):
     # external dependency on the Brazilian government endpoint).
     tesouro_direto_enabled: bool = True
 
+    # Last-known device location (OwnTracks / Telegram pin → auto-stamp notes).
+    location_ingest_token: str = ""
+    location_ingest_user_id: str = ""
+    location_auto_stamp: bool = True
+    location_max_age_minutes: int = 240
+    nominatim_url: str = "https://nominatim.openstreetmap.org/reverse"
+    nominatim_user_agent: str = "Securo-Orbit/1.0 (https://money.planetfinance.cloud)"
+
     @property
     def oidc_login_available(self) -> bool:
         return bool(self.oidc_enabled and self.oidc_client_id and self.oidc_discovery_url)
