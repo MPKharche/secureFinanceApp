@@ -1,6 +1,7 @@
 """Device location ingest (OwnTracks / Hermes webhook) and last-fix reads."""
 from __future__ import annotations
 
+import base64
 import hmac
 import uuid
 from datetime import datetime, timezone
@@ -16,13 +17,25 @@ from app.services import location_service
 router = APIRouter(prefix="/api/location", tags=["location"])
 
 
-def _extract_bearer(authorization: Optional[str]) -> Optional[str]:
+def _extract_token(authorization: Optional[str], token: Optional[str]) -> Optional[str]:
+    if token and token.strip():
+        return token.strip()
     if not authorization:
         return None
     kind, _, rest = authorization.partition(" ")
-    if kind.lower() != "bearer" or not rest.strip():
-        return None
-    return rest.strip()
+    rest = rest.strip()
+    if kind.lower() == "bearer":
+        return rest or None
+    if kind.lower() == "basic" and rest:
+        try:
+            decoded = base64.b64decode(rest).decode()
+        except Exception:
+            return None
+        if ":" in decoded:
+            _user, password = decoded.split(":", 1)
+            return password
+        return decoded
+    return None
 
 
 def _ingest_user_id() -> uuid.UUID:
@@ -53,7 +66,7 @@ def _require_ingest_token(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="location ingest not configured",
         )
-    provided = _extract_bearer(authorization) or (token or "").strip()
+    provided = _extract_token(authorization, token)
     if not provided or not hmac.compare_digest(provided, expected):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid token")
 

@@ -157,6 +157,21 @@ async def test_ingest_requires_token(client, monkeypatch):
     assert r.status_code == 401
 
 
+async def test_ingest_owntracks_accepts_http_basic(
+    client, test_user: User, monkeypatch
+):
+    monkeypatch.setattr(get_settings(), "location_ingest_token", "secret-token")
+    monkeypatch.setattr(get_settings(), "location_ingest_user_id", str(test_user.id))
+    with patch.object(location_service, "reverse_geocode", new=AsyncMock(return_value="Kothrud, Pune")):
+        r = await client.post(
+            "/api/location/owntracks",
+            json={"_type": "location", "lat": 18.5074, "lon": 73.8077},
+            auth=("mayur", "secret-token"),
+        )
+    assert r.status_code == 200, r.text
+    assert r.json()["ok"] is True
+
+
 async def test_ingest_owntracks_stores_location(
     client, test_user: User, monkeypatch
 ):
