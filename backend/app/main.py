@@ -35,7 +35,6 @@ from app.api.attachments import router as attachments_router
 from app.api.fiscal import router as fiscal_router
 from app.api.payees import router as payees_router
 from app.api.settings import router as settings_router
-from app.api.location import router as location_router
 from app.api.transactions import router as transactions_router
 from app.api.two_factor import router as two_factor_router
 from app.api.user_lookup import router as user_lookup_router
@@ -187,7 +186,6 @@ app.include_router(attachments_router)
 app.include_router(fiscal_router)
 app.include_router(payees_router)
 app.include_router(settings_router)
-app.include_router(location_router)
 app.include_router(workspaces_router)
 app.include_router(admin_router)
 app.include_router(info_router)
