@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.account import Account
 from app.models.category import Category
 from app.models.group import Group, GroupMember
+from app.models.payee import Payee
 from app.models.recurring_transaction import RecurringTransaction
 from app.models.transaction import Transaction
 from app.schemas.budget import BudgetCreate
@@ -36,7 +37,7 @@ from app.schemas.recurring_transaction import (
     WeekendAdjustment,
 )
 from app.schemas.rule import RuleAction, RuleCondition, RuleCreate
-from app.schemas.transaction import TransactionCreate
+from app.schemas.transaction import TransactionCreate, TransactionUpdate
 from app.schemas.transaction_split import TransactionSplitInput, TransactionSplitsInput
 from app.services import (
     budget_service,
@@ -90,6 +91,44 @@ _APPLY_FIELD = {
 def _can_apply(ctx: CallContext, apply: bool) -> bool:
     """Gate: writes only happen when the caller is external AND set apply."""
     return bool(apply) and ctx.external
+
+
+def _tx_snapshot(
+    tx: Transaction,
+    *,
+    account_name: str | None = None,
+    category_name: str | None = None,
+    payee_name: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "id": str(tx.id),
+        "description": tx.description,
+        "amount": num(tx.amount),
+        "currency": tx.currency,
+        "type": tx.type,
+        "date": tx.date.isoformat() if tx.date else None,
+        "account_id": str(tx.account_id) if tx.account_id else None,
+        "account_name": account_name,
+        "category_id": str(tx.category_id) if tx.category_id else None,
+        "category_name": category_name,
+        "payee_id": str(tx.payee_id) if tx.payee_id else None,
+        "payee_name": payee_name,
+        "notes": tx.notes,
+        "status": tx.status,
+        "is_ignored": bool(getattr(tx, "is_ignored", False)),
+    }
+
+
+async def _workspace_account(
+    session: AsyncSession, ws_id, account_id
+) -> Account | None:
+    if account_id is None:
+        return None
+    return (
+        await session.execute(
+            select(Account).where(Account.id == account_id, Account.workspace_id == ws_id)
+        )
+    ).scalar_one_or_none()
 
 
 @tool(
@@ -602,6 +641,341 @@ async def propose_create_transaction(
         except ValueError as exc:
             return {**preview, "error": str(exc)}
         return {**preview, "applied": True, "id": str(created.id)}
+
+    return preview
+
+
+@tool(
+    name="propose_update_transaction",
+    description=_PROPOSAL_PREFACE
+    + (
+        "Build a preview for editing an already-booked transaction "
+        "(e.g. 'move those two entries to ICICI Bank', 'change the amount "
+        "to ₹450', 'fix the date'). Pass the transaction_id from "
+        "list_transactions and only the fields you want to change. "
+        "Use this for booked rows — not propose_create_transaction, and "
+        "not the web app. For a recurring template use "
+        "propose_update_recurring_transaction instead."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "transaction_id": {"type": "string", "format": "uuid"},
+            "description": {"type": "string", "minLength": 1, "maxLength": 500},
+            "amount": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "Absolute value, always positive — direction comes from `type`",
+            },
+            "date": {"type": "string", "format": "date"},
+            "type": {
+                "type": "string",
+                "enum": ["debit", "credit"],
+                "description": "debit = expense, credit = income",
+            },
+            "currency": {"type": "string"},
+            "account_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Move the booking to another account (from list_accounts)",
+            },
+            "category_id": {"type": "string", "format": "uuid"},
+            "payee_id": {"type": "string", "format": "uuid"},
+            "notes": {"type": "string"},
+            "is_ignored": {"type": "boolean"},
+            "status": {"type": "string", "enum": ["posted", "pending"]},
+            "apply_to": {
+                "type": "string",
+                "enum": ["this", "future", "all"],
+                "default": "this",
+                "description": (
+                    "Installment series only. 'this' edits one row; "
+                    "'future' this and later parcels; 'all' the whole series."
+                ),
+            },
+            "apply_to_transfer_pair": {
+                "type": "boolean",
+                "default": False,
+                "description": "When true, also apply matching fields to the other transfer leg.",
+            },
+            "apply": _APPLY_FIELD,
+        },
+        "required": ["transaction_id"],
+        "additionalProperties": False,
+    },
+    is_proposal=True,
+    tags=["propose", "transactions"],
+)
+async def propose_update_transaction(
+    *,
+    session: AsyncSession,
+    ctx: CallContext,
+    transaction_id: str,
+    description: str | None = None,
+    amount: float | None = None,
+    date: str | None = None,
+    type: str | None = None,
+    currency: str | None = None,
+    account_id: str | None = None,
+    category_id: str | None = None,
+    payee_id: str | None = None,
+    notes: str | None = None,
+    is_ignored: bool | None = None,
+    status: str | None = None,
+    apply_to: str = "this",
+    apply_to_transfer_pair: bool = False,
+    apply: bool = False,
+) -> dict[str, Any]:
+    ws_id = await resolve_workspace_id(session, ctx)
+    tid = parse_uuid(transaction_id)
+    tx = (
+        await session.execute(
+            select(Transaction).where(
+                Transaction.id == tid, Transaction.workspace_id == ws_id
+            )
+        )
+    ).scalar_one_or_none()
+    if tx is None:
+        return {"error": "transaction not found"}
+
+    new_acc = None
+    if account_id is not None:
+        new_acc = await _workspace_account(session, ws_id, parse_uuid(account_id))
+        if new_acc is None:
+            return {"error": "account not found"}
+
+    cat = None
+    if category_id is not None:
+        cat = (
+            await session.execute(
+                select(Category).where(
+                    Category.id == parse_uuid(category_id), Category.workspace_id == ws_id
+                )
+            )
+        ).scalar_one_or_none()
+        if cat is None:
+            return {"error": "category not found"}
+
+    payee = None
+    if payee_id is not None:
+        payee = (
+            await session.execute(
+                select(Payee).where(
+                    Payee.id == parse_uuid(payee_id), Payee.workspace_id == ws_id
+                )
+            )
+        ).scalar_one_or_none()
+        if payee is None:
+            return {"error": "payee not found"}
+
+    parsed_date = parse_date(date) if date is not None else None
+    if date is not None and parsed_date is None:
+        return {"error": "invalid date"}
+
+    update_data: dict[str, Any] = {}
+    changes: dict[str, Any] = {}
+    if description is not None:
+        update_data["description"] = description.strip()
+        changes["description"] = description.strip()
+    if amount is not None:
+        update_data["amount"] = Decimal(str(amount))
+        changes["amount"] = float(amount)
+    if parsed_date is not None:
+        update_data["date"] = parsed_date
+        changes["date"] = parsed_date.isoformat()
+    if type is not None:
+        update_data["type"] = type
+        changes["type"] = type
+    if currency is not None:
+        update_data["currency"] = currency.upper()
+        changes["currency"] = currency.upper()
+    if new_acc is not None:
+        update_data["account_id"] = new_acc.id
+        changes["account_id"] = str(new_acc.id)
+        changes["account_name"] = new_acc.name
+    if cat is not None:
+        update_data["category_id"] = cat.id
+        changes["category_id"] = str(cat.id)
+        changes["category_name"] = cat.name
+    if payee is not None:
+        update_data["payee_id"] = payee.id
+        changes["payee_id"] = str(payee.id)
+        changes["payee_name"] = payee.name
+    if notes is not None:
+        update_data["notes"] = notes
+        changes["notes"] = notes
+    if is_ignored is not None:
+        update_data["is_ignored"] = bool(is_ignored)
+        changes["is_ignored"] = bool(is_ignored)
+    if status is not None:
+        update_data["status"] = status
+        changes["status"] = status
+    if apply_to != "this":
+        update_data["apply_to"] = apply_to
+        changes["apply_to"] = apply_to
+    if apply_to_transfer_pair:
+        update_data["apply_to_transfer_pair"] = True
+        changes["apply_to_transfer_pair"] = True
+
+    if not changes:
+        return {"error": "no changes provided"}
+
+    current_acc = await _workspace_account(session, ws_id, tx.account_id)
+    current_cat = None
+    if tx.category_id:
+        current_cat = (
+            await session.execute(
+                select(Category).where(
+                    Category.id == tx.category_id, Category.workspace_id == ws_id
+                )
+            )
+        ).scalar_one_or_none()
+    current_payee = None
+    if tx.payee_id:
+        current_payee = (
+            await session.execute(
+                select(Payee).where(
+                    Payee.id == tx.payee_id, Payee.workspace_id == ws_id
+                )
+            )
+        ).scalar_one_or_none()
+
+    preview = {
+        "kind": "update_transaction",
+        "target": _tx_snapshot(
+            tx,
+            account_name=current_acc.name if current_acc else None,
+            category_name=current_cat.name if current_cat else None,
+            payee_name=current_payee.name if current_payee else None,
+        ),
+        "changes": changes,
+        "apply_endpoint": f"PATCH /api/transactions/{tx.id}",
+    }
+
+    if _can_apply(ctx, apply):
+        try:
+            updated = await transaction_service.update_transaction(
+                session, tx.id, ws_id, ctx.user_id, TransactionUpdate(**update_data)
+            )
+        except ValueError as exc:
+            return {**preview, "error": str(exc)}
+        if updated is None:
+            return {**preview, "error": "transaction not found"}
+        return {**preview, "applied": True, "id": str(updated.id)}
+
+    return preview
+
+
+@tool(
+    name="propose_delete_transaction",
+    description=_PROPOSAL_PREFACE
+    + (
+        "Build a preview for deleting one or more already-booked "
+        "transactions (e.g. 'delete those two wrong entries'). Pass ids "
+        "from list_transactions. Use this instead of sending the user to "
+        "the web app. For a recurring template use "
+        "propose_cancel_recurring_transaction. apply_to is for installment "
+        "series only (this/future/all)."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "transaction_ids": {
+                "type": "array",
+                "items": {"type": "string", "format": "uuid"},
+                "minItems": 1,
+            },
+            "apply_to": {
+                "type": "string",
+                "enum": ["this", "future", "all"],
+                "default": "this",
+                "description": (
+                    "Installment series only. 'this' deletes the listed rows; "
+                    "'future' also later parcels of each series; 'all' every "
+                    "row in those series."
+                ),
+            },
+            "apply": _APPLY_FIELD,
+        },
+        "required": ["transaction_ids"],
+        "additionalProperties": False,
+    },
+    is_proposal=True,
+    tags=["propose", "transactions"],
+)
+async def propose_delete_transaction(
+    *,
+    session: AsyncSession,
+    ctx: CallContext,
+    transaction_ids: list[str],
+    apply_to: str = "this",
+    apply: bool = False,
+) -> dict[str, Any]:
+    ws_id = await resolve_workspace_id(session, ctx)
+    tx_ids = parse_uuid_list(transaction_ids) or []
+    if not tx_ids:
+        return {"error": "no valid transaction ids"}
+
+    txs = (
+        (
+            await session.execute(
+                select(Transaction).where(
+                    Transaction.id.in_(tx_ids), Transaction.workspace_id == ws_id
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    found_ids = {t.id for t in txs}
+    acc_ids = {t.account_id for t in txs if t.account_id}
+    accounts = (
+        (
+            await session.execute(
+                select(Account).where(
+                    Account.id.in_(acc_ids), Account.workspace_id == ws_id
+                )
+            )
+        )
+        .scalars()
+        .all()
+        if acc_ids
+        else []
+    )
+    name_by_acc = {a.id: a.name for a in accounts}
+
+    affected = [
+        _tx_snapshot(t, account_name=name_by_acc.get(t.account_id)) for t in txs
+    ]
+    preview = {
+        "kind": "delete_transaction",
+        "apply_to": apply_to,
+        "affected_count": len(affected),
+        "affected": affected,
+        "missing_ids": [str(t) for t in tx_ids if t not in found_ids],
+        "apply_endpoint": (
+            f"DELETE /api/transactions/{{id}}?apply_to={apply_to}"
+            if len(tx_ids) == 1
+            else "POST /api/transactions/bulk-delete"
+        ),
+    }
+
+    if _can_apply(ctx, apply):
+        if not txs:
+            return {**preview, "error": "no matching transactions to delete"}
+        deleted_ids: list[str] = []
+        for tid in [t.id for t in txs]:
+            ok = await transaction_service.delete_transaction(
+                session, tid, ws_id, apply_to=apply_to
+            )
+            if ok:
+                deleted_ids.append(str(tid))
+        return {
+            **preview,
+            "applied": True,
+            "deleted_count": len(deleted_ids),
+            "deleted_ids": deleted_ids,
+        }
 
     return preview
 
