@@ -434,3 +434,113 @@ async def regenerate_schedule(
         "new_schedule_version": new_version,
         "entries_created": len(entries),
     }
+
+
+@router.post("/schedule/bulk-mark-status")
+async def bulk_mark_status(
+    bulk_data: dict,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Bulk mark payment status for multiple schedule entries."""
+    entry_ids = [uuid.UUID(id_str) for id_str in bulk_data["entry_ids"]]
+    payment_status = bulk_data["payment_status"]
+    
+    if payment_status not in ["scheduled", "paid", "partial", "missed", "skipped"]:
+        raise HTTPException(status_code=422, detail="Invalid payment_status")
+    
+    from app.models.loan_schedule import LoanAmortizationSchedule
+    from sqlalchemy import update
+    
+    stmt = (
+        update(LoanAmortizationSchedule)
+        .where(
+            LoanAmortizationSchedule.id.in_(entry_ids),
+            LoanAmortizationSchedule.workspace_id == workspace_id,
+        )
+        .values(payment_status=payment_status)
+    )
+    
+    result = await db.execute(stmt)
+    await db.commit()
+    
+    return {"updated_count": result.rowcount}
+
+
+@router.post("/schedule/bulk-delete")
+async def bulk_delete_schedules(
+    bulk_data: dict,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Bulk delete schedule entries for specific accounts and version."""
+    account_ids = [uuid.UUID(id_str) for id_str in bulk_data["account_ids"]]
+    schedule_version = bulk_data["schedule_version"]
+    
+    from app.models.loan_schedule import LoanAmortizationSchedule
+    from sqlalchemy import delete
+    
+    stmt = (
+        delete(LoanAmortizationSchedule)
+        .where(
+            LoanAmortizationSchedule.account_id.in_(account_ids),
+            LoanAmortizationSchedule.schedule_version == schedule_version,
+            LoanAmortizationSchedule.workspace_id == workspace_id,
+        )
+    )
+    
+    result = await db.execute(stmt)
+    await db.commit()
+    
+    return {"deleted_count": result.rowcount}
+
+
+@router.post("/schedule/bulk-export")
+async def bulk_export_schedules(
+    bulk_data: dict,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Bulk export schedules for multiple loans as ZIP file."""
+    import zipfile
+    from io import BytesIO
+    
+    account_ids = [uuid.UUID(id_str) for id_str in bulk_data["account_ids"]]
+    
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for account_id in account_ids:
+            entries = await loan_schedule_service.get_schedule(
+                db=db,
+                account_id=account_id,
+                workspace_id=workspace_id,
+            )
+            
+            if entries:
+                output = io.StringIO()
+                writer = csv.writer(output)
+                writer.writerow([
+                    "EMI Number", "Due Date", "Principal", "Interest",
+                    "EMI Amount", "Opening Balance", "Closing Balance", "Status"
+                ])
+                
+                for entry in entries:
+                    writer.writerow([
+                        entry.emi_number,
+                        entry.due_date.isoformat(),
+                        str(entry.principal_component),
+                        str(entry.interest_component),
+                        str(entry.emi_amount),
+                        str(entry.opening_balance),
+                        str(entry.closing_balance),
+                        entry.payment_status,
+                    ])
+                
+                zip_file.writestr(f"loan_{account_id}_schedule.csv", output.getvalue())
+    
+    zip_buffer.seek(0)
+    return StreamingResponse(
+        iter([zip_buffer.getvalue()]),
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=loan_schedules.zip"},
+    )
