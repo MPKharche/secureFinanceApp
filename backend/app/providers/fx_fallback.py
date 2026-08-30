@@ -33,10 +33,12 @@ class FallbackFxRateProvider(FxRateProvider):
             self._last = self._primary
             return rates
         except (ValueError, httpx.HTTPError) as exc:
+            status = getattr(getattr(exc, "response", None), "status_code", None)
             logger.warning(
-                "FX primary %s failed (%s); using %s",
+                "FX primary %s failed (%s status=%s); using %s",
                 self._primary.name,
-                exc,
+                type(exc).__name__,
+                status,
                 self._fallback.name,
             )
             rates = await getattr(self._fallback, method)(*args)

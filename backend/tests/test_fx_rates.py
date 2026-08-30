@@ -711,6 +711,9 @@ class TestFrankfurterProvider:
         assert rates["EUR"] == Decimal("0.92")
         assert rates["GBP"] == Decimal("0.78")
         assert isinstance(rates["EUR"], Decimal)
+        called_url, called_kwargs = mock_client.get.call_args[0][0], mock_client.get.call_args[1]
+        assert called_url.endswith("/latest")
+        assert called_kwargs["params"]["from"] == "USD"
 
     @pytest.mark.asyncio
     async def test_fetch_latest_omits_currencies_not_in_response(self):
@@ -765,8 +768,9 @@ class TestFrankfurterProvider:
             rates = await provider.fetch_historical(date(2025, 6, 15))
 
         assert rates["EUR"] == Decimal("0.91")
-        called_url = mock_client.get.call_args[0][0]
+        called_url, called_kwargs = mock_client.get.call_args[0][0], mock_client.get.call_args[1]
         assert "2025-06-15" in called_url
+        assert called_kwargs["params"]["from"] == "USD"
 
 
 class TestFallbackFxRateProvider:
@@ -813,6 +817,33 @@ class TestFallbackFxRateProvider:
 
         assert rates == {"GBP": Decimal("0.78")}
         assert provider.name == "frankfurter"
+
+    @pytest.mark.asyncio
+    async def test_http_fallback_log_omits_request_url(self, caplog):
+        import logging
+        import httpx
+        from app.providers.fx_fallback import FallbackFxRateProvider
+
+        request = httpx.Request(
+            "GET", "https://openexchangerates.org/api/latest.json?app_id=secret-key"
+        )
+        response = httpx.Response(429, request=request)
+        primary = MagicMock()
+        primary.name = "openexchangerates"
+        primary.fetch_latest = AsyncMock(
+            side_effect=httpx.HTTPStatusError("rate limited", request=request, response=response)
+        )
+        fallback = MagicMock()
+        fallback.name = "frankfurter"
+        fallback.fetch_latest = AsyncMock(return_value={"EUR": Decimal("0.92")})
+
+        with caplog.at_level(logging.WARNING):
+            await FallbackFxRateProvider(primary, fallback).fetch_latest()
+
+        logged = " ".join(record.getMessage() for record in caplog.records)
+        assert "secret-key" not in logged
+        assert "app_id" not in logged
+        assert "HTTPStatusError" in logged
 
     @pytest.mark.asyncio
     async def test_keeps_oer_when_it_succeeds(self):

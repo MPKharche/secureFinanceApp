@@ -178,7 +178,7 @@ For automatic currency conversion, add a free [Open Exchange Rates](https://open
 OPENEXCHANGERATES_APP_ID=your-app-id
 ```
 
-Rates are fetched on-demand when foreign-currency transactions are created. Without a key — or if Open Exchange Rates errors (for example HTTP 429) — Securo falls back to [Frankfurter](https://www.frankfurter.app/) (ECB, no key). Frankfurter does not publish every supported currency (for example BRL, ARS); those quotes stay missing rather than being invented, and live reads still use the existing 1:1 fallback with a warning.
+Rates are fetched on-demand when foreign-currency transactions are created. Without a key — or if Open Exchange Rates errors (for example HTTP 429) — Securo falls back to [Frankfurter](https://www.frankfurter.app/) (ECB, no key). Frankfurter does not publish every supported currency (for example ARS, COP, CLP); those quotes stay missing rather than being invented, and live reads still use the existing 1:1 fallback with a warning.
 
 ## AI Agents (Optional)
 
