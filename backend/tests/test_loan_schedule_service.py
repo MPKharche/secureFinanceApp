@@ -5,7 +5,14 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.loan_schedule_service import calculate_emi, generate_amortization_schedule
+from app.services.loan_schedule_service import (
+    calculate_emi,
+    generate_amortization_schedule,
+    get_schedule,
+    update_schedule_entry,
+    bulk_update_dates,
+    regenerate_schedule,
+)
 from app.models.account import Account
 
 
@@ -121,3 +128,119 @@ async def test_generate_schedule_zero_interest(session: AsyncSession, workspace_
     for entry in entries:
         assert entry.interest_component == Decimal("0.00")
         assert entry.principal_component == Decimal("10000.00")
+
+
+@pytest.mark.asyncio
+async def test_update_schedule_entry(session: AsyncSession, workspace_id: uuid.UUID, user_id: uuid.UUID):
+    """Test updating a single schedule entry."""
+    # Create loan and generate schedule
+    account = Account(
+        id=uuid.uuid4(),
+        user_id=user_id,
+        workspace_id=workspace_id,
+        name="Test Loan",
+        type="loan",
+        balance=Decimal("100000.00"),
+        currency="USD",
+        original_principal=Decimal("100000.00"),
+        interest_rate=Decimal("10.00"),
+        tenure_months=12,
+        emi_amount=Decimal("8791.59"),
+        disbursed_on=date(2026, 8, 1),
+        emi_day=5,
+        current_schedule_version=1,
+    )
+    session.add(account)
+    await session.commit()
+    await session.refresh(account)
+
+    entries = await generate_amortization_schedule(session, account.id)
+    entry_to_update = entries[0]
+
+    # Update due date and notes
+    updates = {"due_date": date(2026, 9, 10), "notes": "Payment rescheduled"}
+    updated_entry, affected_count = await update_schedule_entry(session, entry_to_update.id, updates)
+
+    assert updated_entry.due_date == date(2026, 9, 10)
+    assert updated_entry.notes == "Payment rescheduled"
+    assert affected_count == 0  # Date change doesn't trigger recalculation
+
+
+@pytest.mark.asyncio
+async def test_bulk_update_dates_shift(session: AsyncSession, workspace_id: uuid.UUID, user_id: uuid.UUID):
+    """Test bulk shifting of schedule dates."""
+    account = Account(
+        id=uuid.uuid4(),
+        user_id=user_id,
+        workspace_id=workspace_id,
+        name="Test Loan",
+        type="loan",
+        balance=Decimal("100000.00"),
+        currency="USD",
+        original_principal=Decimal("100000.00"),
+        interest_rate=Decimal("10.00"),
+        tenure_months=12,
+        emi_amount=Decimal("8791.59"),
+        disbursed_on=date(2026, 8, 1),
+        emi_day=5,
+        current_schedule_version=1,
+    )
+    session.add(account)
+    await session.commit()
+    await session.refresh(account)
+
+    entries = await generate_amortization_schedule(session, account.id)
+    original_first_due = entries[0].due_date
+
+    # Shift all dates by +10 days
+    updated_count = await bulk_update_dates(session, account.id, shift_days=10, new_emi_day=None, from_emi_number=1)
+
+    assert updated_count == 12
+
+    # Verify shift
+    updated_entries = await get_schedule(session, account.id)
+    assert updated_entries[0].due_date == original_first_due + timedelta(days=10)
+
+
+@pytest.mark.asyncio
+async def test_regenerate_schedule_from_midpoint(session: AsyncSession, workspace_id: uuid.UUID, user_id: uuid.UUID):
+    """Test regenerating schedule from a specific EMI number."""
+    account = Account(
+        id=uuid.uuid4(),
+        user_id=user_id,
+        workspace_id=workspace_id,
+        name="Test Loan",
+        type="loan",
+        balance=Decimal("100000.00"),
+        currency="USD",
+        original_principal=Decimal("100000.00"),
+        interest_rate=Decimal("10.00"),
+        tenure_months=12,
+        emi_amount=Decimal("8791.59"),
+        disbursed_on=date(2026, 8, 1),
+        emi_day=5,
+        current_schedule_version=1,
+    )
+    session.add(account)
+    await session.commit()
+    await session.refresh(account)
+
+    await generate_amortization_schedule(session, account.id)
+
+    # Regenerate from EMI 7 with new balance (simulating partial prepayment)
+    new_params = {
+        "new_principal_balance": Decimal("50000.00"),
+        "new_interest_rate": Decimal("10.00"),
+        "new_tenure_months": 6,
+    }
+    new_entries = await regenerate_schedule(session, account.id, from_emi_number=7, new_params=new_params)
+
+    # Should have 6 new entries (EMI 7-12)
+    assert len(new_entries) == 6
+    assert new_entries[0].emi_number == 7
+    assert new_entries[0].schedule_version == 2
+    assert new_entries[0].opening_balance == Decimal("50000.00")
+
+    # Account version should be incremented
+    await session.refresh(account)
+    assert account.current_schedule_version == 2

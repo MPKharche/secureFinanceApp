@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
@@ -135,3 +135,186 @@ async def get_schedule(
 
     result = await session.execute(query)
     return list(result.scalars().all())
+
+
+async def update_schedule_entry(
+    session: AsyncSession, entry_id: uuid.UUID, updates: dict
+) -> tuple[LoanAmortizationSchedule, int]:
+    """Update a single schedule entry.
+
+    Returns:
+        tuple: (updated_entry, affected_entries_count)
+        affected_entries_count > 0 if recalculation needed for subsequent entries
+    """
+    result = await session.execute(select(LoanAmortizationSchedule).where(LoanAmortizationSchedule.id == entry_id))
+    entry = result.scalar_one()
+
+    # Track if recalculation needed
+    needs_recalc = False
+    if "principal_component" in updates or "interest_component" in updates:
+        needs_recalc = True
+
+    # Apply updates
+    for key, value in updates.items():
+        if hasattr(entry, key):
+            setattr(entry, key, value)
+
+    await session.commit()
+    await session.refresh(entry)
+
+    affected_count = 0
+    if needs_recalc:
+        # Recalculate subsequent entries (simplified: just mark as affected)
+        # Full recalculation logic would be in regenerate_schedule
+        result = await session.execute(
+            select(LoanAmortizationSchedule).where(
+                LoanAmortizationSchedule.account_id == entry.account_id,
+                LoanAmortizationSchedule.schedule_version == entry.schedule_version,
+                LoanAmortizationSchedule.emi_number > entry.emi_number,
+            )
+        )
+        affected_count = len(list(result.scalars().all()))
+
+    return entry, affected_count
+
+
+async def bulk_update_dates(
+    session: AsyncSession,
+    account_id: uuid.UUID,
+    shift_days: Optional[int] = None,
+    new_emi_day: Optional[int] = None,
+    from_emi_number: Optional[int] = None,
+) -> int:
+    """Bulk update schedule dates.
+
+    Args:
+        shift_days: Shift all dates by N days
+        new_emi_day: Change day-of-month for all dates
+        from_emi_number: Apply changes from this EMI onwards
+
+    Returns:
+        Number of entries updated
+    """
+    # Fetch current version
+    result = await session.execute(select(Account.current_schedule_version).where(Account.id == account_id))
+    version = result.scalar_one()
+
+    query = select(LoanAmortizationSchedule).where(
+        LoanAmortizationSchedule.account_id == account_id, LoanAmortizationSchedule.schedule_version == version
+    )
+
+    if from_emi_number:
+        query = query.where(LoanAmortizationSchedule.emi_number >= from_emi_number)
+
+    result = await session.execute(query)
+    entries = list(result.scalars().all())
+
+    for entry in entries:
+        if shift_days:
+            entry.due_date = entry.due_date + timedelta(days=shift_days)
+        elif new_emi_day:
+            try:
+                entry.due_date = entry.due_date.replace(day=new_emi_day)
+            except ValueError:
+                # Day exceeds month length, use last day
+                entry.due_date = entry.due_date + relativedelta(day=31)
+
+    await session.commit()
+    return len(entries)
+
+
+async def regenerate_schedule(
+    session: AsyncSession, account_id: uuid.UUID, from_emi_number: int, new_params: dict
+) -> list[LoanAmortizationSchedule]:
+    """Regenerate schedule from a specific EMI number with new parameters.
+
+    Creates a new schedule version, preserving old entries.
+
+    Args:
+        from_emi_number: Starting EMI number (1-indexed)
+        new_params: dict with keys:
+            - new_principal_balance: Decimal
+            - new_interest_rate: Optional[Decimal]
+            - new_tenure_months: Optional[int]
+            - new_emi_amount: Optional[Decimal]
+    """
+    # Fetch account and increment version
+    result = await session.execute(select(Account).where(Account.id == account_id))
+    account = result.scalar_one()
+
+    new_version = account.current_schedule_version + 1
+    account.current_schedule_version = new_version
+
+    # Extract new parameters
+    new_principal = new_params["new_principal_balance"]
+    new_rate = new_params.get("new_interest_rate", account.interest_rate)
+    new_tenure = new_params.get("new_tenure_months")
+    new_emi = new_params.get("new_emi_amount")
+
+    # If tenure not specified, calculate remaining tenure
+    if not new_tenure:
+        new_tenure = account.tenure_months - (from_emi_number - 1)
+
+    # Calculate new EMI if not provided
+    if not new_emi:
+        new_emi = calculate_emi(new_principal, new_rate, new_tenure)
+
+    monthly_rate = new_rate / Decimal("1200") if new_rate > 0 else Decimal("0")
+    remaining_principal = new_principal
+    entries = []
+
+    # Get the due date of the previous EMI to calculate subsequent dates
+    if from_emi_number > 1:
+        prev_result = await session.execute(
+            select(LoanAmortizationSchedule.due_date)
+            .where(
+                LoanAmortizationSchedule.account_id == account_id,
+                LoanAmortizationSchedule.emi_number == from_emi_number - 1,
+            )
+            .order_by(LoanAmortizationSchedule.schedule_version.desc())
+            .limit(1)
+        )
+        base_date = prev_result.scalar_one()
+    else:
+        base_date = account.disbursed_on
+
+    emi_day = account.emi_day or base_date.day
+
+    for i in range(new_tenure):
+        emi_num = from_emi_number + i
+        due_date = base_date + relativedelta(months=i + 1)
+        try:
+            due_date = due_date.replace(day=emi_day)
+        except ValueError:
+            due_date = due_date + relativedelta(day=31)
+
+        opening_balance = remaining_principal
+        interest_component = (opening_balance * monthly_rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        principal_component = new_emi - interest_component
+
+        if i == new_tenure - 1:
+            principal_component = opening_balance
+            interest_component = new_emi - principal_component
+
+        closing_balance = opening_balance - principal_component
+        remaining_principal = closing_balance
+
+        entry = LoanAmortizationSchedule(
+            id=uuid.uuid4(),
+            account_id=account_id,
+            workspace_id=account.workspace_id,
+            schedule_version=new_version,
+            emi_number=emi_num,
+            due_date=due_date,
+            principal_component=principal_component,
+            interest_component=interest_component,
+            emi_amount=new_emi,
+            opening_balance=opening_balance,
+            closing_balance=closing_balance,
+            payment_status="scheduled",
+        )
+        entries.append(entry)
+        session.add(entry)
+
+    await session.commit()
+    return entries
