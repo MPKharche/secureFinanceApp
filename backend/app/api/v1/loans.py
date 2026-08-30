@@ -544,3 +544,174 @@ async def bulk_export_schedules(
         media_type="application/zip",
         headers={"Content-Disposition": "attachment; filename=loan_schedules.zip"},
     )
+
+
+@router.post("/loans/calculate-emi")
+async def calculate_emi(
+    calc_data: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """Calculate EMI for given loan parameters."""
+    from decimal import Decimal
+    
+    principal = Decimal(calc_data["principal"])
+    annual_rate = Decimal(calc_data["annual_rate"])
+    tenure_months = calc_data["tenure_months"]
+    
+    if principal <= 0 or tenure_months <= 0:
+        raise HTTPException(status_code=422, detail="Principal and tenure must be positive")
+    
+    emi = loan_schedule_service.calculate_emi(principal, annual_rate, tenure_months)
+    total_payment = emi * tenure_months
+    total_interest = total_payment - principal
+    
+    return {
+        "emi_amount": str(emi),
+        "total_interest": str(total_interest),
+        "total_payment": str(total_payment),
+    }
+
+
+@router.post("/loans/validate-schedule")
+async def validate_schedule(
+    validate_data: dict,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Validate schedule integrity (balance continuity, EMI consistency)."""
+    from decimal import Decimal
+    from sqlalchemy import select
+    from app.models.loan_schedule import LoanAmortizationSchedule
+    
+    account_id = uuid.UUID(validate_data["account_id"])
+    
+    result = await db.execute(
+        select(LoanAmortizationSchedule)
+        .where(
+            LoanAmortizationSchedule.account_id == account_id,
+            LoanAmortizationSchedule.workspace_id == workspace_id,
+        )
+        .order_by(LoanAmortizationSchedule.schedule_version, LoanAmortizationSchedule.emi_number)
+    )
+    entries = result.scalars().all()
+    
+    issues = []
+    is_valid = True
+    
+    for i, entry in enumerate(entries):
+        # Check balance continuity
+        expected_closing = entry.opening_balance - entry.principal_component
+        if abs(entry.closing_balance - expected_closing) > Decimal("0.01"):
+            issues.append(f"EMI {entry.emi_number}: Balance mismatch")
+            is_valid = False
+        
+        # Check EMI sum
+        expected_emi = entry.principal_component + entry.interest_component
+        if abs(entry.emi_amount - expected_emi) > Decimal("0.01"):
+            issues.append(f"EMI {entry.emi_number}: EMI component mismatch")
+            is_valid = False
+        
+        # Check opening balance continuity
+        if i > 0 and entries[i-1].schedule_version == entry.schedule_version:
+            if abs(entry.opening_balance - entries[i-1].closing_balance) > Decimal("0.01"):
+                issues.append(f"EMI {entry.emi_number}: Opening balance doesn't match previous closing")
+                is_valid = False
+    
+    return {"is_valid": is_valid, "issues": issues}
+
+
+@router.get("/loans/summary")
+async def get_loan_summary(
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Get summary of all loans in workspace."""
+    from sqlalchemy import select, func
+    from app.models.account import Account
+    from app.models.loan_schedule import LoanAmortizationSchedule
+    
+    # Get all loan accounts
+    result = await db.execute(
+        select(Account).where(
+            Account.workspace_id == workspace_id,
+            Account.subtype == "loan",
+        )
+    )
+    accounts = result.scalars().all()
+    
+    total_outstanding = sum(abs(acc.balance) for acc in accounts)
+    
+    # Get total monthly EMI
+    total_emi = Decimal("0.00")
+    for acc in accounts:
+        result = await db.execute(
+            select(LoanAmortizationSchedule.emi_amount)
+            .where(
+                LoanAmortizationSchedule.account_id == acc.id,
+                LoanAmortizationSchedule.schedule_version == acc.current_schedule_version,
+                LoanAmortizationSchedule.payment_status == "scheduled",
+            )
+            .limit(1)
+        )
+        emi = result.scalar()
+        if emi:
+            total_emi += emi
+    
+    return {
+        "total_loans": len(accounts),
+        "total_outstanding": str(total_outstanding),
+        "total_monthly_emi": str(total_emi),
+        "accounts": [{"id": str(acc.id), "name": acc.name, "balance": str(acc.balance)} for acc in accounts],
+    }
+
+
+@router.post("/loans/calculate-savings")
+async def calculate_prepayment_savings(
+    savings_data: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """Calculate interest savings from prepayment."""
+    from decimal import Decimal
+    import math
+    
+    remaining_principal = Decimal(savings_data["remaining_principal"])
+    annual_rate = Decimal(savings_data["annual_rate"])
+    remaining_months = savings_data["remaining_months"]
+    prepayment_amount = Decimal(savings_data["prepayment_amount"])
+    
+    # Calculate original interest
+    original_emi = loan_schedule_service.calculate_emi(remaining_principal, annual_rate, remaining_months)
+    original_total = original_emi * remaining_months
+    original_interest = original_total - remaining_principal
+    
+    # After prepayment principal
+    new_principal = remaining_principal - prepayment_amount
+    
+    # Reduce EMI option
+    new_emi = loan_schedule_service.calculate_emi(new_principal, annual_rate, remaining_months)
+    new_total_reduce_emi = new_emi * remaining_months
+    new_interest_reduce_emi = new_total_reduce_emi - new_principal
+    savings_reduce_emi = original_interest - new_interest_reduce_emi
+    
+    # Reduce tenure option
+    if annual_rate == Decimal("0.00"):
+        new_months = int((new_principal / original_emi).quantize(Decimal("1"), rounding=ROUND_UP))
+    else:
+        monthly_rate = annual_rate / Decimal("1200")
+        new_months = math.ceil(
+            math.log(original_emi / (original_emi - new_principal * monthly_rate)) / 
+            math.log(1 + float(monthly_rate))
+        )
+    
+    new_total_reduce_tenure = original_emi * new_months
+    new_interest_reduce_tenure = new_total_reduce_tenure - new_principal
+    savings_reduce_tenure = original_interest - new_interest_reduce_tenure
+    months_saved = remaining_months - new_months
+    
+    return {
+        "interest_saved_reduce_emi": str(savings_reduce_emi),
+        "interest_saved_reduce_tenure": str(savings_reduce_tenure),
+        "months_saved_reduce_tenure": months_saved,
+        "new_emi_reduce_emi": str(new_emi),
+        "new_tenure_reduce_tenure": new_months,
+    }
