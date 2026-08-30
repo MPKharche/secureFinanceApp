@@ -11,11 +11,20 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.core.config import get_settings
 from app.models.fx_rate import FxRate
 from app.models.user import User
+from app.providers.base import FxRateProvider
+from app.providers.frankfurter import FrankfurterProvider
+from app.providers.fx_fallback import FallbackFxRateProvider
 from app.providers.openexchangerates import OpenExchangeRatesProvider
 
 logger = logging.getLogger(__name__)
 
-_provider = OpenExchangeRatesProvider()
+
+def build_fx_provider() -> FxRateProvider:
+    """OER when configured and reachable; Frankfurter (ECB) otherwise."""
+    return FallbackFxRateProvider(OpenExchangeRatesProvider(), FrankfurterProvider())
+
+
+_provider = build_fx_provider()
 
 
 async def sync_rates(

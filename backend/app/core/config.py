@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     # Defaults
     default_currency: str = "USD"  # fallback currency when user preference is unavailable
 
-    # FX Rates
+    # FX Rates — OER when set; Frankfurter (ECB, no key) if missing or OER fails
     openexchangerates_app_id: str = ""
     supported_currencies: str = "USD,EUR,GBP,BRL,CAD,AUD,CHF,ARS,JPY,MXN,INR,SEK,DKK,NOK,PLN,CZK,HUF,RON,CRC,IDR,COP,CLP,DOP,RUB,GTQ,PHP,UAH,NZD,VND,SGD"  # comma-separated list
     fx_sync_mode: str = "on_demand"  # "on_demand" or "scheduled"

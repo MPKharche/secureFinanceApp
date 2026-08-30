@@ -674,6 +674,192 @@ class TestOpenExchangeRatesProvider:
         assert "2025-06-15" in call_args[0][0]
 
 
+def _mock_httpx_client(payload: dict):
+    mock_response = MagicMock()
+    mock_response.json.return_value = payload
+    mock_response.raise_for_status = MagicMock()
+    mock_client = MagicMock()
+    mock_client.get = AsyncMock(return_value=mock_response)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    return mock_client
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5b. FRANKFURTER PROVIDER + OER FALLBACK
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestFrankfurterProvider:
+    """ECB rates via Frankfurter. Breaks if we invent missing quotes or use floats."""
+
+    @pytest.mark.asyncio
+    async def test_fetch_latest_returns_decimal_rates(self):
+        from app.providers.frankfurter import FrankfurterProvider
+
+        provider = FrankfurterProvider()
+        mock_client = _mock_httpx_client({
+            "base": "USD",
+            "rates": {"EUR": 0.92, "GBP": 0.78},
+        })
+
+        with patch("app.providers.frankfurter.get_settings") as mock_settings, \
+             patch("app.providers.frankfurter.httpx.AsyncClient", return_value=mock_client):
+            mock_settings.return_value.supported_currencies = "USD,EUR,GBP,BRL"
+            rates = await provider.fetch_latest()
+
+        assert rates["EUR"] == Decimal("0.92")
+        assert rates["GBP"] == Decimal("0.78")
+        assert isinstance(rates["EUR"], Decimal)
+
+    @pytest.mark.asyncio
+    async def test_fetch_latest_omits_currencies_not_in_response(self):
+        from app.providers.frankfurter import FrankfurterProvider
+
+        provider = FrankfurterProvider()
+        mock_client = _mock_httpx_client({
+            "base": "USD",
+            "rates": {"EUR": 0.92, "GBP": 0.78},
+        })
+
+        with patch("app.providers.frankfurter.get_settings") as mock_settings, \
+             patch("app.providers.frankfurter.httpx.AsyncClient", return_value=mock_client):
+            mock_settings.return_value.supported_currencies = "USD,EUR,GBP,BRL,ARS"
+            rates = await provider.fetch_latest()
+
+        assert "BRL" not in rates
+        assert "ARS" not in rates
+        assert set(rates) == {"EUR", "GBP"}
+
+    @pytest.mark.asyncio
+    async def test_fetch_latest_drops_unsupported_quotes(self):
+        from app.providers.frankfurter import FrankfurterProvider
+
+        provider = FrankfurterProvider()
+        mock_client = _mock_httpx_client({
+            "base": "USD",
+            "rates": {"EUR": 0.92, "CNY": 7.2},
+        })
+
+        with patch("app.providers.frankfurter.get_settings") as mock_settings, \
+             patch("app.providers.frankfurter.httpx.AsyncClient", return_value=mock_client):
+            mock_settings.return_value.supported_currencies = "USD,EUR,GBP"
+            rates = await provider.fetch_latest()
+
+        assert "CNY" not in rates
+        assert rates == {"EUR": Decimal("0.92")}
+
+    @pytest.mark.asyncio
+    async def test_fetch_historical_uses_date_in_url(self):
+        from app.providers.frankfurter import FrankfurterProvider
+
+        provider = FrankfurterProvider()
+        mock_client = _mock_httpx_client({
+            "base": "USD",
+            "rates": {"EUR": 0.91},
+        })
+
+        with patch("app.providers.frankfurter.get_settings") as mock_settings, \
+             patch("app.providers.frankfurter.httpx.AsyncClient", return_value=mock_client):
+            mock_settings.return_value.supported_currencies = "USD,EUR"
+            rates = await provider.fetch_historical(date(2025, 6, 15))
+
+        assert rates["EUR"] == Decimal("0.91")
+        called_url = mock_client.get.call_args[0][0]
+        assert "2025-06-15" in called_url
+
+
+class TestFallbackFxRateProvider:
+    """OER first; Frankfurter when the key is missing or OER errors."""
+
+    @pytest.mark.asyncio
+    async def test_uses_frankfurter_when_oer_key_missing(self):
+        from app.providers.fx_fallback import FallbackFxRateProvider
+
+        primary = MagicMock()
+        primary.name = "openexchangerates"
+        primary.fetch_latest = AsyncMock(
+            side_effect=ValueError("openexchangerates_app_id not configured")
+        )
+        fallback = MagicMock()
+        fallback.name = "frankfurter"
+        fallback.fetch_latest = AsyncMock(return_value={"EUR": Decimal("0.92")})
+
+        provider = FallbackFxRateProvider(primary, fallback)
+        rates = await provider.fetch_latest()
+
+        assert rates == {"EUR": Decimal("0.92")}
+        assert provider.name == "frankfurter"
+        fallback.fetch_latest.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_uses_frankfurter_when_oer_http_fails(self):
+        import httpx
+        from app.providers.fx_fallback import FallbackFxRateProvider
+
+        request = httpx.Request("GET", "https://openexchangerates.org/api/latest.json")
+        response = httpx.Response(429, request=request)
+        primary = MagicMock()
+        primary.name = "openexchangerates"
+        primary.fetch_latest = AsyncMock(
+            side_effect=httpx.HTTPStatusError("rate limited", request=request, response=response)
+        )
+        fallback = MagicMock()
+        fallback.name = "frankfurter"
+        fallback.fetch_latest = AsyncMock(return_value={"GBP": Decimal("0.78")})
+
+        provider = FallbackFxRateProvider(primary, fallback)
+        rates = await provider.fetch_latest()
+
+        assert rates == {"GBP": Decimal("0.78")}
+        assert provider.name == "frankfurter"
+
+    @pytest.mark.asyncio
+    async def test_keeps_oer_when_it_succeeds(self):
+        from app.providers.fx_fallback import FallbackFxRateProvider
+
+        primary = MagicMock()
+        primary.name = "openexchangerates"
+        primary.fetch_latest = AsyncMock(return_value={"BRL": Decimal("5.1")})
+        fallback = MagicMock()
+        fallback.name = "frankfurter"
+        fallback.fetch_latest = AsyncMock(return_value={"EUR": Decimal("0.92")})
+
+        provider = FallbackFxRateProvider(primary, fallback)
+        rates = await provider.fetch_latest()
+
+        assert rates == {"BRL": Decimal("5.1")}
+        assert provider.name == "openexchangerates"
+        fallback.fetch_latest.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_historical_falls_back_on_oer_failure(self):
+        from app.providers.fx_fallback import FallbackFxRateProvider
+
+        target = date(2025, 6, 15)
+        primary = MagicMock()
+        primary.name = "openexchangerates"
+        primary.fetch_historical = AsyncMock(side_effect=ValueError("not configured"))
+        fallback = MagicMock()
+        fallback.name = "frankfurter"
+        fallback.fetch_historical = AsyncMock(return_value={"EUR": Decimal("0.91")})
+
+        provider = FallbackFxRateProvider(primary, fallback)
+        rates = await provider.fetch_historical(target)
+
+        assert rates == {"EUR": Decimal("0.91")}
+        fallback.fetch_historical.assert_awaited_once_with(target)
+
+    def test_build_fx_provider_is_oer_then_frankfurter(self):
+        from app.providers.frankfurter import FrankfurterProvider
+        from app.providers.openexchangerates import OpenExchangeRatesProvider
+        from app.services.fx_rate_service import build_fx_provider
+
+        provider = build_fx_provider()
+        assert isinstance(provider._primary, OpenExchangeRatesProvider)
+        assert isinstance(provider._fallback, FrankfurterProvider)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 6. SYNC RATES (mocked provider — pg_insert incompatible with SQLite)
 # ═══════════════════════════════════════════════════════════════════════════
