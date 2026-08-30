@@ -391,3 +391,46 @@ async def get_dashboard_summary(
     )
 
     return summary
+
+
+@router.post("/schedule/regenerate")
+async def regenerate_schedule(
+    regenerate_data: dict,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Regenerate loan schedule from a specific EMI number with new parameters."""
+    from decimal import Decimal
+    from datetime import date
+    
+    account_id = uuid.UUID(regenerate_data["account_id"])
+    from_emi_number = regenerate_data["from_emi_number"]
+    new_principal = Decimal(regenerate_data["new_principal"])
+    new_annual_rate = Decimal(regenerate_data["new_annual_rate"])
+    new_tenure_months = regenerate_data["new_tenure_months"]
+    start_date = date.fromisoformat(regenerate_data["start_date"])
+
+    if from_emi_number < 1:
+        raise HTTPException(status_code=422, detail="from_emi_number must be >= 1")
+
+    entries = await loan_schedule_service.regenerate_schedule(
+        db=db,
+        account_id=account_id,
+        workspace_id=workspace_id,
+        from_emi_number=from_emi_number,
+        new_principal=new_principal,
+        new_annual_rate=new_annual_rate,
+        new_tenure_months=new_tenure_months,
+        start_date=start_date,
+    )
+
+    if not entries:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    # Get the new version number
+    new_version = entries[0].schedule_version if entries else None
+
+    return {
+        "new_schedule_version": new_version,
+        "entries_created": len(entries),
+    }
