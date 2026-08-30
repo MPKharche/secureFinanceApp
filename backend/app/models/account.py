@@ -1,9 +1,9 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, SmallInteger, String
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, SmallInteger, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -31,7 +31,7 @@ class Account(Base):
     # the provider exposes one. Provider-owned like `name`: refreshed on sync,
     # not user-editable. Never holds the full identifier.
     masked_number: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)
-    type: Mapped[str] = mapped_column(String(50))  # checking, savings, credit_card
+    type: Mapped[str] = mapped_column(String(50))  # checking, savings, credit_card, loan, investment, wallet
     balance: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=Decimal("0.00"))
     currency: Mapped[str] = mapped_column(String(3), default="USD")
     balance_primary: Mapped[Optional[Decimal]] = mapped_column(Numeric(precision=15, scale=2), nullable=True)
@@ -41,6 +41,21 @@ class Account(Base):
     minimum_payment: Mapped[Optional[Decimal]] = mapped_column(Numeric(precision=15, scale=2), nullable=True)
     card_brand: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     card_level: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    # Loan products (type="loan"). Outstanding lives in `balance` with the
+    # same positive-for-debt convention as credit cards.
+    loan_kind: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    original_principal: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(precision=15, scale=2), nullable=True
+    )
+    interest_rate: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(precision=8, scale=4), nullable=True
+    )
+    tenure_months: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    emi_amount: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(precision=15, scale=2), nullable=True
+    )
+    disbursed_on: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    emi_day: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
     # The institution this account is actually at. One connection can span
     # several (SimpleFIN — issue #345); null falls back to the connection's
     # own institution_name/logo_url. Eager (selectin) because serialization

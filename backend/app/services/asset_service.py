@@ -171,6 +171,8 @@ def _asset_to_read(
         total_invested=total_invested,
         realized_gain=float(asset.realized_gain) if asset.realized_gain is not None else None,
         transaction_count=transaction_count,
+        sip_amount=float(asset.sip_amount) if asset.sip_amount is not None else None,
+        sip_day=asset.sip_day,
     )
 
 
@@ -474,6 +476,8 @@ async def create_asset(
         last_price=Decimal(str(quote.price)) if quote else None,
         last_price_at=datetime.now(timezone.utc) if quote else None,
         logo_url=quote.logo_url if quote else None,
+        sip_amount=data.sip_amount,
+        sip_day=data.sip_day,
         source=(
             "tesouro_direto"
             if quote and quote.exchange == "Tesouro Direto"

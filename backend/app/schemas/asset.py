@@ -29,6 +29,8 @@ class AssetCreate(BaseModel):
     ticker: Optional[str] = None
     ticker_exchange: Optional[str] = None
     maturity_date: Optional[_date] = None
+    sip_amount: Optional[Decimal] = None
+    sip_day: Optional[int] = None
     # Per-unit price for the opening buy of a market-priced holding (preço
     # médio model, consistent with the transaction ledger). When omitted, the
     # service seeds the buy at the live quote ("bought at market now").
@@ -57,6 +59,8 @@ class AssetUpdate(BaseModel):
     group_id: Optional[uuid.UUID] = None
     ticker: Optional[str] = None
     ticker_exchange: Optional[str] = None
+    sip_amount: Optional[Decimal] = None
+    sip_day: Optional[int] = None
 
 
 class AssetRead(BaseModel):
@@ -100,6 +104,8 @@ class AssetRead(BaseModel):
     total_invested: Optional[float] = None
     realized_gain: Optional[float] = None
     transaction_count: int = 0
+    sip_amount: Optional[float] = None
+    sip_day: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 

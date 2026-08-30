@@ -41,6 +41,8 @@ import {
   PieChart,
   AlertTriangle,
   Upload,
+  Landmark,
+  Coins,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -126,6 +128,10 @@ const ASSET_TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string
   etf: { icon: Layers, color: 'text-teal-600', bg: 'bg-teal-100' },
   crypto: { icon: Bitcoin, color: 'text-orange-600', bg: 'bg-orange-100' },
   fund: { icon: PieChart, color: 'text-indigo-600', bg: 'bg-indigo-100' },
+  fd: { icon: Landmark, color: 'text-amber-700', bg: 'bg-amber-100' },
+  ppf: { icon: Landmark, color: 'text-emerald-700', bg: 'bg-emerald-100' },
+  nps: { icon: Landmark, color: 'text-sky-700', bg: 'bg-sky-100' },
+  gold: { icon: Coins, color: 'text-yellow-700', bg: 'bg-yellow-100' },
   other: { icon: Package, color: 'text-slate-600', bg: 'bg-slate-100' },
 }
 
@@ -138,11 +144,23 @@ const ASSET_TYPES = [
   'etf',
   'crypto',
   'fund',
+  'fd',
+  'ppf',
+  'nps',
+  'gold',
   'real_estate',
   'vehicle',
   'valuable',
   'investment',
   'other',
+] as const
+
+const PRODUCT_GROUPS = [
+  { id: 'all', types: null as readonly string[] | null, labelKey: 'assets.groupAll' },
+  { id: 'equity', types: ['stock', 'etf', 'crypto'], labelKey: 'assets.groupEquity' },
+  { id: 'funds', types: ['fund'], labelKey: 'assets.groupFunds' },
+  { id: 'fixed', types: ['fd', 'ppf', 'nps'], labelKey: 'assets.groupFixed' },
+  { id: 'tangible', types: ['gold', 'real_estate', 'vehicle', 'valuable', 'investment', 'other'], labelKey: 'assets.groupTangible' },
 ] as const
 
 // Map a yfinance `quoteType` to Securo's asset type. Lives here (not the
@@ -201,6 +219,7 @@ export default function AssetsPage() {
   })
 
   const [activeTab, setActiveTab] = useState<'holdings' | 'transactions'>('holdings')
+  const [productGroup, setProductGroup] = useState<(typeof PRODUCT_GROUPS)[number]['id']>('all')
   // Holding id for the lightweight "add transaction to this holding" dialog,
   // opened from the holdings table ("+ add buys") and the inline ledger.
   const [addTxAssetId, setAddTxAssetId] = useState<string | null>(null)
@@ -252,6 +271,8 @@ export default function AssetsPage() {
   // "Add asset" and "Add transaction" stay consistent.
   const [formUnitPrice, setFormUnitPrice] = useState('')
   const [quoteLoading, setQuoteLoading] = useState(false)
+  const [formSipAmount, setFormSipAmount] = useState('')
+  const [formSipDay, setFormSipDay] = useState('')
 
   const { data: rawAssetsList, isLoading } = useQuery({
     queryKey: ['assets'],
@@ -267,6 +288,14 @@ export default function AssetsPage() {
     const allowed = new Set(activeWalletIds)
     return (rawAssetsList ?? []).filter((a) => a.group_id && allowed.has(a.group_id))
   }, [rawAssetsList, activeWalletIds])
+
+  const visibleAssets = useMemo(() => {
+    const list = assetsList ?? []
+    const group = PRODUCT_GROUPS.find((g) => g.id === productGroup)
+    if (!group?.types) return list
+    const allowed = new Set(group.types)
+    return list.filter((a) => allowed.has(a.type))
+  }, [assetsList, productGroup])
 
   const { data: rawPortfolioData } = useQuery({
     queryKey: ['portfolio-trend'],
@@ -494,7 +523,7 @@ export default function AssetsPage() {
     return Math.round(current * 100) / 100
   }, [formMethod, formPurchasePrice, formGrowthRate, formGrowthType, formGrowthFrequency, formGrowthStartDate, formPurchaseDate])
 
-  const activeAssets = assetsList?.filter(a => !a.sell_date && !a.is_archived) ?? []
+  const activeAssets = visibleAssets.filter(a => !a.sell_date && !a.is_archived)
   const soldAssets = assetsList?.filter(a => a.sell_date) ?? []
 
   // Debounced ticker search. Runs only when the market-price method is
@@ -584,6 +613,8 @@ export default function AssetsPage() {
     setFormGrowthRate('')
     setFormGrowthFrequency('monthly')
     setFormGrowthStartDate('')
+    setFormSipAmount('')
+    setFormSipDay('')
     resetMarketPriceForm()
     setDialogOpen(true)
   }
@@ -604,6 +635,8 @@ export default function AssetsPage() {
     setFormGrowthRate(asset.growth_rate?.toString() ?? '')
     setFormGrowthFrequency(asset.growth_frequency ?? 'monthly')
     setFormGrowthStartDate(asset.growth_start_date ?? '')
+    setFormSipAmount(asset.sip_amount != null ? String(asset.sip_amount) : '')
+    setFormSipDay(asset.sip_day != null ? String(asset.sip_day) : '')
     resetMarketPriceForm()
     if (asset.valuation_method === 'market_price' && asset.ticker) {
       setFormTickerQuery(asset.ticker)
@@ -639,6 +672,8 @@ export default function AssetsPage() {
       purchase_price: isMarket ? null : (formPurchasePrice ? parseFloat(formPurchasePrice) : null),
       sell_date: isMarket ? null : (formSellDate || null),
       sell_price: isMarket ? null : (formSellPrice ? parseFloat(formSellPrice) : null),
+      sip_amount: formSipAmount ? parseFloat(formSipAmount) : null,
+      sip_day: formSipDay ? parseInt(formSipDay, 10) : null,
     }
 
     if (formMethod === 'growth_rule') {
@@ -1038,6 +1073,23 @@ export default function AssetsPage() {
         }
       />
 
+      <div className="flex flex-wrap gap-1.5">
+        {PRODUCT_GROUPS.map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            onClick={() => setProductGroup(g.id)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              productGroup === g.id
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {t(g.labelKey)}
+          </button>
+        ))}
+      </div>
+
       {/* Holdings (consolidated by ticker) vs. the buy/sell ledger (#235) */}
       <div className="inline-flex items-center rounded-lg border border-border p-0.5 bg-muted/40">
         <button
@@ -1194,6 +1246,20 @@ export default function AssetsPage() {
                 </select>
               </div>
             </div>
+
+            {['fund', 'stock', 'etf', 'nps', 'ppf', 'fd'].includes(formType) && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>{t('assets.sipAmount')}</Label>
+                  <Input type="number" inputMode="decimal" value={formSipAmount} onChange={(e) => setFormSipAmount(e.target.value)} />
+                  <p className="text-[11px] text-muted-foreground">{t('assets.sipHint')}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('assets.sipDay')}</Label>
+                  <Input type="number" min={1} max={28} value={formSipDay} onChange={(e) => setFormSipDay(e.target.value)} />
+                </div>
+              </div>
+            )}
 
             {/* Valuation Method — locked on edit */}
             <div className="space-y-2">

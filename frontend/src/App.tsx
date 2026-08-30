@@ -27,6 +27,7 @@ const BudgetsPage = lazy(() => import('@/pages/budgets'))
 const RecurringPage = lazy(() => import('@/pages/recurring'))
 const GoalsPage = lazy(() => import('@/pages/goals'))
 const AssetsPage = lazy(() => import('@/pages/assets'))
+const LoansPage = lazy(() => import('@/pages/loans'))
 const ReportsPage = lazy(() => import('@/pages/reports'))
 const PayeesPage = lazy(() => import('@/pages/payees'))
 const GroupsPage = lazy(() => import('@/pages/groups'))
@@ -83,6 +84,7 @@ function App() {
                   <Route path="/transactions" element={<ModuleRoute module="transactions"><TransactionsPage /></ModuleRoute>} />
                   <Route path="/accounts" element={<ModuleRoute module="accounts"><AccountsPage /></ModuleRoute>} />
                   <Route path="/accounts/:id" element={<ModuleRoute module="accounts"><AccountDetailPage /></ModuleRoute>} />
+                  <Route path="/loans" element={<ModuleRoute module="loans"><LoansPage /></ModuleRoute>} />
                   <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
                   <Route path="/enable-banking" element={<OAuthCallbackPage />} />
                   <Route path="/import" element={<ModuleRoute module="import"><ImportPage /></ModuleRoute>} />
@@ -92,7 +94,8 @@ function App() {
                   <Route path="/budgets" element={<ModuleRoute module="budgets"><BudgetsPage /></ModuleRoute>} />
                   <Route path="/goals" element={<ModuleRoute module="goals"><GoalsPage /></ModuleRoute>} />
                   <Route path="/recurring" element={<ModuleRoute module="recurring"><RecurringPage /></ModuleRoute>} />
-                  <Route path="/assets" element={<ModuleRoute module="assets"><AssetsPage /></ModuleRoute>} />
+                  <Route path="/investments" element={<ModuleRoute module="assets"><AssetsPage /></ModuleRoute>} />
+                  <Route path="/assets" element={<Navigate to="/investments" replace />} />
                   {/* Kept so links minted before the importers were merged keep working. */}
                   <Route path="/assets/import" element={<Navigate to="/import?tab=investments" replace />} />
                   <Route path="/reports" element={<ModuleRoute module="reports"><ReportsPage /></ModuleRoute>} />

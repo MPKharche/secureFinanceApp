@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
+from app.core.account_types import is_liability_account_type
 from app.models.account import Account
 from app.models.bank_connection import BankConnection
 from app.models.transaction import Transaction
@@ -1246,7 +1247,7 @@ async def _account_balance_at(
     if account.connection_id:
         # Start from the provider's authoritative current balance
         current_bal = float(account.balance)
-        if account.type == "credit_card":
+        if is_liability_account_type(account.type):
             current_bal = -current_bal
 
         # The provider number is the source of truth for the current balance,

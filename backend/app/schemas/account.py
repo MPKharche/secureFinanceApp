@@ -25,6 +25,13 @@ class AccountCreate(BaseModel):
     minimum_payment: Optional[Decimal] = None
     card_brand: Optional[str] = None
     card_level: Optional[str] = None
+    loan_kind: Optional[str] = None
+    original_principal: Optional[Decimal] = None
+    interest_rate: Optional[Decimal] = None
+    tenure_months: Optional[int] = None
+    emi_amount: Optional[Decimal] = None
+    disbursed_on: Optional[date] = None
+    emi_day: Optional[int] = None
 
 
 class AccountUpdate(BaseModel):
@@ -39,6 +46,13 @@ class AccountUpdate(BaseModel):
     minimum_payment: Optional[Decimal] = None
     card_brand: Optional[str] = None
     card_level: Optional[str] = None
+    loan_kind: Optional[str] = None
+    original_principal: Optional[Decimal] = None
+    interest_rate: Optional[Decimal] = None
+    tenure_months: Optional[int] = None
+    emi_amount: Optional[Decimal] = None
+    disbursed_on: Optional[date] = None
+    emi_day: Optional[int] = None
 
 
 class AccountRead(AccountBase):
@@ -67,6 +81,13 @@ class AccountRead(AccountBase):
     minimum_payment: Optional[float] = None
     card_brand: Optional[str] = None
     card_level: Optional[str] = None
+    loan_kind: Optional[str] = None
+    original_principal: Optional[float] = None
+    interest_rate: Optional[float] = None
+    tenure_months: Optional[int] = None
+    emi_amount: Optional[float] = None
+    disbursed_on: Optional[date] = None
+    emi_day: Optional[int] = None
     is_closed: bool = False
     closed_at: Optional[datetime] = None
 

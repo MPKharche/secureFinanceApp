@@ -428,6 +428,13 @@ export const accounts = {
     credit_limit?: number | null
     statement_close_day?: number | null
     payment_due_day?: number | null
+    loan_kind?: string | null
+    original_principal?: number | null
+    interest_rate?: number | null
+    tenure_months?: number | null
+    emi_amount?: number | null
+    disbursed_on?: string | null
+    emi_day?: number | null
   }): Promise<Account> => {
     const { data } = await api.post('/accounts', account)
     return data

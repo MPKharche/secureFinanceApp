@@ -174,6 +174,13 @@ export interface Account {
   minimum_payment: number | null
   card_brand: string | null
   card_level: string | null
+  loan_kind: string | null
+  original_principal: number | null
+  interest_rate: number | null
+  tenure_months: number | null
+  emi_amount: number | null
+  disbursed_on: string | null
+  emi_day: number | null
   is_closed: boolean
   closed_at: string | null
 }
@@ -768,6 +775,8 @@ export interface Asset {
   total_invested: number | null
   realized_gain: number | null
   transaction_count: number
+  sip_amount: number | null
+  sip_day: number | null
 }
 
 /** One order read from a broker CSV, before it reaches a holding. */

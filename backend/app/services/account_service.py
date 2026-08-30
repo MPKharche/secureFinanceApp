@@ -7,6 +7,7 @@ from sqlalchemy import case, delete, func, select, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager
 
+from app.core.account_types import is_liability_account_type
 from app.models.account import Account
 from app.models.bank_connection import BankConnection
 from app.models.credit_card_bill import CreditCardBill
@@ -44,7 +45,7 @@ def _simplefin_to_internal_balance(provider: str, account_type: str, balance: De
 
 def _opening_balance_values(account_type: str, balance: Decimal) -> tuple[Decimal, str]:
     amount = abs(balance)
-    is_credit = (balance > 0) == (account_type != "credit_card")
+    is_credit = (balance > 0) == (not is_liability_account_type(account_type))
     return amount, "credit" if is_credit else "debit"
 
 
@@ -164,7 +165,7 @@ def serialize_account(
     # Connected CC: provider stores positive for debt → negate.
     # Manual accounts: transaction math already gives correct sign.
     if acc.connection_id:
-        resolved_balance = float(acc.balance) * (-1 if acc.type == "credit_card" else 1)
+        resolved_balance = float(acc.balance) * (-1 if is_liability_account_type(acc.type) else 1)
     else:
         resolved_balance = float(current_balance or 0)
 
@@ -190,6 +191,13 @@ def serialize_account(
         "minimum_payment": float(acc.minimum_payment) if acc.minimum_payment is not None else None,
         "card_brand": acc.card_brand,
         "card_level": acc.card_level,
+        "loan_kind": acc.loan_kind,
+        "original_principal": float(acc.original_principal) if acc.original_principal is not None else None,
+        "interest_rate": float(acc.interest_rate) if acc.interest_rate is not None else None,
+        "tenure_months": acc.tenure_months,
+        "emi_amount": float(acc.emi_amount) if acc.emi_amount is not None else None,
+        "disbursed_on": acc.disbursed_on,
+        "emi_day": acc.emi_day,
         "institution_name": institution_name,
         "institution_logo_url": institution_logo_url,
         "available_credit": None,
@@ -258,6 +266,7 @@ async def create_account(
     data: AccountCreate,
 ) -> Account:
     is_cc = data.type == "credit_card"
+    is_loan = data.type == "loan"
     account = Account(
         user_id=user_id,
         workspace_id=workspace_id,
@@ -271,6 +280,13 @@ async def create_account(
         minimum_payment=data.minimum_payment if is_cc else None,
         card_brand=data.card_brand if is_cc else None,
         card_level=data.card_level if is_cc else None,
+        loan_kind=data.loan_kind if is_loan else None,
+        original_principal=data.original_principal if is_loan else None,
+        interest_rate=data.interest_rate if is_loan else None,
+        tenure_months=data.tenure_months if is_loan else None,
+        emi_amount=data.emi_amount if is_loan else None,
+        disbursed_on=data.disbursed_on if is_loan else None,
+        emi_day=data.emi_day if is_loan else None,
     )
     session.add(account)
     await session.flush()  # get account.id without committing
@@ -330,16 +346,42 @@ async def update_account(
             "minimum_payment",
             "card_brand",
             "card_level",
+            "loan_kind",
+            "original_principal",
+            "interest_rate",
+            "tenure_months",
+            "emi_amount",
+            "disbursed_on",
+            "emi_day",
         }
         disallowed = set(update_data.keys()) - editable_fields
         if disallowed:
             raise ValueError("Cannot edit bank-connected accounts")
         old_type = account.type
         new_type = update_data.get("type", account.type)
-        cc_fields = editable_fields - {"display_name", "type"}
+        cc_fields = {
+            "credit_limit",
+            "statement_close_day",
+            "payment_due_day",
+            "minimum_payment",
+            "card_brand",
+            "card_level",
+        }
+        loan_fields = {
+            "loan_kind",
+            "original_principal",
+            "interest_rate",
+            "tenure_months",
+            "emi_amount",
+            "disbursed_on",
+            "emi_day",
+        }
         cc_update = {k: v for k, v in update_data.items() if k in cc_fields}
         if cc_update and new_type != "credit_card":
             raise ValueError("Credit card fields can only be set on credit card accounts")
+        loan_update = {k: v for k, v in update_data.items() if k in loan_fields}
+        if loan_update and new_type != "loan":
+            raise ValueError("Loan fields can only be set on loan accounts")
         for key, value in update_data.items():
             setattr(account, key, value)
         # SimpleFIN stores a card's balance with the raw provider sign (negative
@@ -367,6 +409,14 @@ async def update_account(
             account.minimum_payment = None
             account.card_brand = None
             account.card_level = None
+        if new_type != "loan":
+            account.loan_kind = None
+            account.original_principal = None
+            account.interest_rate = None
+            account.tenure_months = None
+            account.emi_amount = None
+            account.disbursed_on = None
+            account.emi_day = None
         if cycle_fields_changed:
             await _recompute_effective_dates(session, account)
         await session.commit()
@@ -383,6 +433,14 @@ async def update_account(
         account.minimum_payment = None
         account.card_brand = None
         account.card_level = None
+    if account.type != "loan":
+        account.loan_kind = None
+        account.original_principal = None
+        account.interest_rate = None
+        account.tenure_months = None
+        account.emi_amount = None
+        account.disbursed_on = None
+        account.emi_day = None
 
     # When balance changes, sync the opening_balance transaction
     if "balance" in update_data:
@@ -723,7 +781,7 @@ async def get_account_summary(
 
     # Connected CC: provider balance is positive for debt → negate.
     # Manual CC: transaction math already gives negative for debt.
-    if account.type == "credit_card" and account.connection_id:
+    if is_liability_account_type(account.type) and account.connection_id:
         current_balance = -current_balance
 
     # Bucketing date: for credit-card txs the user can override which cycle
@@ -1071,7 +1129,7 @@ async def get_account_balance_history(
     if not date_to:
         date_to = today
 
-    sign = -1.0 if (account.type == "credit_card" and account.connection_id) else 1.0
+    sign = -1.0 if (is_liability_account_type(account.type) and account.connection_id) else 1.0
 
     series = await _account_daily_balance_series(session, account_id, date_from, date_to, account.currency)
 

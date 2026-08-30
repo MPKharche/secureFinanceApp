@@ -25,6 +25,7 @@ const PERSONAL_MODULES: ModuleId[] = [
   'payees',
   'split_groups',
   'rules',
+  'loans',
 ]
 
 const linkKeys = (items: NavItem[]) =>
@@ -55,6 +56,7 @@ describe('visibleNavItems', () => {
     expect(linkKeys(personal)).toEqual([
       'transactions',
       'accounts',
+      'loans',
       'import',
       'reports',
       'assets',

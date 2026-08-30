@@ -217,8 +217,8 @@ export default function AccountsPage() {
   })
 
   const isLoading = accountsLoading || connectionsLoading
-  const manualAccounts = accountsList?.filter((a) => a.connection_id === null) ?? []
-  const bankAccounts = accountsList?.filter((a) => a.connection_id !== null) ?? []
+  const manualAccounts = (accountsList ?? []).filter((a) => a.connection_id === null && a.type !== 'loan')
+  const bankAccounts = (accountsList ?? []).filter((a) => a.connection_id !== null && a.type !== 'loan')
 
   return (
     <div className="space-y-6">

@@ -3,7 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Optional
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, SmallInteger, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -80,6 +80,11 @@ class Asset(Base):
     realized_gain: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(precision=18, scale=2), nullable=True
     )
+    # Optional SIP / standing instruction for funds, stocks, NPS, etc.
+    sip_amount: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(precision=15, scale=2), nullable=True
+    )
+    sip_day: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
     # Fully-formed logo URL — populated at create time for market-priced
     # assets when a logo provider is configured. Null means "no logo, use
     # the type icon". Frontend swaps to the type icon on <img> load error.
