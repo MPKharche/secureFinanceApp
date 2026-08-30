@@ -48,6 +48,8 @@ def test_registry_contains_v1_tools():
         "propose_create_budget",
         "propose_create_payee_rule",
         "propose_create_transaction",
+        "propose_update_transaction",
+        "propose_delete_transaction",
         "propose_create_recurring_transaction",
         "propose_update_recurring_transaction",
         "propose_cancel_recurring_transaction",
@@ -56,6 +58,27 @@ def test_registry_contains_v1_tools():
         "list_recurring_transactions",
         "list_assets",
         "list_goals",
+        "get_transaction",
+        "propose_create_account",
+        "propose_update_account",
+        "propose_close_account",
+        "propose_create_transfer",
+        "propose_create_payee",
+        "propose_update_payee",
+        "propose_delete_payee",
+        "propose_update_category",
+        "propose_delete_category",
+        "propose_update_budget",
+        "propose_delete_budget",
+        "propose_update_goal",
+        "propose_delete_goal",
+        "propose_create_asset",
+        "propose_update_asset",
+        "propose_delete_asset",
+        "propose_asset_trade",
+        "propose_create_group",
+        "propose_add_group_member",
+        "propose_create_settlement",
     }
     assert expected.issubset(set(REGISTRY.keys())), (
         f"missing: {expected - set(REGISTRY.keys())}"
@@ -63,9 +86,9 @@ def test_registry_contains_v1_tools():
 
 
 def test_proposal_tools_marked_is_proposal():
-    for name in ("propose_categorize", "propose_create_category", "propose_create_budget", "propose_create_payee_rule"):
-        spec = REGISTRY[name]
-        assert spec.is_proposal, f"{name} should have is_proposal=True"
+    for name, spec in REGISTRY.items():
+        if name.startswith("propose_"):
+            assert spec.is_proposal, f"{name} should have is_proposal=True"
 
 
 def test_each_tool_has_input_schema():
@@ -452,6 +475,71 @@ async def test_propose_create_transaction_unknown_account(
     assert r["error"] == "account not found"
 
 
+async def test_propose_update_transaction_no_changes(
+    session: AsyncSession, ctx: CallContext, test_transactions
+):
+    handler = REGISTRY["propose_update_transaction"].handler
+    r = await handler(session=session, ctx=ctx, transaction_id=str(test_transactions[0].id))
+    assert r["error"] == "no changes provided"
+
+
+async def test_propose_update_transaction_unknown(
+    session: AsyncSession, ctx: CallContext
+):
+    handler = REGISTRY["propose_update_transaction"].handler
+    r = await handler(
+        session=session, ctx=ctx, transaction_id=str(uuid.uuid4()), amount=10
+    )
+    assert r["error"] == "transaction not found"
+
+
+async def test_propose_update_transaction_account_change_preview(
+    session: AsyncSession, ctx: CallContext, test_user, test_transactions
+):
+    """'Move this booking to ICICI Bank' — preview echoes current vs proposed."""
+    from decimal import Decimal
+    from app.models.account import Account
+
+    other = Account(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        name="ICICI Bank",
+        type="checking",
+        balance=Decimal("0"),
+        currency="BRL",
+    )
+    session.add(other)
+    await session.commit()
+
+    tx = test_transactions[0]
+    handler = REGISTRY["propose_update_transaction"].handler
+    r = await handler(
+        session=session,
+        ctx=ctx,
+        transaction_id=str(tx.id),
+        account_id=str(other.id),
+    )
+    assert r["kind"] == "update_transaction"
+    assert r["target"]["id"] == str(tx.id)
+    assert r["target"]["account_id"] == str(tx.account_id)
+    assert r["changes"]["account_id"] == str(other.id)
+    assert r["changes"]["account_name"] == "ICICI Bank"
+    assert "applied" not in r
+
+
+async def test_propose_delete_transaction_preview(
+    session: AsyncSession, ctx: CallContext, test_transactions
+):
+    handler = REGISTRY["propose_delete_transaction"].handler
+    ids = [str(test_transactions[0].id), str(test_transactions[1].id)]
+    r = await handler(session=session, ctx=ctx, transaction_ids=ids)
+    assert r["kind"] == "delete_transaction"
+    assert r["affected_count"] == 2
+    assert {a["id"] for a in r["affected"]} == set(ids)
+    assert r["missing_ids"] == []
+    assert "applied" not in r
+
+
 async def test_propose_create_recurring_monthly_requires_day(
     session: AsyncSession, ctx: CallContext, test_account
 ):
@@ -810,6 +898,116 @@ async def test_propose_create_transaction_external_apply_writes(
     assert row.description == "Sushi delivery"
     assert float(row.amount) == 78.50
     assert row.account_id == test_account.id
+
+
+async def test_propose_update_transaction_external_apply_writes(
+    session: AsyncSession, test_user, test_account, test_transactions, test_categories
+):
+    """External apply moves a booked row to another account and amount."""
+    from decimal import Decimal
+    from sqlalchemy import select
+    from app.models.account import Account
+    from app.models.transaction import Transaction
+
+    other = Account(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        name="ICICI Bank",
+        type="checking",
+        balance=Decimal("0"),
+        currency="BRL",
+    )
+    session.add(other)
+    await session.commit()
+
+    tx = test_transactions[0]
+    handler = REGISTRY["propose_update_transaction"].handler
+    ctx = CallContext(user_id=test_user.id, external=True)
+    result = await handler(
+        session=session,
+        ctx=ctx,
+        transaction_id=str(tx.id),
+        account_id=str(other.id),
+        amount=450.0,
+        category_id=str(test_categories[0].id),
+        apply=True,
+    )
+    assert result.get("applied") is True
+
+    row = (
+        await session.execute(select(Transaction).where(Transaction.id == tx.id))
+    ).scalar_one()
+    assert row.account_id == other.id
+    assert float(row.amount) == 450.0
+    assert row.category_id == test_categories[0].id
+
+
+async def test_propose_update_transaction_internal_apply_does_not_write(
+    session: AsyncSession, test_user, test_transactions
+):
+    from sqlalchemy import select
+    from app.models.transaction import Transaction
+
+    tx = test_transactions[0]
+    original_amount = tx.amount
+    handler = REGISTRY["propose_update_transaction"].handler
+    ctx = CallContext(user_id=test_user.id, external=False)
+    result = await handler(
+        session=session, ctx=ctx, transaction_id=str(tx.id), amount=1.0, apply=True
+    )
+    assert "applied" not in result
+    row = (
+        await session.execute(select(Transaction).where(Transaction.id == tx.id))
+    ).scalar_one()
+    assert row.amount == original_amount
+
+
+async def test_propose_delete_transaction_external_apply_writes(
+    session: AsyncSession, test_user, test_transactions
+):
+    from sqlalchemy import select
+    from app.models.transaction import Transaction
+
+    tx_a, tx_b = test_transactions[0], test_transactions[1]
+    handler = REGISTRY["propose_delete_transaction"].handler
+    ctx = CallContext(user_id=test_user.id, external=True)
+    result = await handler(
+        session=session,
+        ctx=ctx,
+        transaction_ids=[str(tx_a.id), str(tx_b.id)],
+        apply=True,
+    )
+    assert result.get("applied") is True
+    assert result.get("deleted_count") == 2
+
+    remaining = (
+        await session.execute(
+            select(Transaction.id).where(Transaction.id.in_([tx_a.id, tx_b.id]))
+        )
+    ).scalars().all()
+    assert remaining == []
+
+
+async def test_propose_delete_transaction_internal_apply_does_not_write(
+    session: AsyncSession, test_user, test_transactions
+):
+    from sqlalchemy import select
+    from app.models.transaction import Transaction
+
+    tx = test_transactions[0]
+    handler = REGISTRY["propose_delete_transaction"].handler
+    ctx = CallContext(user_id=test_user.id, external=False)
+    result = await handler(
+        session=session,
+        ctx=ctx,
+        transaction_ids=[str(tx.id)],
+        apply=True,
+    )
+    assert "applied" not in result
+    still = (
+        await session.execute(select(Transaction).where(Transaction.id == tx.id))
+    ).scalar_one_or_none()
+    assert still is not None
 
 
 async def test_propose_create_recurring_transaction_external_apply_writes(

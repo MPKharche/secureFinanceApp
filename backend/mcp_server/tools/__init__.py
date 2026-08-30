@@ -11,6 +11,7 @@ from mcp_server.tools import (  # noqa: F401
     search,
     aggregate,
     proposals,
+    proposals_workspace,
     knowledge,
     lifecycle,
     groups,

@@ -366,6 +366,12 @@ async def test_pending_and_future_rows_are_current_vs_projected(
 ):
     """Pending and future rows affect the forecast, never a manual current balance."""
     today = date.today()
+    last_day = calendar.monthrange(today.year, today.month)[1]
+    future = today + timedelta(days=3)
+    if future.month != today.month:
+        future = date(today.year, today.month, last_day)
+    include_future = future > today
+
     acc_resp = await client.post(
         "/api/accounts",
         json={"name": "Forecast split", "type": "checking", "balance": 1000.00, "currency": "BRL"},
@@ -374,7 +380,7 @@ async def test_pending_and_future_rows_are_current_vs_projected(
     assert acc_resp.status_code == 201
     acc_id = acc_resp.json()["id"]
 
-    for payload in (
+    payloads = [
         {
             "description": "Pending bank debit",
             "amount": 100.00,
@@ -382,17 +388,22 @@ async def test_pending_and_future_rows_are_current_vs_projected(
             "type": "debit",
             "date": today.isoformat(),
             "status": "pending",
-        },
-        {
-            "description": "Future installment",
-            "amount": 200.00,
-            "currency": "BRL",
-            "type": "debit",
-            "date": (today + timedelta(days=3)).isoformat(),
-            "status": "posted",
-        },
-    ):
-        payload["account_id"] = acc_id
+            "account_id": acc_id,
+        }
+    ]
+    if include_future:
+        payloads.append(
+            {
+                "description": "Future installment",
+                "amount": 200.00,
+                "currency": "BRL",
+                "type": "debit",
+                "date": future.isoformat(),
+                "status": "posted",
+                "account_id": acc_id,
+            }
+        )
+    for payload in payloads:
         tx_resp = await client.post("/api/transactions", json=payload, headers=auth_headers)
         assert tx_resp.status_code == 201
 
@@ -404,7 +415,10 @@ async def test_pending_and_future_rows_are_current_vs_projected(
     assert resp.status_code == 200
     data = resp.json()
     assert sum(float(v) for v in data["total_balance"].values()) == pytest.approx(1000.0)
-    assert sum(float(v) for v in data["projected_balance"].values()) == pytest.approx(700.0)
+    expected_projected = 700.0 if include_future else 900.0
+    assert sum(float(v) for v in data["projected_balance"].values()) == pytest.approx(
+        expected_projected
+    )
 
 
 @pytest.mark.asyncio
