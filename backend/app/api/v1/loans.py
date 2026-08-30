@@ -18,6 +18,7 @@ from app.schemas.loan_schedule import (
     PrepaymentCreate,
     PrepaymentSimulation,
     PrepaymentRead,
+    AutoLinkRequest,
 )
 from app.services import loan_schedule_service, loan_payment_service
 
@@ -257,3 +258,61 @@ async def list_prepayments(
     )
     prepayments = result.scalars().all()
     return prepayments
+
+
+@router.post("/schedule/auto-link")
+async def auto_link_transactions(
+    link_data: AutoLinkRequest,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Auto-link transactions to schedule entries with confidence scoring."""
+    from app.schemas.loan_schedule import AutoLinkRequest
+    
+    matches = await loan_payment_service.auto_link_transactions(
+        db=db,
+        account_id=link_data.account_id,
+        workspace_id=workspace_id,
+        date_tolerance_days=link_data.date_tolerance_days,
+        amount_tolerance_percent=link_data.amount_tolerance_percent,
+    )
+
+    return {"linked_count": len(matches), "matches": matches}
+
+
+@router.post("/schedule/{entry_id}/link", response_model=LoanScheduleEntryRead)
+async def manual_link_transaction(
+    entry_id: uuid.UUID,
+    link_data: dict,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Manually link a transaction to a schedule entry."""
+    transaction_id = uuid.UUID(link_data["transaction_id"])
+    
+    # Update the schedule entry
+    updated = await loan_schedule_service.update_schedule_entry(
+        db=db,
+        entry_id=entry_id,
+        workspace_id=workspace_id,
+        update_data={
+            "linked_transaction_id": transaction_id,
+            "payment_status": "paid",
+        },
+    )
+
+    if not updated:
+        raise HTTPException(status_code=404, detail="Schedule entry not found")
+
+    # Fetch and return the updated entry
+    from app.models.loan_schedule import LoanAmortizationSchedule
+    from sqlalchemy import select
+
+    result = await db.execute(
+        select(LoanAmortizationSchedule).where(
+            LoanAmortizationSchedule.id == entry_id,
+            LoanAmortizationSchedule.workspace_id == workspace_id,
+        )
+    )
+    entry = result.scalar_one()
+    return entry
