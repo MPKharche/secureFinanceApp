@@ -10,7 +10,12 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db, require_workspace_access
-from app.schemas.loan_schedule import LoanScheduleEntryRead
+from app.schemas.loan_schedule import (
+    LoanScheduleEntryRead,
+    ScheduleEntryUpdate,
+    BulkDateUpdate,
+    StatusUpdate,
+)
 from app.services import loan_schedule_service
 
 router = APIRouter()
@@ -101,3 +106,87 @@ async def export_schedule_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename=loan_{account_id}_schedule.csv"},
     )
+
+
+@router.patch("/schedule/{entry_id}", response_model=LoanScheduleEntryRead)
+async def update_schedule_entry(
+    entry_id: uuid.UUID,
+    update_data: ScheduleEntryUpdate,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Update a single schedule entry (due date, EMI amount, etc)."""
+    updated = await loan_schedule_service.update_schedule_entry(
+        db=db,
+        entry_id=entry_id,
+        workspace_id=workspace_id,
+        update_data=update_data.model_dump(exclude_unset=True),
+    )
+
+    if not updated:
+        raise HTTPException(status_code=404, detail="Schedule entry not found")
+
+    # Fetch and return the updated entry
+    from app.models.loan_schedule import LoanAmortizationSchedule
+    from sqlalchemy import select
+
+    result = await db.execute(
+        select(LoanAmortizationSchedule).where(
+            LoanAmortizationSchedule.id == entry_id,
+            LoanAmortizationSchedule.workspace_id == workspace_id,
+        )
+    )
+    entry = result.scalar_one()
+    return entry
+
+
+@router.post("/schedule/bulk-update-dates")
+async def bulk_update_dates(
+    update_data: BulkDateUpdate,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Bulk update due dates (shift or change EMI day)."""
+    updated_count = await loan_schedule_service.bulk_update_dates(
+        db=db,
+        account_id=update_data.account_id,
+        workspace_id=workspace_id,
+        from_emi_number=update_data.from_emi_number,
+        shift_days=update_data.shift_days,
+        new_day_of_month=update_data.new_day_of_month,
+    )
+
+    return {"updated_count": updated_count}
+
+
+@router.put("/schedule/{entry_id}/status", response_model=LoanScheduleEntryRead)
+async def mark_entry_status(
+    entry_id: uuid.UUID,
+    status_data: StatusUpdate,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Mark a schedule entry's payment status."""
+    updated = await loan_schedule_service.update_schedule_entry(
+        db=db,
+        entry_id=entry_id,
+        workspace_id=workspace_id,
+        update_data={"payment_status": status_data.payment_status},
+    )
+
+    if not updated:
+        raise HTTPException(status_code=404, detail="Schedule entry not found")
+
+    # Fetch and return the updated entry
+    from app.models.loan_schedule import LoanAmortizationSchedule
+    from sqlalchemy import select
+
+    result = await db.execute(
+        select(LoanAmortizationSchedule).where(
+            LoanAmortizationSchedule.id == entry_id,
+            LoanAmortizationSchedule.workspace_id == workspace_id,
+        )
+    )
+    entry = result.scalar_one()
+    return entry
+
