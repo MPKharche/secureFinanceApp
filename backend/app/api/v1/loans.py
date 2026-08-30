@@ -316,3 +316,78 @@ async def manual_link_transaction(
     )
     entry = result.scalar_one()
     return entry
+
+
+@router.get("/{account_id}/overview")
+async def get_loan_overview(
+    account_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Get loan overview metrics (progress, principal/interest breakdown)."""
+    from app.services import loan_analytics_service
+    
+    overview = await loan_analytics_service.get_loan_overview(
+        db=db,
+        account_id=account_id,
+        workspace_id=workspace_id,
+    )
+
+    if not overview:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    return overview
+
+
+@router.get("/{account_id}/breakdown")
+async def get_yearly_breakdown(
+    account_id: uuid.UUID,
+    group_by: str = Query("year", pattern="^(year|quarter|month)$"),
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Get yearly/quarterly/monthly breakdown of payments."""
+    from app.services import loan_analytics_service
+    
+    breakdown = await loan_analytics_service.get_yearly_breakdown(
+        db=db,
+        account_id=account_id,
+        workspace_id=workspace_id,
+        group_by=group_by,
+    )
+
+    return breakdown
+
+
+@router.get("/debt-ratios")
+async def calculate_debt_ratios(
+    monthly_income: Optional[Decimal] = None,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Calculate debt-to-income and other financial ratios."""
+    from app.services import loan_analytics_service
+    
+    ratios = await loan_analytics_service.calculate_debt_ratios(
+        db=db,
+        workspace_id=workspace_id,
+        monthly_income=monthly_income,
+    )
+
+    return ratios
+
+
+@router.get("/dashboard")
+async def get_dashboard_summary(
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Get dashboard summary with next payments, recent activity, and alerts."""
+    from app.services import loan_analytics_service
+    
+    summary = await loan_analytics_service.get_dashboard_summary(
+        db=db,
+        workspace_id=workspace_id,
+    )
+
+    return summary
