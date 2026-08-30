@@ -1,6 +1,7 @@
 .venv/
 .env
 secrets/
+telegram-bot/
 .worktrees/
 .DS_Store
 .playwright-mcp/
