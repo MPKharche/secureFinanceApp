@@ -15,8 +15,11 @@ from app.schemas.loan_schedule import (
     ScheduleEntryUpdate,
     BulkDateUpdate,
     StatusUpdate,
+    PrepaymentCreate,
+    PrepaymentSimulation,
+    PrepaymentRead,
 )
-from app.services import loan_schedule_service
+from app.services import loan_schedule_service, loan_payment_service
 
 router = APIRouter()
 
@@ -190,3 +193,67 @@ async def mark_entry_status(
     entry = result.scalar_one()
     return entry
 
+
+
+@router.post("/prepayments/simulate")
+async def simulate_prepayment(
+    simulation_data: PrepaymentSimulation,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Simulate prepayment options (reduce_emi vs reduce_tenure)."""
+    result = await loan_payment_service.simulate_prepayment(
+        db=db,
+        account_id=simulation_data.account_id,
+        workspace_id=workspace_id,
+        prepayment_amount=simulation_data.prepayment_amount,
+        annual_interest_rate=simulation_data.annual_interest_rate,
+        current_emi_number=simulation_data.current_emi_number,
+    )
+
+    return result
+
+
+@router.post("/prepayments", response_model=PrepaymentRead)
+async def record_prepayment(
+    prepayment_data: PrepaymentCreate,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Record a prepayment and regenerate schedule."""
+    prepayment = await loan_payment_service.record_prepayment(
+        db=db,
+        account_id=prepayment_data.account_id,
+        workspace_id=workspace_id,
+        prepayment_amount=prepayment_data.prepayment_amount,
+        annual_interest_rate=prepayment_data.annual_interest_rate,
+        current_emi_number=prepayment_data.current_emi_number,
+        recalculation_method=prepayment_data.recalculation_method,
+    )
+
+    if not prepayment:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    return prepayment
+
+
+@router.get("/{account_id}/prepayments", response_model=list[PrepaymentRead])
+async def list_prepayments(
+    account_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """List prepayment history for a loan account."""
+    from app.models.loan_prepayment import LoanPrepayment
+    from sqlalchemy import select
+
+    result = await db.execute(
+        select(LoanPrepayment)
+        .where(
+            LoanPrepayment.account_id == account_id,
+            LoanPrepayment.workspace_id == workspace_id,
+        )
+        .order_by(LoanPrepayment.created_at.desc())
+    )
+    prepayments = result.scalars().all()
+    return prepayments
