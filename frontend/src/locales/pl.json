@@ -61,7 +61,8 @@
     "archiveConfirmDescription": "Obszar roboczy „{{name}}” zostanie usunięty z listy. Dane zostają zachowane, a administrator może go później przywrócić."
   },
   "app": {
-    "name": "Securo",
+    "name": "Planet Finance",
+    "licenseNotice": "Modified from Securo · AGPL-3.0",
     "versionAriaLabel": "Działa wersja {{version}}",
     "versionLabel": "Wersja {{version}}",
     "updateAvailable": "Dostępna aktualizacja",
@@ -126,7 +127,8 @@
     "groupAgents": "AI",
     "agents": "Agenci",
     "aiAgents": "Agenci AI",
-    "collections": "Kolekcje"
+    "collections": "Kolekcje",
+    "loans": "Loans"
   },
   "invoices": {
     "title": "Faktury",
@@ -213,9 +215,9 @@
     "passkeysDescription": "Używaj kluczy bezpieczeństwa lub kluczy dostępu urządzenia, aby logować się bez wpisywania hasła. Zarejestrowane klucze chronią też logowanie hasłem jako drugi składnik; logowanie samym kluczem pomija kod z aplikacji, bo klucz już potwierdza posiadanie.",
     "passkeyLoadError": "Nie udało się załadować kluczy dostępu",
     "passkeyUnsupported": "Ta przeglądarka nie obsługuje kluczy dostępu.",
-    "passkeyInsecureContext": "Klucze dostępu wymagają bezpiecznego połączenia. Otwórz Securo przez HTTPS lub na http://localhost.",
-    "passkeyIpAddress": "Klucze dostępu nie działają pod adresem IP. Otwórz Securo w domenie przez HTTPS lub na http://localhost.",
-    "passkeyDomainError": "Przeglądarka odrzuciła tę domenę dla kluczy dostępu. Otwórz Securo w skonfigurowanej domenie przez HTTPS.",
+    "passkeyInsecureContext": "Klucze dostępu wymagają bezpiecznego połączenia. Otwórz Planet Finance przez HTTPS lub na http://localhost.",
+    "passkeyIpAddress": "Klucze dostępu nie działają pod adresem IP. Otwórz Planet Finance w domenie przez HTTPS lub na http://localhost.",
+    "passkeyDomainError": "Przeglądarka odrzuciła tę domenę dla kluczy dostępu. Otwórz Planet Finance w skonfigurowanej domenie przez HTTPS.",
     "passkeyDomainMismatch": "Ten adres jest poza domeną kluczy dostępu skonfigurowaną na serwerze (WEBAUTHN_RP_ID).",
     "passkeyDuplicate": "To urządzenie ma już klucz dostępu do Twojego konta.",
     "passkeyWaiting": "Oczekiwanie na urządzenie...",
@@ -301,7 +303,9 @@
     "fxRateUsed": "Kurs FX: {{rate}}",
     "refreshRates": "Odśwież kursy FX",
     "ratesRefreshed": "Zaktualizowano kursy FX",
-    "ratesError": "Nie udało się zaktualizować kursów FX"
+    "ratesError": "Nie udało się zaktualizować kursów FX",
+    "drillDownTotal": "{{count}} transactions · {{total}}",
+    "uncategorizedCta": "{{count}} transactions need categorizing"
   },
   "transactions": {
     "title": "Transakcje",
@@ -552,7 +556,8 @@
         "thisMonth": "Bieżący miesiąc",
         "last90": "Ostatnie 90 dni",
         "thisYear": "Bieżący rok"
-      }
+      },
+      "nSelected": "{{count}} selected"
     },
     "bulkAddTags": "Dodaj tagi",
     "bulkRemoveTags": "Usuń tagi",
@@ -587,7 +592,15 @@
     "calendarNoActivity": "Brak aktywności w tym miesiącu",
     "calendarNoMovements": "Brak operacji",
     "calendarActualNet": "Rzeczywiste netto",
-    "calendarTransfersExcluded": "Transfery nie liczą się jako przychody ani wydatki"
+    "calendarTransfersExcluded": "Transfery nie liczą się jako przychody ani wydatki",
+    "exportSelected": "Export Selected ({{count}})",
+    "summaryCount": "{{count}} transactions",
+    "bulkSuccess": "{{count}} transactions categorized",
+    "bulkDeleteTitle": "Delete {{count}} transactions?",
+    "bulkDeleteSuccess": "{{count}} transactions deleted",
+    "bulkAddToGroupTitle": "Add {{count}} transactions to a group",
+    "bulkAddToGroupSuccess": "{{count}} transactions added to group",
+    "installmentTooltip": "Installment plan — {{count}} charges totaling {{total}}"
   },
   "accounts": {
     "title": "Konta",
@@ -722,7 +735,7 @@
       "openBridge": "Wygeneruj token w SimpleFIN Bridge",
       "tokenLabel": "Token konfiguracyjny",
       "tokenPlaceholder": "Wklej otrzymany token…",
-      "tokenHelp": "Token konfiguracyjny jest jednorazowy. Securo pobiera z niego prywatny adres URL dostępu i przechowuje go w postaci zaszyfrowanej.",
+      "tokenHelp": "Token konfiguracyjny jest jednorazowy. Planet Finance pobiera z niego prywatny adres URL dostępu i przechowuje go w postaci zaszyfrowanej.",
       "connect": "Połącz",
       "connecting": "Łączenie…",
       "simplefin": {
@@ -744,7 +757,12 @@
         "description": "Banki w USA i międzynarodowe przez SimpleFIN Bridge"
       }
     },
-    "reconnected": "Bank połączony ponownie"
+    "reconnected": "Bank połączony ponownie",
+    "multiInstitutionLink": "{{provider}} · {{count}} institutions",
+    "typeLoan": "Loan",
+    "overdueDays": "Overdue by {{count}} days",
+    "dueIn": "Due in {{count}} days",
+    "mergedCount": "{{count}} transactions merged with synced data"
   },
   "connections": {
     "settings": "Ustawienia połączenia",
@@ -761,7 +779,7 @@
     "syncAssets": "Importuj aktywa inwestycyjne",
     "syncAssetsHint": "Gdy wyłączone, to połączenie synchronizuje konta i transakcje, ale nie zmienia inwestycji dostawcy.",
     "initialSyncSettings": "Opcje synchronizacji",
-    "initialSyncSettingsDesc": "Wybierz, co Securo ma zaimportować przed otwarciem konektora.",
+    "initialSyncSettingsDesc": "Wybierz, co Planet Finance ma zaimportować przed otwarciem konektora.",
     "continueToConnector": "Przejdź do konektora"
   },
   "settings": {
@@ -858,7 +876,9 @@
     "trackingWallet": "Portfel",
     "wallet": "Portfel",
     "selectWallet": "Wybierz portfel",
-    "walletHint": "Śledź ten cel według łącznej wartości wszystkich aktywów w wybranym portfelu."
+    "walletHint": "Śledź ten cel według łącznej wartości wszystkich aktywów w wybranym portfelu.",
+    "daysRemaining": "{{count}} days left",
+    "daysOverdue": "{{count}} days overdue"
   },
   "recurring": {
     "title": "Transakcje cykliczne",
@@ -903,7 +923,8 @@
     "autoGenerate": "Automatycznie generuj transakcje",
     "autoGenerateHelp": "Tworzy transakcję za każdym razem, gdy ten rachunek jest wymagalny. Wyłącz, aby poczekać na rzeczywiste obciążenie (np. z synchronizacji bankowej) i do tego czasu pokazywać je tylko jako nadchodzące.",
     "fxEstimate": "Szacunek na podstawie najnowszego kursu wymiany ({{rate}}). Ostateczna kwota może się zmienić.",
-    "confirmDeleteDescription": "Definicja transakcji cyklicznej „{{description}}” zostanie trwale usunięta. Istniejące transakcje pozostaną, ale utracą powiązanie z transakcją cykliczną. Tej operacji nie można cofnąć."
+    "confirmDeleteDescription": "Definicja transakcji cyklicznej „{{description}}” zostanie trwale usunięta. Istniejące transakcje pozostaną, ale utracą powiązanie z transakcją cykliczną. Tej operacji nie można cofnąć.",
+    "generated": "{{count}} transactions generated"
   },
   "rules": {
     "preview": "Podgląd",
@@ -1014,7 +1035,10 @@
     "importConfirmTitle": "Import categorization rules?",
     "importConfirmDescription": "File {{file}} contains {{count}} rules.",
     "importOverwriteWarning": "Importing will overwrite your current categorization rules. This cannot be undone.",
-    "confirmOverwriteImport": "Overwrite and import"
+    "confirmOverwriteImport": "Overwrite and import",
+    "packRuleCount": "{{count}} rules",
+    "packInstalled": "{{count}} rules installed",
+    "applied": "Rules applied to {{count}} transactions"
   },
   "categories": {
     "title": "Kategorie",
@@ -1083,9 +1107,9 @@
     "outflowColumn": "Kolumna wypływów",
     "selectColumn": "Wybierz kolumnę...",
     "columnMapping": "Mapowanie kolumn",
-    "columnMappingHint": "Przypisz kolumny CSV do pól Securo. Zostaw na automatycznym wykrywaniu, aby zachować wykrytą kolumnę.",
+    "columnMappingHint": "Przypisz kolumny CSV do pól Planet Finance. Zostaw na automatycznym wykrywaniu, aby zachować wykrytą kolumnę.",
     "columnAutoDetect": "Wykryj automatycznie",
-    "mappingNeeded": "Nie udało się automatycznie rozpoznać kolumn CSV. Przypisz je poniżej do pól Securo, aby kontynuować.",
+    "mappingNeeded": "Nie udało się automatycznie rozpoznać kolumn CSV. Przypisz je poniżej do pól Planet Finance, aby kontynuować.",
     "mapDate": "Kolumna daty",
     "mapDescription": "Kolumna opisu",
     "mapAmount": "Kolumna kwoty",
@@ -1161,7 +1185,13 @@
     "page": "Strona {{current}} z {{total}}",
     "mapPayee": "Kolumna odbiorcy",
     "mapExternalId": "Kolumna ID transakcji",
-    "mapNotes": "Kolumna notatek"
+    "mapNotes": "Kolumna notatek",
+    "incomeCount": "{{count}} income",
+    "expenseCount": "{{count}} expenses",
+    "importButton": "Import {{count}} transactions",
+    "undoOrdersDescription": "This will delete the {{count}} orders imported from {{filename}} and recalculate the positions they touched. Holdings this import created are removed with them.",
+    "undoDescription": "This will delete {{count}} imported transactions from {{filename}}. This action cannot be undone.",
+    "previewInfo": "{{count}} transactions · format {{format}}"
   },
   "assetImport": {
     "title": "Importuj zlecenia inwestycyjne",
@@ -1351,7 +1381,19 @@
     "total": "Łącznie",
     "confirmRegenerateTitle": "Przeliczyć wartości ponownie?",
     "confirmRegenerate": "Zmieniono parametry wzrostu. Wszystkie automatycznie wygenerowane wartości zostaną usunięte i przeliczone ponownie. Wartości ręczne zostaną zachowane.",
-    "regenerate": "Przelicz ponownie"
+    "regenerate": "Przelicz ponownie",
+    "typeFd": "Fixed deposit",
+    "typePpf": "PPF",
+    "typeNps": "NPS",
+    "typeGold": "Gold",
+    "groupAll": "All",
+    "groupEquity": "Stocks & ETFs",
+    "groupFunds": "Mutual funds",
+    "groupFixed": "FD / PPF / NPS",
+    "groupTangible": "Gold & other",
+    "sipAmount": "SIP amount",
+    "sipDay": "SIP day",
+    "sipHint": "Optional standing instruction. EMI-style reminder only — it does not auto-debit."
   },
   "reports": {
     "section": "Analityka",
@@ -1484,7 +1526,9 @@
     "deleteMultipleTitle": "Usuń odbiorców",
     "deleteMultipleConfirm": "Czy na pewno chcesz usunąć {{count}} wybranych odbiorców? Usunie to ich również ze wszystkich powiązanych transakcji.",
     "typeUnset": "Nie określono",
-    "website": "Strona internetowa"
+    "website": "Strona internetowa",
+    "viewAllTransactions": "View all {{count}} transactions",
+    "merged": "Payees merged ({{count}} transactions reassigned)"
   },
   "fiscal": {
     "kind": {
@@ -1565,7 +1609,8 @@
     "previous": "Poprzedni",
     "next": "Następny",
     "rowsPerPage": "Wierszy na stronę",
-    "noResults": "Brak wyników"
+    "noResults": "Brak wyników",
+    "showMore": "+{{count}} more"
   },
   "splitGroups": {
     "title": "Grupy",
@@ -1607,11 +1652,11 @@
     "you": "Ty",
     "memberName": "Nazwa",
     "memberEmail": "E-mail",
-    "memberEmailHint": "Opcjonalnie — przydatne, jeśli później zaprosisz tę osobę jako użytkownika Securo.",
-    "linkedUser": "Powiązany użytkownik Securo",
+    "memberEmailHint": "Opcjonalnie — przydatne, jeśli później zaprosisz tę osobę jako użytkownika Planet Finance.",
+    "linkedUser": "Powiązany użytkownik Planet Finance",
     "linkedUserNone": "— Niepowiązany (osoba spoza systemu) —",
-    "linkedUserHint": "Wybierz istniejącego użytkownika Securo, aby powiązać członka, lub zostaw bez powiązania, aby dodać osobę spoza systemu (np. kogoś, kto nie ma jeszcze konta).",
-    "willLinkToUser": "Zostanie powiązany z istniejącym użytkownikiem Securo {{email}}",
+    "linkedUserHint": "Wybierz istniejącego użytkownika Planet Finance, aby powiązać członka, lub zostaw bez powiązania, aby dodać osobę spoza systemu (np. kogoś, kto nie ma jeszcze konta).",
+    "willLinkToUser": "Zostanie powiązany z istniejącym użytkownikiem Planet Finance {{email}}",
     "sharedWithYou": "Udostępnione Tobie",
     "sharedRowBadge": "Udostępnione · {{group}}",
     "sharedRowBadgeAuthor": "{{author}} · {{group}}",
@@ -1688,14 +1733,16 @@
       "project": "Projekt",
       "client": "Klient",
       "other": "Inne"
-    }
+    },
+    "memberCount": "{{count}} members",
+    "splitWays": "split {{count}} ways"
   },
   "privacy": {
     "hide": "Ukryj wartości",
     "show": "Pokaż wartości"
   },
   "setup": {
-    "title": "Witaj w Securo",
+    "title": "Witaj w Planet Finance",
     "description": "Utwórz konto administratora, aby rozpocząć.",
     "confirmPassword": "Potwierdź hasło",
     "createAdmin": "Utwórz konto administratora",
@@ -1723,14 +1770,14 @@
     "passwordLabel": "Hasło (opcjonalne)",
     "passwordPlaceholder": "Zostaw puste, aby pobrać kopię bez szyfrowania",
     "passwordTooShort": "Użyj co najmniej {{min}} znaków",
-    "encryptionNote": "Archiwum jest szyfrowane AES-256 i otwiera się w dowolnym programie do archiwów. Securo nie przechowuje tego hasła i bez niego nie odzyska pliku.",
+    "encryptionNote": "Archiwum jest szyfrowane AES-256 i otwiera się w dowolnym programie do archiwów. Planet Finance nie przechowuje tego hasła i bez niego nie odzyska pliku.",
     "successEncrypted": "Pomyślnie pobrano zaszyfrowaną kopię zapasową"
   },
   "update": {
     "title": "Aktualizacja serwera",
     "runningLabel": "działa",
     "newVersionAvailable": "Dostępna nowa wersja:",
-    "description": "Dostępna jest nowa wersja Securo. Rozważ aktualizację, jeśli:",
+    "description": "Dostępna jest nowa wersja Planet Finance. Rozważ aktualizację, jeśli:",
     "reasonFeatures": "Chcesz korzystać z najnowszych funkcji i usprawnień",
     "reasonBugs": "Napotykasz problemy, które mogą być rozwiązane w nowej wersji",
     "releaseNotesHintBefore": "Zalecamy zapoznanie się z",
@@ -1830,7 +1877,7 @@
   },
   "agents": {
     "title": "Agenci",
-    "subtitle": "Twórz konwersacyjnych asystentów na bazie swoich danych w Securo. Każdy agent może mieć własną bazę wiedzy, narzędzia i dostawcę.",
+    "subtitle": "Twórz konwersacyjnych asystentów na bazie swoich danych w Planet Finance. Każdy agent może mieć własną bazę wiedzy, narzędzia i dostawcę.",
     "newAgent": "Nowy agent",
     "loading": "Wczytywanie…",
     "instanceDefault": "domyślny dla instancji",
@@ -1923,7 +1970,8 @@
       "chunks_one": "{{count}} fragment",
       "chunks_few": "{{count}} fragmenty",
       "chunks_many": "{{count}} fragmentów",
-      "chunks_other": "{{count}} fragmentów"
+      "chunks_other": "{{count}} fragmentów",
+      "chunks": "{{count}} chunks"
     },
     "tools": {
       "title": "Narzędzia",
@@ -1973,7 +2021,8 @@
         "updateRecurring": "{{description}} → {{changes}}",
         "deactivateRecurring": "Zatrzymaj przyszłe wystąpienia „{{description}}” (historia zachowana)",
         "deleteRecurring": "Trwale usuń „{{description}}”",
-        "createGoal": "„{{name}}” — cel {{target}}, termin {{deadline}}"
+        "createGoal": "„{{name}}” — cel {{target}}, termin {{deadline}}",
+        "categorize": "{{count}} transaction(s) → {{category}}"
       }
     },
     "conversation": {
@@ -2024,7 +2073,7 @@
       "optional": "opcjonalnie",
       "empty": {
         "title": "Brak połączeń",
-        "subtitle": "Dodaj połączenie, aby skierować Securo do swojego lokalnego Ollamy, OpenAI, Anthropic lub dowolnego endpointu zgodnego z OpenAI."
+        "subtitle": "Dodaj połączenie, aby skierować Planet Finance do swojego lokalnego Ollamy, OpenAI, Anthropic lub dowolnego endpointu zgodnego z OpenAI."
       }
     },
     "newConversation": "Nowa rozmowa",
@@ -2044,14 +2093,14 @@
     },
     "mcpExternal": {
       "title": "Zewnętrzny dostęp MCP",
-      "subtitle": "Podłącz zewnętrznego agenta (Claude Desktop, ChatGPT, n8n, własnego klienta) do wbudowanego serwera MCP Securo. Poniższy token jest przypisany do Twojego użytkownika i wygasa za {{days}} dni.",
+      "subtitle": "Podłącz zewnętrznego agenta (Claude Desktop, ChatGPT, n8n, własnego klienta) do wbudowanego serwera MCP Planet Finance. Poniższy token jest przypisany do Twojego użytkownika i wygasa za {{days}} dni.",
       "copy": "Kopiuj",
       "copied": "Skopiowano",
       "copyFailed": "Kopiowanie nie powiodło się",
       "mint": "Generuj token",
       "minting": "Generowanie…",
       "mintFailed": "Nie udało się utworzyć tokenu",
-      "warning": "Skopiuj teraz — Securo nie przechowuje tokenu, więc nie możemy go ponownie wyświetlić. Aby unieważnić, zmień AGENTS_MCP_JWT_SECRET.",
+      "warning": "Skopiuj teraz — Planet Finance nie przechowuje tokenu, więc nie możemy go ponownie wyświetlić. Aby unieważnić, zmień AGENTS_MCP_JWT_SECRET.",
       "regenerate": "Generuj kolejny",
       "snippets": {
         "token": "Token",
@@ -2063,6 +2112,39 @@
         "claude": "Claude Desktop / Code / Cursor",
         "openai": "OpenAI Responses API"
       }
+    }
+  },
+  "loans": {
+    "section": "Liabilities",
+    "title": "Loan products",
+    "add": "Add loan",
+    "edit": "Edit loan",
+    "created": "Loan added",
+    "updated": "Loan updated",
+    "empty": "No loans yet",
+    "emptyHint": "Home, personal, auto, education or gold — tracked separately from bank accounts.",
+    "productName": "Lender / product",
+    "namePlaceholder": "e.g. HDFC Home Loan",
+    "kindLabel": "Product",
+    "outstanding": "Outstanding",
+    "outstandingHint": "What you still owe, as a positive number.",
+    "originalPrincipal": "Original principal",
+    "interestRate": "Interest % p.a.",
+    "tenureMonths": "Tenure (months)",
+    "emi": "EMI",
+    "emiDay": "EMI day of month",
+    "disbursedOn": "Disbursed on",
+    "months": "months",
+    "totalOutstanding": "Total outstanding",
+    "monthlyEmi": "Monthly EMI",
+    "count": "Loan products",
+    "kind": {
+      "home": "Home loan",
+      "personal": "Personal loan",
+      "auto": "Auto loan",
+      "education": "Education loan",
+      "gold": "Gold loan",
+      "other": "Other"
     }
   }
 }

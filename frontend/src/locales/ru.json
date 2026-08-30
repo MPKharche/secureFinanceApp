@@ -61,7 +61,8 @@
     "archiveConfirmDescription": "Рабочее пространство «{{name}}» будет удалено из вашего списка. Данные сохраняются, администратор сможет восстановить его позже."
   },
   "app": {
-    "name": "Securo",
+    "name": "Planet Finance",
+    "licenseNotice": "Modified from Securo · AGPL-3.0",
     "versionAriaLabel": "Запущена версия {{version}}",
     "versionLabel": "Версия {{version}}",
     "updateAvailable": "Доступно обновление",
@@ -126,7 +127,8 @@
     "groupAdmin": "Администрирование",
     "groupAgents": "ИИ",
     "agents": "Агенты",
-    "aiAgents": "ИИ-агенты"
+    "aiAgents": "ИИ-агенты",
+    "loans": "Loans"
   },
   "invoices": {
     "title": "Счета",
@@ -213,9 +215,9 @@
     "passkeysDescription": "Используйте ключи безопасности или ключи доступа устройства, чтобы входить без ввода пароля. Зарегистрированные ключи доступа также защищают вход по паролю как второй фактор; вход только по ключу доступа пропускает шаг с кодом аутентификатора, потому что ключ уже подтверждает владение.",
     "passkeyLoadError": "Не удалось загрузить ключи доступа",
     "passkeyUnsupported": "Этот браузер не поддерживает passkey.",
-    "passkeyInsecureContext": "Для passkey нужно защищённое соединение. Откройте Securo по HTTPS или на http://localhost.",
-    "passkeyIpAddress": "Passkey не работают по IP-адресу. Откройте Securo на домене по HTTPS или на http://localhost.",
-    "passkeyDomainError": "Браузер отклонил этот домен для passkey. Откройте Securo на настроенном домене по HTTPS.",
+    "passkeyInsecureContext": "Для passkey нужно защищённое соединение. Откройте Planet Finance по HTTPS или на http://localhost.",
+    "passkeyIpAddress": "Passkey не работают по IP-адресу. Откройте Planet Finance на домене по HTTPS или на http://localhost.",
+    "passkeyDomainError": "Браузер отклонил этот домен для passkey. Откройте Planet Finance на настроенном домене по HTTPS.",
     "passkeyDomainMismatch": "Этот адрес вне домена passkey, настроенного на сервере (WEBAUTHN_RP_ID).",
     "passkeyDuplicate": "На этом устройстве уже есть passkey для вашего аккаунта.",
     "passkeyWaiting": "Ожидание устройства...",
@@ -560,7 +562,9 @@
     "calendarNoActivity": "В этом месяце нет активности",
     "calendarNoMovements": "Нет операций",
     "calendarActualNet": "Фактический итог",
-    "calendarTransfersExcluded": "Переводы не учитываются как приход или расходы"
+    "calendarTransfersExcluded": "Переводы не учитываются как приход или расходы",
+    "bulkDeleteTitle": "Delete {{count}} transactions?",
+    "bulkDeleteSuccess": "{{count}} transactions deleted"
   },
   "accounts": {
     "title": "Счета",
@@ -686,7 +690,7 @@
       "openBridge": "Сгенерировать токен в SimpleFIN Bridge",
       "tokenLabel": "Установочный токен",
       "tokenPlaceholder": "Вставьте полученный токен…",
-      "tokenHelp": "Установочный токен одноразовый. Securo получает из него приватный URL доступа и хранит его зашифрованным.",
+      "tokenHelp": "Установочный токен одноразовый. Planet Finance получает из него приватный URL доступа и хранит его зашифрованным.",
       "connect": "Подключить",
       "connecting": "Подключение…",
       "simplefin": {
@@ -708,7 +712,9 @@
         "description": "Банки США и других стран через SimpleFIN Bridge"
       }
     },
-    "reconnected": "Банк успешно переподключён"
+    "reconnected": "Банк успешно переподключён",
+    "multiInstitutionLink": "{{provider}} · {{count}} institutions",
+    "typeLoan": "Loan"
   },
   "connections": {
     "settings": "Настройки подключения",
@@ -725,7 +731,7 @@
     "syncAssets": "Импортировать инвестиционные активы",
     "syncAssetsHint": "Если выключено, это подключение синхронизирует счета и транзакции, но не изменяет инвестиционные активы провайдера.",
     "initialSyncSettings": "Параметры синхронизации",
-    "initialSyncSettingsDesc": "Выберите, что Securo должен импортировать перед открытием коннектора.",
+    "initialSyncSettingsDesc": "Выберите, что Planet Finance должен импортировать перед открытием коннектора.",
     "continueToConnector": "Перейти к коннектору"
   },
   "settings": {
@@ -1029,9 +1035,9 @@
     "outflowColumn": "Колонка расхода",
     "selectColumn": "Выберите колонку...",
     "columnMapping": "Сопоставление колонок",
-    "columnMappingHint": "Сопоставьте колонки вашего CSV с полями Securo. Оставьте автоопределение, чтобы сохранить обнаруженную колонку.",
+    "columnMappingHint": "Сопоставьте колонки вашего CSV с полями Planet Finance. Оставьте автоопределение, чтобы сохранить обнаруженную колонку.",
     "columnAutoDetect": "Автоопределение",
-    "mappingNeeded": "Мы не смогли автоматически распознать колонки вашего CSV. Сопоставьте их с полями Securo ниже, чтобы продолжить.",
+    "mappingNeeded": "Мы не смогли автоматически распознать колонки вашего CSV. Сопоставьте их с полями Planet Finance ниже, чтобы продолжить.",
     "mapDate": "Колонка даты",
     "mapDescription": "Колонка описания",
     "mapAmount": "Колонка суммы",
@@ -1279,7 +1285,19 @@
     "total": "Итого",
     "confirmRegenerateTitle": "Перегенерировать значения?",
     "confirmRegenerate": "Параметры роста изменены. Все автоматически сгенерированные значения будут удалены и пересчитаны. Ручные значения сохранятся.",
-    "regenerate": "Перегенерировать"
+    "regenerate": "Перегенерировать",
+    "typeFd": "Fixed deposit",
+    "typePpf": "PPF",
+    "typeNps": "NPS",
+    "typeGold": "Gold",
+    "groupAll": "All",
+    "groupEquity": "Stocks & ETFs",
+    "groupFunds": "Mutual funds",
+    "groupFixed": "FD / PPF / NPS",
+    "groupTangible": "Gold & other",
+    "sipAmount": "SIP amount",
+    "sipDay": "SIP day",
+    "sipHint": "Optional standing instruction. EMI-style reminder only — it does not auto-debit."
   },
   "reports": {
     "section": "Аналитика",
@@ -1523,11 +1541,11 @@
     "you": "вы",
     "memberName": "Имя",
     "memberEmail": "Email",
-    "memberEmailHint": "Опционально — полезно, если вы позже пригласите его как пользователя Securo.",
-    "linkedUser": "Связанный пользователь Securo",
+    "memberEmailHint": "Опционально — полезно, если вы позже пригласите его как пользователя Planet Finance.",
+    "linkedUser": "Связанный пользователь Planet Finance",
     "linkedUserNone": "— Не связан (не пользователь) —",
-    "linkedUserHint": "Выберите существующего пользователя Securo, чтобы связать участника, или оставьте несвязанным, чтобы добавить не-пользователя (например, того, у кого ещё нет аккаунта).",
-    "willLinkToUser": "Будет связан с существующим пользователем Securo {{email}}",
+    "linkedUserHint": "Выберите существующего пользователя Planet Finance, чтобы связать участника, или оставьте несвязанным, чтобы добавить не-пользователя (например, того, у кого ещё нет аккаунта).",
+    "willLinkToUser": "Будет связан с существующим пользователем Planet Finance {{email}}",
     "sharedWithYou": "Разделено с вами",
     "sharedRowBadge": "Разделено · {{group}}",
     "sharedRowBadgeAuthor": "{{author}} · {{group}}",
@@ -1608,7 +1626,7 @@
     "show": "Показать суммы"
   },
   "setup": {
-    "title": "Добро пожаловать в Securo",
+    "title": "Добро пожаловать в Planet Finance",
     "description": "Создайте учётную запись администратора, чтобы начать.",
     "confirmPassword": "Подтвердите пароль",
     "createAdmin": "Создать учётную запись администратора",
@@ -1636,14 +1654,14 @@
     "passwordLabel": "Пароль (необязательно)",
     "passwordPlaceholder": "Оставьте пустым для копии без шифрования",
     "passwordTooShort": "Используйте не менее {{min}} символов",
-    "encryptionNote": "Архив шифруется алгоритмом AES-256 и открывается любым архиватором. Securo не хранит этот пароль и не сможет восстановить файл без него.",
+    "encryptionNote": "Архив шифруется алгоритмом AES-256 и открывается любым архиватором. Planet Finance не хранит этот пароль и не сможет восстановить файл без него.",
     "successEncrypted": "Зашифрованная резервная копия успешно загружена"
   },
   "update": {
     "title": "Обновление сервера",
     "runningLabel": "работает",
     "newVersionAvailable": "Доступна новая версия:",
-    "description": "Доступна новая версия Securo. Рассмотрите обновление, если вы:",
+    "description": "Доступна новая версия Planet Finance. Рассмотрите обновление, если вы:",
     "reasonFeatures": "Хотите получить доступ к новым функциям и улучшениям",
     "reasonBugs": "Сталкиваетесь с проблемами, которые могут быть исправлены в новой версии",
     "releaseNotesHintBefore": "Рекомендуем ознакомиться с",
@@ -1743,7 +1761,7 @@
   },
   "agents": {
     "title": "Агенты",
-    "subtitle": "Создавайте разговорных ассистентов на основе ваших данных Securo. Каждый агент может иметь свою базу знаний, инструменты и провайдера.",
+    "subtitle": "Создавайте разговорных ассистентов на основе ваших данных Planet Finance. Каждый агент может иметь свою базу знаний, инструменты и провайдера.",
     "newAgent": "Новый агент",
     "newConversation": "Новый разговор",
     "conversationsCount": "Разговоры",
@@ -1910,14 +1928,14 @@
     },
     "mcpExternal": {
       "title": "Внешний MCP-доступ",
-      "subtitle": "Подключите внешнего агента (Claude Desktop, ChatGPT, n8n или свой клиент) к встроенному MCP-серверу Securo. Токен ниже привязан к вашему пользователю и действует {{days}} дней.",
+      "subtitle": "Подключите внешнего агента (Claude Desktop, ChatGPT, n8n или свой клиент) к встроенному MCP-серверу Planet Finance. Токен ниже привязан к вашему пользователю и действует {{days}} дней.",
       "copy": "Копировать",
       "copied": "Скопировано",
       "copyFailed": "Не удалось скопировать",
       "mint": "Сгенерировать токен",
       "minting": "Генерация…",
       "mintFailed": "Не удалось сгенерировать токен",
-      "warning": "Скопируйте сейчас — Securo не хранит токен и не сможет показать его повторно. Для отзыва смените AGENTS_MCP_JWT_SECRET.",
+      "warning": "Скопируйте сейчас — Planet Finance не хранит токен и не сможет показать его повторно. Для отзыва смените AGENTS_MCP_JWT_SECRET.",
       "regenerate": "Сгенерировать новый",
       "snippets": {
         "token": "Токен",
@@ -1968,8 +1986,41 @@
       "optional": "опционально",
       "empty": {
         "title": "Подключений пока нет",
-        "subtitle": "Добавьте подключение, чтобы направить Securo на ваш локальный Ollama, OpenAI, Anthropic или любой совместимый с OpenAI эндпоинт."
+        "subtitle": "Добавьте подключение, чтобы направить Planet Finance на ваш локальный Ollama, OpenAI, Anthropic или любой совместимый с OpenAI эндпоинт."
       }
+    }
+  },
+  "loans": {
+    "section": "Liabilities",
+    "title": "Loan products",
+    "add": "Add loan",
+    "edit": "Edit loan",
+    "created": "Loan added",
+    "updated": "Loan updated",
+    "empty": "No loans yet",
+    "emptyHint": "Home, personal, auto, education or gold — tracked separately from bank accounts.",
+    "productName": "Lender / product",
+    "namePlaceholder": "e.g. HDFC Home Loan",
+    "kindLabel": "Product",
+    "outstanding": "Outstanding",
+    "outstandingHint": "What you still owe, as a positive number.",
+    "originalPrincipal": "Original principal",
+    "interestRate": "Interest % p.a.",
+    "tenureMonths": "Tenure (months)",
+    "emi": "EMI",
+    "emiDay": "EMI day of month",
+    "disbursedOn": "Disbursed on",
+    "months": "months",
+    "totalOutstanding": "Total outstanding",
+    "monthlyEmi": "Monthly EMI",
+    "count": "Loan products",
+    "kind": {
+      "home": "Home loan",
+      "personal": "Personal loan",
+      "auto": "Auto loan",
+      "education": "Education loan",
+      "gold": "Gold loan",
+      "other": "Other"
     }
   }
 }

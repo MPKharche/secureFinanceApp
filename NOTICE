@@ -1,0 +1,12 @@
+Planet Finance Money is a modified version of Securo
+(https://github.com/securo-finance/securo), licensed under the GNU Affero
+General Public License v3.0 or later. The upstream LICENSE file is unchanged.
+
+This deployment serves https://money.planetfinance.cloud from the source in
+this repository (https://github.com/MPKharche/secureFinanceApp). If you give
+other people network access to this application, AGPL requires that you also
+offer them the corresponding modified source.
+
+Upstream upgrades are merges from securo-finance/securo, not "pull latest"
+image updates. Docker images for this install are built locally
+(securo-backend-local, securo-frontend-local).

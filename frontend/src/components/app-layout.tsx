@@ -87,6 +87,9 @@ function NavSkeleton() {
 export function AppLayout() {
   const { t } = useTranslation()
   const { user, logout, updateUser } = useAuth()
+  useEffect(() => {
+    document.title = t('app.name')
+  }, [t])
   const { activeAccountIds } = useCollectionFilter()
   const userCurrency = user?.preferences?.currency_display ?? 'USD'
   const locale = useDisplayLocale()

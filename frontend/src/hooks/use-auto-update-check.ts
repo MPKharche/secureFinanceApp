@@ -6,7 +6,8 @@ const listeners = new Set<() => void>()
 
 function getSnapshot(): boolean {
   const raw = localStorage.getItem(STORAGE_KEY)
-  return raw === null ? true : raw === 'true'
+  // Fork default: do not nag about upstream securo-finance/securo releases.
+  return raw === null ? false : raw === 'true'
 }
 
 function subscribe(cb: () => void) {

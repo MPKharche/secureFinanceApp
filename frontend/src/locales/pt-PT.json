@@ -61,7 +61,8 @@
     "archiveConfirmDescription": "O espaço de trabalho \"{{name}}\" será removido da tua lista. Os dados permanecem preservados e um administrador poderá restaurá-lo mais tarde."
   },
   "app": {
-    "name": "Securo",
+    "name": "Planet Finance",
+    "licenseNotice": "Modified from Securo · AGPL-3.0",
     "versionAriaLabel": "Versão em execução {{version}}",
     "versionLabel": "Versão {{version}}",
     "updateAvailable": "Atualização disponível",
@@ -126,7 +127,8 @@
     "groupAdmin": "Administração",
     "groupAgents": "IA",
     "agents": "Agentes",
-    "aiAgents": "Agentes de IA"
+    "aiAgents": "Agentes de IA",
+    "loans": "Loans"
   },
   "invoices": {
     "title": "Cobranças",
@@ -213,9 +215,9 @@
     "passkeysDescription": "Utiliza chaves de segurança ou chaves de acesso do dispositivo para iniciar sessão sem introduzir a palavra-passe. As chaves de acesso registadas também protegem o início de sessão com palavra-passe como segundo fator; o início de sessão apenas com chave dispensa o código autenticador, uma vez que a chave já comprova a identidade.",
     "passkeyLoadError": "Não foi possível carregar as chaves de acesso",
     "passkeyUnsupported": "Este navegador não suporta chaves de acesso.",
-    "passkeyInsecureContext": "As chaves de acesso exigem uma ligação segura. Acede ao Securo através de HTTPS ou de http://localhost.",
-    "passkeyIpAddress": "As chaves de acesso não funcionam através de um endereço IP. Acede ao Securo através de um domínio com HTTPS ou de http://localhost.",
-    "passkeyDomainError": "O teu navegador recusou este domínio para chaves de acesso. Acede ao Securo através do domínio configurado, com HTTPS.",
+    "passkeyInsecureContext": "As chaves de acesso exigem uma ligação segura. Acede ao Planet Finance através de HTTPS ou de http://localhost.",
+    "passkeyIpAddress": "As chaves de acesso não funcionam através de um endereço IP. Acede ao Planet Finance através de um domínio com HTTPS ou de http://localhost.",
+    "passkeyDomainError": "O teu navegador recusou este domínio para chaves de acesso. Acede ao Planet Finance através do domínio configurado, com HTTPS.",
     "passkeyDomainMismatch": "Este endereço está fora do domínio de chaves de acesso configurado no servidor (WEBAUTHN_RP_ID).",
     "passkeyDuplicate": "Este dispositivo já tem uma chave de acesso associada à tua conta.",
     "passkeyWaiting": "A aguardar pelo teu dispositivo...",
@@ -678,7 +680,7 @@
       "openBridge": "Gerar token no SimpleFIN Bridge",
       "tokenLabel": "Token de configuração",
       "tokenPlaceholder": "Cola o token que recebeste…",
-      "tokenHelp": "O token é de uso único. O Securo gera uma URL de acesso privada a partir dele e a armazena criptografada.",
+      "tokenHelp": "O token é de uso único. O Planet Finance gera uma URL de acesso privada a partir dele e a armazena criptografada.",
       "connect": "Conectar",
       "connecting": "A ligar…",
       "simplefin": {
@@ -700,7 +702,9 @@
         "description": "Bancos dos EUA e internacionais via SimpleFIN Bridge"
       }
     },
-    "reconnected": "Banco reconectado com sucesso"
+    "reconnected": "Banco reconectado com sucesso",
+    "multiInstitutionLink": "{{provider}} · {{count}} institutions",
+    "typeLoan": "Loan"
   },
   "connections": {
     "settings": "Definições da ligação",
@@ -717,7 +721,7 @@
     "syncAssets": "Importar ativos de investimento",
     "syncAssetsHint": "Quando desativado, esta ligação sincroniza contas e transações, mas não altera os investimentos do fornecedor.",
     "initialSyncSettings": "Opções de sincronização",
-    "initialSyncSettingsDesc": "Escolhe o que o Securo deve importar antes de abrir o conector.",
+    "initialSyncSettingsDesc": "Escolhe o que o Planet Finance deve importar antes de abrir o conector.",
     "continueToConnector": "Continuar para o conector"
   },
   "settings": {
@@ -1021,9 +1025,9 @@
     "outflowColumn": "Coluna de saída",
     "selectColumn": "Selecionar coluna...",
     "columnMapping": "Mapeamento de colunas",
-    "columnMappingHint": "Associa as colunas do teu CSV aos campos do Securo. Deixa em automático para manter a coluna detectada.",
+    "columnMappingHint": "Associa as colunas do teu CSV aos campos do Planet Finance. Deixa em automático para manter a coluna detectada.",
     "columnAutoDetect": "Detectar automaticamente",
-    "mappingNeeded": "Não reconhecemos as colunas do teu CSV automaticamente. Associa-as aos campos do Securo abaixo para continuar.",
+    "mappingNeeded": "Não reconhecemos as colunas do teu CSV automaticamente. Associa-as aos campos do Planet Finance abaixo para continuar.",
     "mapDate": "Coluna de data",
     "mapDescription": "Coluna de descrição",
     "mapAmount": "Coluna de valor",
@@ -1271,7 +1275,19 @@
     "total": "Total",
     "confirmRegenerateTitle": "Regenerar valores?",
     "confirmRegenerate": "Os parâmetros de crescimento foram alterados. Todos os valores gerados automaticamente serão eliminados e recalculados. Valores manuais serão mantidos.",
-    "regenerate": "Regenerar"
+    "regenerate": "Regenerar",
+    "typeFd": "Fixed deposit",
+    "typePpf": "PPF",
+    "typeNps": "NPS",
+    "typeGold": "Gold",
+    "groupAll": "All",
+    "groupEquity": "Stocks & ETFs",
+    "groupFunds": "Mutual funds",
+    "groupFixed": "FD / PPF / NPS",
+    "groupTangible": "Gold & other",
+    "sipAmount": "SIP amount",
+    "sipDay": "SIP day",
+    "sipHint": "Optional standing instruction. EMI-style reminder only — it does not auto-debit."
   },
   "reports": {
     "section": "Análises",
@@ -1515,11 +1531,11 @@
     "you": "tu",
     "memberName": "Nome",
     "memberEmail": "Email",
-    "memberEmailHint": "Opcional — útil se fores convidá-lo como utilizador do Securo depois.",
+    "memberEmailHint": "Opcional — útil se fores convidá-lo como utilizador do Planet Finance depois.",
     "linkedUser": "Utilizador vinculado",
     "linkedUserNone": "— Sem vínculo (não-utilizador) —",
-    "linkedUserHint": "Escolhe um utilizador do Securo para vincular, ou deixa sem vínculo para adicionar como não-utilizador (ex.: alguém que ainda não tem conta).",
-    "willLinkToUser": "Será vinculado ao utilizador do Securo {{email}}",
+    "linkedUserHint": "Escolhe um utilizador do Planet Finance para vincular, ou deixa sem vínculo para adicionar como não-utilizador (ex.: alguém que ainda não tem conta).",
+    "willLinkToUser": "Será vinculado ao utilizador do Planet Finance {{email}}",
     "sharedWithYou": "Partilhado contigo",
     "sharedRowBadge": "Partilhada · {{group}}",
     "sharedRowBadgeAuthor": "{{author}} · {{group}}",
@@ -1600,7 +1616,7 @@
     "show": "Mostrar valores"
   },
   "setup": {
-    "title": "Bem-vindo ao Securo",
+    "title": "Bem-vindo ao Planet Finance",
     "description": "Cria a tua conta de administrador para começar.",
     "confirmPassword": "Confirmar palavra-passe",
     "createAdmin": "Criar Conta Admin",
@@ -1628,14 +1644,14 @@
     "passwordLabel": "Palavra-passe (opcional)",
     "passwordPlaceholder": "Deixe vazio para um backup sem encriptação",
     "passwordTooShort": "Use pelo menos {{min}} caracteres",
-    "encryptionNote": "O ficheiro é encriptado com AES-256 e abre em qualquer compactador. O Securo não guarda esta palavra-passe e não consegue recuperar o ficheiro sem ela.",
+    "encryptionNote": "O ficheiro é encriptado com AES-256 e abre em qualquer compactador. O Planet Finance não guarda esta palavra-passe e não consegue recuperar o ficheiro sem ela.",
     "successEncrypted": "Backup encriptado transferido com sucesso"
   },
   "update": {
     "title": "Atualização do servidor",
     "runningLabel": "em execução",
     "newVersionAvailable": "Nova versão disponível:",
-    "description": "Uma nova versão do Securo está disponível. Considera atualizar se:",
+    "description": "Uma nova versão do Planet Finance está disponível. Considera atualizar se:",
     "reasonFeatures": "Quer acessar os recursos e melhorias mais recentes",
     "reasonBugs": "Estás a ter problemas que podem ter sido resolvidos na nova versão",
     "releaseNotesHintBefore": "Recomendamos ler as",
@@ -1735,7 +1751,7 @@
   },
   "agents": {
     "title": "Agentes",
-    "subtitle": "Constrói assistentes conversacionais sobre os teus dados do Securo. Cada agente pode ter a sua própria base de conhecimento, ferramentas e fornecedor.",
+    "subtitle": "Constrói assistentes conversacionais sobre os teus dados do Planet Finance. Cada agente pode ter a sua própria base de conhecimento, ferramentas e fornecedor.",
     "newAgent": "Novo agente",
     "loading": "A carregar…",
     "instanceDefault": "padrão da instância",
@@ -1923,7 +1939,7 @@
       "optional": "opcional",
       "empty": {
         "title": "Nenhuma ligação ainda",
-        "subtitle": "Adiciona uma ligação para apontar o Securo para o teu Ollama local, OpenAI, Anthropic ou qualquer endpoint compatível com OpenAI."
+        "subtitle": "Adiciona uma ligação para apontar o Planet Finance para o teu Ollama local, OpenAI, Anthropic ou qualquer endpoint compatível com OpenAI."
       }
     },
     "newConversation": "Nova conversa",
@@ -1943,14 +1959,14 @@
     },
     "mcpExternal": {
       "title": "Acesso MCP externo",
-      "subtitle": "Liga um agente externo (Claude Desktop, ChatGPT, n8n, um cliente personalizado) ao servidor MCP integrado do Securo. O token abaixo é restrito ao teu utilizador e expira em {{days}} dias.",
+      "subtitle": "Liga um agente externo (Claude Desktop, ChatGPT, n8n, um cliente personalizado) ao servidor MCP integrado do Planet Finance. O token abaixo é restrito ao teu utilizador e expira em {{days}} dias.",
       "copy": "Copiar",
       "copied": "Copiado",
       "copyFailed": "Falha ao copiar",
       "mint": "Gerar token",
       "minting": "A gerar…",
       "mintFailed": "Não foi possível gerar o token",
-      "warning": "Copia agora — o Securo não armazena o token, então não podemos mostrá-lo novamente. Revogue rotacionando AGENTS_MCP_JWT_SECRET.",
+      "warning": "Copia agora — o Planet Finance não armazena o token, então não podemos mostrá-lo novamente. Revogue rotacionando AGENTS_MCP_JWT_SECRET.",
       "regenerate": "Gerar outro",
       "snippets": {
         "token": "Token",
@@ -1962,6 +1978,39 @@
         "claude": "Claude Desktop / Code / Cursor",
         "openai": "OpenAI Responses API"
       }
+    }
+  },
+  "loans": {
+    "section": "Liabilities",
+    "title": "Loan products",
+    "add": "Add loan",
+    "edit": "Edit loan",
+    "created": "Loan added",
+    "updated": "Loan updated",
+    "empty": "No loans yet",
+    "emptyHint": "Home, personal, auto, education or gold — tracked separately from bank accounts.",
+    "productName": "Lender / product",
+    "namePlaceholder": "e.g. HDFC Home Loan",
+    "kindLabel": "Product",
+    "outstanding": "Outstanding",
+    "outstandingHint": "What you still owe, as a positive number.",
+    "originalPrincipal": "Original principal",
+    "interestRate": "Interest % p.a.",
+    "tenureMonths": "Tenure (months)",
+    "emi": "EMI",
+    "emiDay": "EMI day of month",
+    "disbursedOn": "Disbursed on",
+    "months": "months",
+    "totalOutstanding": "Total outstanding",
+    "monthlyEmi": "Monthly EMI",
+    "count": "Loan products",
+    "kind": {
+      "home": "Home loan",
+      "personal": "Personal loan",
+      "auto": "Auto loan",
+      "education": "Education loan",
+      "gold": "Gold loan",
+      "other": "Other"
     }
   }
 }

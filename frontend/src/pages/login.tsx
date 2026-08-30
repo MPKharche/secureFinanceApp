@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { ShellLogo } from '@/components/shell-logo'
+import { AuthShell } from '@/components/auth-brand-panel'
 import type { AxiosError } from 'axios'
 import { isServerUnreachable } from '@/lib/auth-errors'
 import { resolveLocalAuthEnabled } from '@/lib/auth-config-utils'
@@ -54,6 +55,10 @@ export default function LoginPage() {
   const [totpCode, setTotpCode] = useState('')
   const [available2faMethods, setAvailable2faMethods] = useState<Array<'totp' | 'passkey'>>(['totp'])
   const [selected2faMethod, setSelected2faMethod] = useState<'totp' | 'passkey'>('totp')
+
+  useEffect(() => {
+    document.title = t('app.name')
+  }, [t])
 
   useEffect(() => {
     setPasskeySupported(isPasskeySupported())
@@ -217,11 +222,11 @@ export default function LoginPage() {
 
   if (requires2fa) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background px-4">
+      <AuthShell>
         <Card className="w-full max-w-[380px] shadow-sm">
           <form onSubmit={handleVerify2fa}>
             <div className="flex flex-col items-center pt-8 pb-2 px-8">
-              <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
+              <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center mb-4 lg:hidden">
                 <ShellLogo size={22} className="text-primary" />
               </div>
               <h1 className="text-xl font-semibold tracking-tight">
@@ -310,19 +315,20 @@ export default function LoginPage() {
             </CardFooter>
           </form>
         </Card>
-      </div>
+        <p className="mt-6 text-center text-xs text-muted-foreground">{t('app.licenseNotice')}</p>
+      </AuthShell>
     )
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background px-4">
+    <AuthShell>
       <Card className="w-full max-w-[380px] shadow-sm">
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col items-center pt-8 pb-2 px-8">
-            <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
+            <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center mb-4 lg:hidden">
               <ShellLogo size={22} className="text-primary" />
             </div>
-            <h1 className="text-xl font-semibold tracking-tight">{t('auth.login')}</h1>
+            <h1 className="text-xl font-semibold tracking-tight">{t('app.name')}</h1>
             <p className="text-sm text-muted-foreground mt-1">{t('auth.loginDescription')}</p>
           </div>
           {authConfigLoading && (
@@ -421,6 +427,7 @@ export default function LoginPage() {
           )}
         </form>
       </Card>
-    </div>
+      <p className="mt-6 text-center text-xs text-muted-foreground">{t('app.licenseNotice')}</p>
+    </AuthShell>
   )
 }

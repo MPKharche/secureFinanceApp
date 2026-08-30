@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { AuthBrandPanel } from '@/components/auth-brand-panel'
+import { AuthShell } from '@/components/auth-brand-panel'
 import { cn } from '@/lib/utils'
 import { Sun, Moon, Globe } from 'lucide-react'
 import { ShellLogo } from '@/components/shell-logo'
@@ -87,9 +87,7 @@ export default function SetupPage() {
   }
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-2">
-      <AuthBrandPanel />
-      <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
+    <AuthShell>
       <Card className="w-full max-w-[400px] border-border/60 shadow-sm">
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col items-center pt-8 pb-2 px-8">
@@ -213,7 +211,7 @@ export default function SetupPage() {
           </CardFooter>
         </form>
       </Card>
-      </div>
-    </div>
+      <p className="mt-6 text-center text-xs text-muted-foreground">{t('app.licenseNotice')}</p>
+    </AuthShell>
   )
 }

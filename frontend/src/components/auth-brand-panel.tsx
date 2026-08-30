@@ -47,7 +47,7 @@ export function AuthBrandPanel() {
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15">
           <ShellLogo size={20} className="text-white" />
         </div>
-        <span className="text-lg font-semibold tracking-tight">Securo</span>
+        <span className="text-lg font-semibold tracking-tight">{t('app.name')}</span>
       </div>
 
       {/* Tagline */}
@@ -65,6 +65,17 @@ export function AuthBrandPanel() {
           <span className="h-1 w-1 rounded-full bg-white/35" />
           <span>{t('setup.brandPrivate')}</span>
         </div>
+      </div>
+    </div>
+  )
+}
+
+export function AuthShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen lg:grid lg:grid-cols-2">
+      <AuthBrandPanel />
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10">
+        {children}
       </div>
     </div>
   )
