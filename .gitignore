@@ -4,7 +4,6 @@ telegram-bot/__pycache__/
 telegram-bot/*.pyc
 .env
 secrets/
-telegram-bot/
 .worktrees/
 .DS_Store
 .playwright-mcp/
