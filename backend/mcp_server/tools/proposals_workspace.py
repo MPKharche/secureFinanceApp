@@ -679,7 +679,10 @@ async def propose_delete_category(
 @tool(
     name="propose_update_budget",
     description=_PROPOSAL_PREFACE
-    + "Preview changing a monthly budget amount. Pass budget_id from list_budgets.",
+    + "Change an existing monthly budget amount. Use this to raise or lower "
+    "a budget that already exists — never propose_create_budget for that "
+    "(duplicate). Pass budget_id from list_budgets. Recurring rows update "
+    "in place so later months pick up the new amount.",
     parameters={
         "type": "object",
         "properties": {

@@ -20,6 +20,7 @@ from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
@@ -293,13 +294,14 @@ async def propose_create_category(
     name="propose_create_budget",
     description=_PROPOSAL_PREFACE
     + (
-        "Preview a budget creation for a category and month. Returns the "
-        "proposal plus any existing budget for the same category/month. "
-        "STRICT: if the user mentions a category that does NOT match an "
-        "existing one (call list_categories first to verify), do not "
-        "silently substitute a different category — instead, ask the user "
-        "to confirm an alternative or call propose_create_category first "
-        "to add the missing one."
+        "Preview a budget creation for a category and month. If that "
+        "category already has a budget, this tool does NOT create a "
+        "second row — it returns existing_budget_id and tells you to "
+        "call propose_update_budget. STRICT: if the user mentions a "
+        "category that does NOT match an existing one (call list_categories "
+        "first to verify), do not silently substitute a different category "
+        "— instead, ask the user to confirm an alternative or call "
+        "propose_create_category first to add the missing one."
     ),
     parameters={
         "type": "object",
@@ -340,6 +342,20 @@ async def propose_create_budget(
     if cat is None:
         return {"error": "category not found"}
 
+    existing_rows = await budget_service.get_budgets(session, ws_id, month=target_month)
+    existing = next((b for b in existing_rows if b.category_id == cat.id), None)
+    if existing is not None:
+        return {
+            "error": "budget already exists — call propose_update_budget with this existing_budget_id; do not create a second row",
+            "existing_budget_id": str(existing.id),
+            "existing_amount": num(existing.amount),
+            "is_recurring": bool(existing.is_recurring),
+            "category_id": str(cat.id),
+            "category_name": cat.name,
+            "next_tool": "propose_update_budget",
+            "next_args": {"budget_id": str(existing.id), "amount": float(amount)},
+        }
+
     preview = {
         "kind": "create_budget",
         "proposed": {
@@ -354,17 +370,26 @@ async def propose_create_budget(
     }
 
     if _can_apply(ctx, apply):
-        created = await budget_service.create_budget(
-            session,
-            ws_id,
-            ctx.user_id,
-            BudgetCreate(
-                category_id=cat.id,
-                amount=Decimal(str(amount)),
-                month=target_month,
-                is_recurring=is_recurring,
-            ),
-        )
+        try:
+            created = await budget_service.create_budget(
+                session,
+                ws_id,
+                ctx.user_id,
+                BudgetCreate(
+                    category_id=cat.id,
+                    amount=Decimal(str(amount)),
+                    month=target_month,
+                    is_recurring=is_recurring,
+                ),
+            )
+        except IntegrityError:
+            await session.rollback()
+            return {
+                "error": "budget already exists — call propose_update_budget; do not create a second row",
+                "category_id": str(cat.id),
+                "category_name": cat.name,
+                "next_tool": "propose_update_budget",
+            }
         return {**preview, "applied": True, "id": str(created.id)}
 
     return preview

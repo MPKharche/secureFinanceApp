@@ -8,8 +8,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.category import Category
 from app.services import asset_service, budget_service, goal_service, recurring_transaction_service
 from mcp_server.auth import CallContext
 from mcp_server.registry import tool
@@ -135,8 +137,10 @@ async def list_goals(
 @tool(
     name="list_budgets",
     description=(
-        "List the raw budget rows (category + monthly amount). For "
-        "spending vs budget comparison use get_budget_vs_actual instead."
+        "List budget rows with id, category_name, amount, month, is_recurring. "
+        "To raise or lower an existing budget, take `id` from here and call "
+        "propose_update_budget — do not propose_create_budget (duplicate). "
+        "For spending vs budget use get_budget_vs_actual."
     ),
     parameters={
         "type": "object",
@@ -153,10 +157,18 @@ async def list_budgets(
     target = parse_date(month)
     ws_id = await resolve_workspace_id(session, ctx)
     rows = await budget_service.get_budgets(session, ws_id, month=target)
+    cat_ids = [b.category_id for b in rows if b.category_id]
+    names: dict[str, str] = {}
+    if cat_ids:
+        name_rows = (
+            await session.execute(select(Category.id, Category.name).where(Category.id.in_(cat_ids)))
+        ).all()
+        names = {str(i): n for i, n in name_rows}
     items = [
         {
             "id": str(b.id),
             "category_id": str(b.category_id) if b.category_id else None,
+            "category_name": names.get(str(b.category_id)) if b.category_id else None,
             "amount": num(b.amount),
             "month": b.month.isoformat() if getattr(b, "month", None) else None,
             "is_recurring": bool(getattr(b, "is_recurring", False)),
