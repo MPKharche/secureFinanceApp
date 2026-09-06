@@ -3,6 +3,9 @@
 The agent runtime (in the backend) mints a short-lived JWT per call,
 signed with `AGENTS_MCP_JWT_SECRET`. We verify here. Same secret on both
 sides; mismatched secret = 401 every time.
+
+External (long-lived) tokens are also checked against the issued-token
+table / denylist so revoke and Orbit rotation take effect immediately.
 """
 from __future__ import annotations
 
@@ -12,8 +15,11 @@ from typing import Optional
 
 from fastapi import HTTPException, Request, status
 from jose import JWTError, jwt
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.config import get_agent_settings
+from app.agents.services.mcp_token_store import is_revoked as mcp_token_is_revoked
+from app.core.database import async_session_maker
 
 
 JWT_ISSUER = "securo-backend"
@@ -41,13 +47,9 @@ def _settings():
     return get_agent_settings()
 
 
-def verify_request(request: Request) -> CallContext:
-    auth = request.headers.get("authorization") or ""
-    if not auth.lower().startswith("bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing bearer token")
-    token = auth.split(" ", 1)[1].strip()
+def _decode_payload(token: str) -> dict:
     try:
-        payload = jwt.decode(
+        return jwt.decode(
             token,
             _settings().mcp_jwt_secret,
             algorithms=[JWT_ALGO],
@@ -57,6 +59,8 @@ def verify_request(request: Request) -> CallContext:
     except JWTError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"invalid token: {exc}") from exc
 
+
+def _context_from_payload(payload: dict) -> CallContext:
     sub = payload.get("sub")
     if not sub:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing subject")
@@ -75,3 +79,24 @@ def verify_request(request: Request) -> CallContext:
         agent_id=uuid.UUID(agent_raw) if agent_raw else None,
         external=bool(payload.get("ext")),
     )
+
+
+async def verify_request(request: Request, session: Optional[AsyncSession] = None) -> CallContext:
+    auth = request.headers.get("authorization") or ""
+    if not auth.lower().startswith("bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing bearer token")
+    token = auth.split(" ", 1)[1].strip()
+    payload = _decode_payload(token)
+    ctx = _context_from_payload(payload)
+
+    async def _check(sess: AsyncSession) -> None:
+        if await mcp_token_is_revoked(sess, token, payload.get("jti")):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="token revoked")
+
+    if session is not None:
+        await _check(session)
+        return ctx
+    async with async_session_maker() as sess:
+        await _check(sess)
+        await sess.commit()
+    return ctx

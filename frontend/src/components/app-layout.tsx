@@ -574,7 +574,7 @@ function UserMenu({
   agentsEnabled,
 }: {
   userInitial: string
-  logout: () => void
+  logout: () => void | Promise<void>
   onChangePassword: () => void
   onTwoFactor: () => void
   onPasskeys: () => void

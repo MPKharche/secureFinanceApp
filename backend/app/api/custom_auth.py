@@ -1,16 +1,17 @@
 import secrets
 import json
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import get_jwt_strategy, get_user_manager
+from app.core.auth import current_active_user, get_jwt_strategy, get_user_manager
 from app.core.auth_policy import require_local_auth_enabled
 from app.core.database import get_async_session
 from app.core.redis import get_redis
 from app.models.passkey import UserPasskey
+from app.models.user import User
 
 router = APIRouter()
 
@@ -58,5 +59,13 @@ async def login(
 
 
 @router.post("/logout")
-async def logout():
+async def logout(
+    request: Request,
+    user: User = Depends(current_active_user),
+):
+    """Invalidate this Bearer JWT so it cannot be reused until expiry."""
+    auth = request.headers.get("authorization") or ""
+    if auth.lower().startswith("bearer "):
+        token = auth.split(" ", 1)[1].strip()
+        await get_jwt_strategy().destroy_token(token, user)
     return {"detail": "Logged out"}

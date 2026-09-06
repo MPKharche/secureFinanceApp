@@ -48,7 +48,7 @@ ALLOWLIST: dict[tuple[str, str], str] = {
     ("POST", "/passkeys/2fa/options"): "unauthenticated step of login",
     ("POST", "/passkeys/2fa/verify"): "unauthenticated step of login",
     ("POST", "/login"): "unauthenticated by definition",
-    ("POST", "/logout"): "unauthenticated by definition",
+    ("POST", "/logout"): "authenticated: revokes the caller's JWT; no workspace write",
     ("POST", "/register"): "unauthenticated by definition",
     ("POST", "/forgot-password"): "unauthenticated by definition",
     ("POST", "/reset-password"): "unauthenticated by definition",

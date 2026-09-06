@@ -18,7 +18,7 @@ interface AuthContextType {
   loginWithToken: (accessToken: string) => void
   register: (email: string, password: string, preferences?: Record<string, string>) => Promise<void>
   updateUser: (user: User) => void
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -93,7 +93,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await login(email, password)
   }, [login])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await auth.logout()
+    } catch {
+      // Token may already be dead; still clear the browser copy.
+    }
     localStorage.removeItem('token')
     setToken(null)
     setUser(null)

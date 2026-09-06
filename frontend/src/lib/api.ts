@@ -94,8 +94,11 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+      const url = String(error.config?.url || '')
+      if (!url.includes('/auth/logout')) {
+        localStorage.removeItem('token')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
@@ -185,6 +188,9 @@ export const auth = {
   register: async (email: string, password: string, preferences?: Record<string, string>) => {
     const { data } = await api.post('/auth/register', { email, password, preferences })
     return data
+  },
+  logout: async () => {
+    await api.post('/auth/logout')
   },
   me: async (): Promise<User> => {
     const { data } = await api.get('/users/me')

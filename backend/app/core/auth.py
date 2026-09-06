@@ -10,11 +10,14 @@ from fastapi_users.authentication import (
     JWTStrategy,
 )
 from fastapi_users.db import SQLAlchemyUserDatabase
+from fastapi_users.jwt import decode_jwt, generate_jwt
+from fastapi_users.models import UP
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_policy import require_local_auth_enabled
 from app.core.config import get_settings
 from app.core.database import get_async_session
+from app.core.token_revoke import is_access_token_revoked, revoke_access_token
 from app.models.user import User
 
 settings = get_settings()
@@ -84,8 +87,48 @@ async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db
 bearer_transport = BearerTransport(tokenUrl="api/auth/login")
 
 
+class RevocableJWTStrategy(JWTStrategy):
+    """JWT strategy that stamps `jti` and honors the Redis denylist on read."""
+
+    async def write_token(self, user: UP) -> str:
+        data = {
+            "sub": str(user.id),
+            "aud": self.token_audience,
+            "jti": str(uuid.uuid4()),
+        }
+        return generate_jwt(
+            data, self.encode_key, self.lifetime_seconds, algorithm=self.algorithm
+        )
+
+    async def read_token(self, token: str | None, user_manager):  # type: ignore[override]
+        if token is None:
+            return None
+        try:
+            payload = decode_jwt(
+                token,
+                self.decode_key,
+                self.token_audience,
+                algorithms=[self.algorithm],
+            )
+        except Exception:
+            return None
+        if await is_access_token_revoked(token, payload):
+            return None
+        user_id = payload.get("sub")
+        if user_id is None:
+            return None
+        try:
+            parsed_id = user_manager.parse_id(user_id)
+            return await user_manager.get(parsed_id)
+        except Exception:
+            return None
+
+    async def destroy_token(self, token: str, user: UP) -> None:
+        await revoke_access_token(token)
+
+
 def get_jwt_strategy() -> JWTStrategy:
-    return JWTStrategy(
+    return RevocableJWTStrategy(
         secret=settings.secret_key.get_secret_value(),
         lifetime_seconds=settings.access_token_expire_minutes * 60,
     )

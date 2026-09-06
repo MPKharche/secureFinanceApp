@@ -143,9 +143,53 @@ async def test_mcp_tokens_mint_returns_external_jwt(
     )
     assert payload["sub"] == str(test_user.id)
     assert payload["ext"] is True
+    assert "jti" in payload
     # External tokens are detached from any conv/agent.
     assert "conv_id" not in payload
     assert "agent_id" not in payload
+    assert body["id"]
+    listed = await client.get("/api/agents/mcp-tokens", headers=auth_headers)
+    assert listed.status_code == 200
+    assert any(row["id"] == body["id"] for row in listed.json())
+
+
+async def test_mcp_token_revoke_rejects_the_jwt(
+    client: AsyncClient, auth_headers: dict, session, test_user
+):
+    from fastapi import HTTPException
+    from starlette.requests import Request
+
+    from app.agents.config import get_agent_settings
+    from app.agents.mcp.auth import JWT_ALGO, JWT_AUDIENCE, JWT_ISSUER
+    from jose import jwt
+    from mcp_server.auth import verify_request
+
+    r = await client.post("/api/agents/mcp-tokens?label=orbit-test", headers=auth_headers)
+    assert r.status_code == 201, r.text
+    token = r.json()["token"]
+    token_id = r.json()["id"]
+
+    payload = jwt.decode(
+        token,
+        get_agent_settings().mcp_jwt_secret,
+        algorithms=[JWT_ALGO],
+        audience=JWT_AUDIENCE,
+        issuer=JWT_ISSUER,
+    )
+    assert payload["ext"] is True
+
+    req = Request(scope={"type": "http", "headers": [(b"authorization", f"Bearer {token}".encode())]})
+    ctx = await verify_request(req, session=session)
+    assert str(ctx.user_id) == str(test_user.id)
+
+    gone = await client.delete(f"/api/agents/mcp-tokens/{token_id}", headers=auth_headers)
+    assert gone.status_code == 204
+
+    session.expire_all()
+    with pytest.raises(HTTPException) as exc:
+        await verify_request(req, session=session)
+    assert exc.value.status_code == 401
+
 
 
 # --- Agent CRUD ------------------------------------------------------------
