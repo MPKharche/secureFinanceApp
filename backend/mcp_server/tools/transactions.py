@@ -32,7 +32,9 @@ from mcp_server.tools._helpers import num, parse_date, parse_uuid, parse_uuid_li
         "`list_groups`, and `splits.members[]` shows each "
         "{member_id, member_name, is_self, share_amount, share_type, "
         "share_pct}. So 'is this transaction split?' is just `splits != "
-        "null`; no extra tool call needed."
+        "null`; no extra tool call needed. `attachment_count` is how many "
+        "receipts/PDFs are on the row — use list_transaction_attachments "
+        "for filenames."
     ),
     parameters={
         "type": "object",
@@ -212,6 +214,7 @@ async def list_transactions(
             "tags": getattr(t, "tags", None),
             "is_transfer": bool(getattr(t, "transfer_pair_id", None)),
             "notes": getattr(t, "notes", None),
+            "attachment_count": int(getattr(t, "attachment_count", 0) or 0),
             "splits": _splits_summary(t),
         }
         for t in txs
@@ -230,7 +233,8 @@ async def list_transactions(
     name="get_transaction",
     description=(
         "Fetch one booked transaction by id. Use after list_transactions "
-        "when you need the full row before editing or deleting."
+        "when you need the full row before editing, deleting, or attaching "
+        "a file. Includes attachment_count and attachments[]."
     ),
     parameters={
         "type": "object",
@@ -255,6 +259,12 @@ async def get_transaction(
     tx = await transaction_service.get_transaction(session, tid, ws_id)
     if tx is None:
         return {"error": "transaction not found"}
+    from app.services import attachment_service as _attachment_service
+
+    try:
+        att_rows = await _attachment_service.list_attachments(session, ws_id, tid)
+    except LookupError:
+        att_rows = []
     account_name = None
     if tx.account_id:
         from app.services import account_service as _account_service
@@ -279,6 +289,16 @@ async def get_transaction(
         "is_transfer": bool(getattr(tx, "transfer_pair_id", None)),
         "notes": getattr(tx, "notes", None),
         "is_ignored": bool(getattr(tx, "is_ignored", False)),
+        "attachment_count": len(att_rows),
+        "attachments": [
+            {
+                "id": str(a.id),
+                "filename": a.filename,
+                "content_type": a.content_type,
+                "size": int(a.size),
+            }
+            for a in att_rows
+        ],
         "splits": (
             {
                 "is_split": True,
