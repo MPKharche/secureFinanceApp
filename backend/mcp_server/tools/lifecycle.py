@@ -22,10 +22,12 @@ from mcp_server.tools._helpers import num, parse_date, resolve_workspace_id
     name="list_recurring_transactions",
     description=(
         "List the user's recurring transactions / subscriptions. Each row "
-        "has frequency (weekly/monthly/...), next_occurrence, amount, "
-        "category, and account. Use this — not list_transactions search — "
-        "to answer 'what subscriptions do I have?' or 'show my recurring "
-        "expenses'."
+        "has frequency, next_occurrence, amount, category, account, and "
+        "auto_generate. auto_generate=true means Securo's hourly job will "
+        "POST a real transaction when due (that is how the 8th EMI appeared "
+        "without Orbit). auto_generate=false is reminder-only — nothing is "
+        "booked until propose_create_transaction. Use this — not "
+        "list_transactions search — for 'what subscriptions do I have?'."
     ),
     parameters={"type": "object", "properties": {}, "additionalProperties": False},
     tags=["read", "recurring"],
@@ -49,6 +51,7 @@ async def list_recurring_transactions(
             "start_date": r.start_date.isoformat() if getattr(r, "start_date", None) else None,
             "end_date": r.end_date.isoformat() if r.end_date else None,
             "is_active": bool(getattr(r, "is_active", True)),
+            "auto_generate": bool(getattr(r, "auto_generate", True)),
             "category_id": str(r.category_id) if getattr(r, "category_id", None) else None,
             "account_id": str(r.account_id) if getattr(r, "account_id", None) else None,
         }

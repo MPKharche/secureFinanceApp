@@ -1041,6 +1041,7 @@ async def test_propose_create_recurring_transaction_external_apply_writes(
     assert row.frequency == "monthly"
     assert row.day_of_month == 10
     assert row.weekend_adjustment == "next_monday"
+    assert row.auto_generate is False
 
 
 async def test_propose_update_recurring_transaction_external_apply_writes(
@@ -1083,6 +1084,41 @@ async def test_propose_update_recurring_transaction_external_apply_writes(
     await session.refresh(rt)
     assert float(rt.amount) == 27.90
     assert rt.weekend_adjustment == "previous_friday"
+
+
+async def test_propose_update_recurring_auto_generate_off(
+    session: AsyncSession, test_user, test_account
+):
+    from datetime import date
+    from decimal import Decimal
+    from app.models.recurring_transaction import RecurringTransaction
+
+    rt = RecurringTransaction(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        account_id=test_account.id,
+        description="Personal Loan EMI",
+        amount=Decimal("21800"),
+        currency="INR",
+        type="debit",
+        frequency="monthly",
+        day_of_month=8,
+        start_date=date.today(),
+        next_occurrence=date.today(),
+        is_active=True,
+        auto_generate=True,
+    )
+    session.add(rt)
+    await session.commit()
+
+    handler = REGISTRY["propose_update_recurring_transaction"].handler
+    ctx = CallContext(user_id=test_user.id, external=True)
+    result = await handler(
+        session=session, ctx=ctx, recurring_id=str(rt.id), auto_generate=False, apply=True
+    )
+    assert result.get("applied") is True
+    await session.refresh(rt)
+    assert rt.auto_generate is False
 
 
 async def test_propose_cancel_recurring_transaction_deactivate_apply(

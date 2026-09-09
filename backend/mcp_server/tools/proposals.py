@@ -1012,7 +1012,9 @@ async def propose_delete_transaction(
         "Build a preview for adding a recurring transaction / subscription "
         "(e.g. 'Netflix R$55 every month on the 10th'). Frequency is one "
         "of weekly/monthly/quarterly/yearly. For monthly or quarterly use "
-        "day_of_month (1-31)."
+        "day_of_month (1-31). Default auto_generate=false (reminder-only; "
+        "Securo will not auto-post). Set auto_generate=true only if the "
+        "user explicitly wants the app to book the due date by itself."
     ),
     parameters={
         "type": "object",
@@ -1032,6 +1034,14 @@ async def propose_delete_transaction(
             "account_id": {"type": "string", "format": "uuid"},
             "category_id": {"type": "string", "format": "uuid"},
             "currency": {"type": "string"},
+            "auto_generate": {
+                "type": "boolean",
+                "default": False,
+                "description": (
+                    "When true, Securo's hourly job posts a real transaction "
+                    "on the due date. Default false: reminder-only."
+                ),
+            },
             "apply": _APPLY_FIELD,
         },
         "required": ["description", "amount", "type", "frequency", "account_id"],
@@ -1055,6 +1065,7 @@ async def propose_create_recurring_transaction(
     end_date: str | None = None,
     category_id: str | None = None,
     currency: str | None = None,
+    auto_generate: bool = False,
     apply: bool = False,
 ) -> dict[str, Any]:
     if frequency in ("monthly", "quarterly") and not day_of_month:
@@ -1100,6 +1111,7 @@ async def propose_create_recurring_transaction(
             "account_name": acc.name,
             "category_id": str(cat.id) if cat else None,
             "category_name": cat.name if cat else None,
+            "auto_generate": bool(auto_generate),
         },
         "apply_endpoint": "POST /api/recurring-transactions",
     }
@@ -1121,6 +1133,7 @@ async def propose_create_recurring_transaction(
                 end_date=target_end,
                 account_id=acc.id,
                 category_id=cat.id if cat else None,
+                auto_generate=bool(auto_generate),
             ),
         )
         return {**preview, "applied": True, "id": str(created.id)}
@@ -1135,8 +1148,9 @@ async def propose_create_recurring_transaction(
         "Build a preview for editing an existing recurring transaction "
         "(e.g. 'update my salary to R$8,000', 'change Netflix to R$60'). "
         "Pass the recurring_id and only the fields you want to change. "
-        "Returns the current values alongside the proposed changes so the "
-        "user can compare before confirming."
+        "Use auto_generate=false to stop Securo from auto-posting on the "
+        "due date (reminder-only). auto_generate=true turns auto-post back on. "
+        "Never send the user to the web app for this."
     ),
     parameters={
         "type": "object",
@@ -1153,6 +1167,13 @@ async def propose_create_recurring_transaction(
             "end_date": {"type": "string", "format": "date"},
             "category_id": {"type": "string", "format": "uuid"},
             "is_active": {"type": "boolean"},
+            "auto_generate": {
+                "type": "boolean",
+                "description": (
+                    "false = reminder only (Orbit/user books). "
+                    "true = Securo hourly job posts the due occurrence."
+                ),
+            },
             "apply": _APPLY_FIELD,
         },
         "required": ["recurring_id"],
@@ -1174,6 +1195,7 @@ async def propose_update_recurring_transaction(
     end_date: str | None = None,
     category_id: str | None = None,
     is_active: bool | None = None,
+    auto_generate: bool | None = None,
     apply: bool = False,
 ) -> dict[str, Any]:
     ws_id = await resolve_workspace_id(session, ctx)
@@ -1218,6 +1240,8 @@ async def propose_update_recurring_transaction(
         changes["category_id"] = str(cat.id)
     if is_active is not None:
         changes["is_active"] = bool(is_active)
+    if auto_generate is not None:
+        changes["auto_generate"] = bool(auto_generate)
 
     if not changes:
         return {"error": "no changes provided"}
@@ -1233,6 +1257,7 @@ async def propose_update_recurring_transaction(
             "weekend_adjustment": rt.weekend_adjustment,
             "day_of_month": rt.day_of_month,
             "is_active": bool(getattr(rt, "is_active", True)),
+            "auto_generate": bool(getattr(rt, "auto_generate", True)),
         },
         "changes": changes,
         "apply_endpoint": f"PATCH /api/recurring-transactions/{rt.id}",
@@ -1258,6 +1283,8 @@ async def propose_update_recurring_transaction(
             update_data["category_id"] = parse_uuid(changes["category_id"])
         if "is_active" in changes:
             update_data["is_active"] = changes["is_active"]
+        if "auto_generate" in changes:
+            update_data["auto_generate"] = changes["auto_generate"]
         updated = await recurring_transaction_service.update_recurring_transaction(
             session, rt.id, ws_id, RecurringTransactionUpdate(**update_data)
         )
