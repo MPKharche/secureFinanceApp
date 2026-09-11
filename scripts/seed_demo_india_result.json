@@ -1,0 +1,3074 @@
+{
+  "persona": "India middle-aged urban (Bengaluru), dual-ish household, INR",
+  "login": {
+    "email": "alex.rivera.demo@example.com",
+    "password": "DemoFinance2026!",
+    "display_name": "Alex Rivera",
+    "auth": "POST /api/auth/login form username+password -> Bearer JWT"
+  },
+  "currency": {
+    "workspace_default": "INR",
+    "locale": "en-IN",
+    "user_currency_display": "INR"
+  },
+  "wiped": {
+    "commitments_cancelled": 1,
+    "budgets": 10,
+    "goals": 3,
+    "assets": 3,
+    "recurring": 6,
+    "rules": 3,
+    "transactions": 178,
+    "payees": 18,
+    "accounts": 6
+  },
+  "created_this_run": {
+    "categories_added": 1,
+    "accounts_created": 4,
+    "payees": 22,
+    "transactions": 122,
+    "transfers": 8,
+    "budgets": 10,
+    "goals": 3,
+    "assets": 3,
+    "recurring": 5,
+    "rules_added": 4,
+    "loans_created": 2
+  },
+  "final_totals": {
+    "accounts": 6,
+    "accounts_detail": [
+      {
+        "name": "Cash Wallet",
+        "type": "wallet",
+        "currency": "INR",
+        "balance": "8500.00",
+        "loan_kind": null,
+        "emi_amount": null
+      },
+      {
+        "name": "HDFC Car Loan \u2014 Hyundai Creta",
+        "type": "loan",
+        "currency": "INR",
+        "balance": "876410.99",
+        "loan_kind": "auto",
+        "emi_amount": 24910.03
+      },
+      {
+        "name": "HDFC Regalia Credit Card",
+        "type": "credit_card",
+        "currency": "INR",
+        "balance": "42500.00",
+        "loan_kind": null,
+        "emi_amount": null
+      },
+      {
+        "name": "HDFC Salary Savings",
+        "type": "checking",
+        "currency": "INR",
+        "balance": "385000.00",
+        "loan_kind": null,
+        "emi_amount": null
+      },
+      {
+        "name": "SBI Home Loan \u2014 Prestige Lakeside",
+        "type": "loan",
+        "currency": "INR",
+        "balance": "5659245.39",
+        "loan_kind": "home",
+        "emi_amount": 55997.79
+      },
+      {
+        "name": "SBI Savings",
+        "type": "savings",
+        "currency": "INR",
+        "balance": "612000.00",
+        "loan_kind": null,
+        "emi_amount": null
+      }
+    ],
+    "payees": 22,
+    "categories": 19,
+    "transactions_total": 151,
+    "budgets": 11,
+    "goals": 3,
+    "assets": 3,
+    "recurring": 6,
+    "rules": 10,
+    "loan_commitments": 1
+  },
+  "loans": {
+    "home": {
+      "id": "57d38017-cecc-48b4-9235-714934154128",
+      "name": "SBI Home Loan \u2014 Prestige Lakeside",
+      "loan_kind": "home",
+      "original_principal": "6500000.00",
+      "interest_rate": "8.40",
+      "tenure_months": 240,
+      "emi_amount": 55997.79,
+      "balance": "5859245.39",
+      "emis_paid": 51,
+      "emis_remaining": 189,
+      "schedule_rows": 240,
+      "linked_tx_sample": [
+        "abbe059b-a2ba-4be7-8a8c-cb08a4d4f36d",
+        "e123cf94-0019-439d-aaa4-7c73d02eaed7",
+        "58907d1e-5bd3-4d26-a1e2-11b660f0839f",
+        "77e84d51-36f8-4432-86f5-86e4bf80db53",
+        "548c6120-473b-480f-b5cb-281566970218",
+        "eabf7d5b-8099-42e3-8adf-81691c64a46c"
+      ],
+      "prepayment": {
+        "amount": "200000.00",
+        "date": "2026-09-07",
+        "id": "d9298fc4-4e74-4c88-89c1-6706a71342f4",
+        "balance_after": "5659245.39"
+      }
+    },
+    "car": {
+      "id": "c8ca7e85-e4b1-4c06-9479-da5701e6e5df",
+      "name": "HDFC Car Loan \u2014 Hyundai Creta",
+      "loan_kind": "auto",
+      "original_principal": "1200000.00",
+      "interest_rate": "9.00",
+      "tenure_months": 60,
+      "emi_amount": 24910.03,
+      "balance": "876410.99",
+      "emis_paid": 19,
+      "emis_remaining": 41,
+      "schedule_rows": 60,
+      "linked_tx_sample": [
+        "c339c4c3-90d5-4c0f-b2cb-453a4570fdb2",
+        "9c4f0595-bffd-497d-abc9-7a12d32fc8ef",
+        "717db68e-26f8-45ab-8ca1-432893831a2f",
+        "fd14dd83-9d9b-4a10-bb0e-008e42b7aa5c",
+        "97ea02dc-b32e-49e6-8309-2fd0b8cd778d",
+        "e50fa98f-7563-4a58-ba72-daac9e8c863c"
+      ]
+    }
+  },
+  "combined_plan": {
+    "combined_kpis": {
+      "total_interest": 2517473.94,
+      "baseline_interest": 4252363.44,
+      "interest_saved": 1734889.5,
+      "months_saved": 50,
+      "emi": 55997.79,
+      "payoff_date": "2037-04-05",
+      "baseline_payoff_date": "2041-06-05",
+      "scenario_months": 127,
+      "baseline_months": 177
+    },
+    "timeline_rows": 127,
+    "commitment": {
+      "id": "84ded9bb-480e-4621-812b-c4aeb062fdf3",
+      "amount": 15000.0,
+      "budget_id": "ce7daf78-4ebe-499b-a7ce-91ea4c559517",
+      "recurring_transaction_id": "4513d158-80c6-48d1-a73f-c34610afa341",
+      "status": "active"
+    },
+    "projected_extra_hits": [
+      {
+        "recurring_id": "4513d158-80c6-48d1-a73f-c34610afa341",
+        "account_id": "fbf5f60c-b5f7-46ed-b1de-972069636c1e",
+        "description": "SBI Home Loan \u2014 Prestige Lakeside extra principal (committed)",
+        "amount": 15000.0,
+        "amount_primary": null,
+        "currency": "INR",
+        "type": "debit",
+        "date": "2026-10-01",
+        "category_id": "8b32233c-c876-4b84-8341-477132fd8beb",
+        "category_name": "Housing",
+        "category_icon": "house",
+        "category_color": "#8B5CF6"
+      }
+    ],
+    "ui_path": "http://localhost:3000/loans/57d38017-cecc-48b4-9235-714934154128 \u2192 Combined plan tab"
+  },
+  "key_cashflows": {
+    "salary_primary_inr": 220000.0,
+    "salary_spouse_inr": 45000.0,
+    "society_maintenance_inr": 12500.0,
+    "sip_inr": 25000.0,
+    "combined_extra_principal_inr": "15000.00"
+  },
+  "exercised": {
+    "dashboard_summary_balance_primary": 10220514.28,
+    "dashboard_monthly_income": 220000.0,
+    "dashboard_monthly_expenses": 400574.6,
+    "dashboard_currency": "INR",
+    "/api/dashboard/spending-by-category": "list len=9",
+    "/api/dashboard/monthly-trend": "list len=6",
+    "/api/reports/net-worth": {
+      "summary": {
+        "primary_value": 10220514.28,
+        "change_amount": 5056170.66,
+        "change_percent": 97.91,
+        "breakdowns": [
+          {
+            "key": "accounts",
+            "label": "Accounts",
+            "value": 838417.31,
+            "color": "#6366F1"
+          },
+          {
+            "key": "assets",
+            "label": "Assets",
+            "value": 16330000.0,
+            "color": "#F59E0B"
+          },
+          {
+            "key": "liabilities",
+            "label": "Liabilities",
+            "value": 6947903.03,
+            "color": "#F43F5E"
+          }
+        ]
+      },
+      "trend": [
+        {
+          "date": "2026-03",
+          "value": 5164343.62,
+          "breakdowns": {
+            "accounts": 0.0,
+            "assets": 11900000.0,
+            "liabilities": 6735656.38
+          },
+          "change": null,
+          "composition": [
+            {
+              "key": "c8ca7e85-e4b1-4c06-9479-da5701e6e5df",
+              "label": "HDFC Car Loan \u2014 Hyundai Creta",
+              "value": 876410.99,
+              "color": "#E11D48",
+              "group": "liabilities"
+            },
+            {
+              "key": "57d38017-cecc-48b4-9235-714934154128",
+              "label": "SBI Home Loan \u2014 Prestige Lakeside",
+              "value": 5859245.39,
+              "color": "#E11D48",
+              "group": "liabilities"
+            },
+            {
+              "key": "e17713ad-6b83-45fe-bd3a-0b6bae21e7bc",
+              "label": "Mutual Fund SIP Corpus (HDFC/Parag Parikh)",
+              "value": 950000.0,
+              "color": "#8B5CF6",
+              "group": "assets"
+            },
+            {
+              "key": "1fd4e3e3-f0b4-4415-a901-f409d4a78872",
+              "label": "2022 Hyundai Creta",
+              "value": 1450000.0,
+              "color": "#14B8A6",
+              "group": "assets"
+            },
+            {
+              "key": "26b4b452-f1f4-44da-9e7d-74c1cd524ec3",
+              "label": "Prestige Lakeside Flat Equity",
+              "value": 9500000.0,
+              "color": "#0EA5E9",
+              "group": "assets"
+            }
+          ]
+        },
+        {
+          "date": "2026-04",
+          "value": 5083435.8,
+          "breakdowns": {
+            "accounts": 0.0,
+            "assets": 11900000.0,
+            "liabilities": 6816564.2
+          },
+          "change": -80907.82,
+          "composition": [
+            {
+              "key": "c8ca7e85-e4b1-4c06-9479-da5701e6e5df",
+              "label": "HDFC Car Loan \u2014 Hyundai Creta",
+              "value": 876410.99,
+              "color": "#E11D48",
+              "group": "liabilities"
+            },
+            {
+              "key": "57d38017-cecc-48b4-9235-714934154128",
+              "label": "SBI Home Loan \u2014 Prestige Lakeside",
+              "value": 5859245.39,
+              "color": "#E11D48",
+              "group": "liabilities"
+            },
+            {
+              "key": "fbf5f60c-b5f7-46ed-b1de-972069636c1e",
+              "label": "HDFC Salary Savings",
+              "value": 80907.82,
+              "color": "#6366F1",
+              "group": "liabilities"
+            },
+            {
+              "key": "e17713ad-6b83-45fe-bd3a-0b6bae21e7bc",
+              "label": "Mutual Fund SIP Corpus (HDFC/Parag Parikh)",
+              "value": 950000.0,
+              "color": "#8B5CF6",
+              "group": "assets"
+            },
+            {
+              "key": "1fd4e3e3-f0b4-4415-a901-f409d4a78872",
+              "label": "2022 Hyundai Creta",
+              "value": 1450000.0,
+              "color": "#14B8A6",
+              "group": "assets"
+            },
+            {
+              "key": "26b4b452-f1f4-44da-9e7d-74c1cd524ec3",
+              "label": "Prestige Lakeside Flat Equity",
+              "value": 9500000.0,
+              "color": "#0EA5E9",
+              "group": "assets"
+            }
+          ]
+        },
+        {
+          "date": "2026-05",
+          "value": 5002527.98,
+          "breakdowns": {
+            "accounts": 0.0,
+            "assets": 11900000.0,
+            "liabilities": 6897472.02
+          },
+          "change": -80907.82,
+          "composition": [
+            {
+              "key": "c8ca7e85-e4b1-4c06-9479-da5701e6e5df",
+              "label": "HDFC Car Loan \u2014 Hyundai Creta",
+              "value": 876410.99,
+              "color": "#E11D48",
+              "group": "liabilities"
+            },
+            {
+              "key": "57d38017-cecc-48b4-9235-714934154128",
+              "label": "SBI Home Loan \u2014 Prestige Lakeside",
+              "value": 5859245.39,
+              "color": "#E11D48",
+              "group": "liabilities"
+            },
+            {
+              "key": "fbf5f60c-b5f7-46ed-b1de-972069636c1e",
+              "label": "HDFC Salary Savings",
+              "value": 161815.64,
+              "color": "#6366F1",
+              "group": "liabilities"
+            },
+            {
+              "key": "e17713ad-6b83-45fe-bd3a-0b6bae21e7bc",
+              "label": "Mutual Fund SIP Corpus (HDFC/Parag Parikh)",
+              "value": 950000.0,
+              "color": "#8B5CF6",
+              "group": "assets"
+            },
+            {
+              "key": "1fd4e3e3-f0b4-4415-a901-f409d4a78872",
+              "label": "2022 Hyundai Creta",
+              "value": 1450000.0,
+              "color": "#14B8A6",
+              "group": "assets"
+            },
+            {
+              "key": "26b4b452-f1f4-44da-9e7d-74c1cd524ec3",
+              "label": "Prestige Lakeside Flat Equity",
+              "value": 9500000.0,
+              "color": "#0EA5E9",
+              "group": "assets"
+            }
+          ]
+        },
+        {
+          "date": "2026-06",
+          "value": 5878230.08,
+          "breakdowns": {
+            "accounts": 762776.54,
+            "assets": 11900000.0,
+            "liabilities": 6784546.46
+          },
+          "change": 875702.1,
+          "composition": [
+            {
+              "key": "c8ca7e85-e4b1-4c06-9479-da5701e6e5df",
+              "label": "HDFC Car Loan \u2014 Hyundai Creta",
+              "value": 876410.99,
+              "color": "#E11D48",
+              "group": "liabilities"
+            },
+            {
+              "key": "57d38017-cecc-48b4-9235-714934154128",
+              "label": "SBI Home Loan \u2014 Prestige Lakeside",
+              "value": 5859245.39,
+              "color": "#E11D48",
+              "group": "liabilities"
+            },
+            {
+              "key": "d6bc1caf-432f-4902-96ac-72c0493b5f4f",
+              "label": "Cash Wallet",
+              "value": 8500.0,
+              "color": "#F59E0B",
+              "group": "accounts"
+            },
+            {
+              "key": "5687a190-3fff-4375-9213-ff30dfc0917f",
+              "label": "HDFC Regalia Credit Card",
+              "value": 48890.08,
+              "color": "#F43F5E",
+              "group": "liabilities"
+            },
+            {
+              "key": "5ed1e1e5-7b8d-4a05-a8fd-cb33e68334e5",
+              "label": "SBI Savings",
+              "value": 612000.0,
+              "color": "#3B82F6",
+              "group": "accounts"
+            },
+            {
+              "key": "fbf5f60c-b5f7-46ed-b1de-972069636c1e",
+              "label": "HDFC Salary Savings",
+              "value": 142276.54,
+              "color": "#6366F1",
+              "group": "accounts"
+            },
+            {
+              "key": "e17713ad-6b83-45fe-bd3a-0b6bae21e7bc",
+              "label": "Mutual Fund SIP Corpus (HDFC/Parag Parikh)",
+              "value": 950000.0,
+              "color": "#8B5CF6",
+              "group": "assets"
+            },
+            {
+              "key": "1fd4e3e3-f0b4-4415-a901-f409d4a78872",
+              "label": "2022 Hyundai Creta",
+              "value": 1450000.0,
+              "color": "#14B8A6",
+              "group": "assets"
+            },
+            {
+              "key": "26b4b452-f1f4-44da-9e7d-74c1cd524ec3",
+              "label": "Prestige Lakeside Flat Equity",
+              "value": 9500000.0,
+              "color": "#0EA5E9",
+              "group": "assets"
+            }
+          ]
+        },
+        {
+          "date": "2026-07",
+          "value": 5906573.39,
+          "breakdowns": {
+            "accounts": 788308.89,
+            "assets": 11900000.0,
+            "liabilities": 6781735.5
+          },
+          "change": 28343.31,
+          "composition": [
+            {
+              "key": "c8ca7e85-e4b1-4c06-9479-da5701e6e5df",
+              "label": "HDFC Car Loan \u2014 Hyundai Creta",
+              "value": 876410.99,
+              "color": "#E11D48",
+              "group": "liabilities"
+            },
+            {
+              "key": "57d38017-cecc-48b4-9235-714934154128",
+              "label": "SBI Home Loan \u2014 Prestige Lakeside",
+              "value": 5859245.39,
+              "color": "#E11D48",
+              "group": "liabilities"
+            },
+            {
+              "key": "d6bc1caf-432f-4902-96ac-72c0493b5f4f",
+              "label": "Cash Wallet",
+              "value": 12242.61,
+              "color": "#F59E0B",
+              "group": "accounts"
+            },
+            {
+              "key": "5687a190-3fff-4375-9213-ff30dfc0917f",
+              "label": "HDFC Regalia Credit Card",
+              "value": 46079.12,
+              "color": "#F43F5E",
+              "group": "liabilities"
+            },
+            {
+              "key": "5ed1e1e5-7b8d-4a05-a8fd-cb33e68334e5",
+              "label": "SBI Savings",
+              "value": 697000.0,
+              "color": "#3B82F6",
+              "group": "accounts"
+            },
+            {
+              "key": "fbf5f60c-b5f7-46ed-b1de-972069636c1e",
+              "label": "HDFC Salary Savings",
+              "value": 79066.28,
+              "color": "#6366F1",
+              "group": "accounts"
+            },
+            {
+              "key": "e17713ad-6b83-45fe-bd3a-0b6bae21e7bc",
+              "label": "Mutual Fund SIP Corpus (HDFC/Parag Parikh)",
+              "value": 950000.0,
+              "color": "#8B5CF6",
+              "group": "assets"
+            },
+            {
+              "key": "1fd4e3e3-f0b4-4415-a901-f409d4a78872",
+              "label": "2022 Hyundai Creta",
+              "value": 1450000.0,
+              "color": "#14B8A6",
+              "group": "assets"
+            },
+            {
+              "key": "26b4b452-f1f4-44da-9e7d-74c1cd524ec3",
+              "label": "Prestige Lakeside Flat Equity",
+              "value": 9500000.0,
+              "color": "#0EA5E9",
+              "group": "assets"
+            }
+          ]
+        },
+        {
+          "date": "2026-08",
+          "value": 5971088.88,
+          "breakdowns": {
+            "accounts": 874751.94,
+            "assets": 11900000.0,
+            "liabilities": 6803663.06
+          },
+          "change": 64515.49,
+          "composition": [
+            {
+              "key": "c8ca7e85-e4b1-4c06-9479-da5701e6e5df",
+              "label": "HDFC Car Loan \u2014 Hyundai Creta",
+              "value": 876410.99,
+              "color": "#E11D48",
+              "group": "liabilities"
+            },
+            {
+              "key": "57d38017-cecc-48b4-9235-714934154128",
+              "label": "SBI Home Loan \u2014 Prestige Lakeside",
+              "value": 5859245.39,
+              "color": "#E11D48",
+              "group": "liabilities"
+            },
+            {
+              "key": "d6bc1caf-432f-4902-96ac-72c0493b5f4f",
+              "label": "Cash Wallet",
+              "value": 16417.31,
+              "color": "#F59E0B",
+              "group": "accounts"
+            },
+            {
+              "key": "5687a190-3fff-4375-9213-ff30dfc0917f",
+              "label": "HDFC Regalia Credit Card",
+              "value": 68006.68,
+              "color": "#F43F5E",
+              "group": "liabilities"
+            },
+            {
+              "key": "5ed1e1e5-7b8d-4a05-a8fd-cb33e68334e5",
+              "label": "SBI Savings",
+              "value": 782000.0,
+              "color": "#3B82F6",
+              "group": "accounts"
+            },
+            {
+              "key": "fbf5f60c-b5f7-46ed-b1de-972069636c1e",
+              "label": "HDFC Salary Savings",
+              "value": 76334.63,
+              "color": "#6366F1",
+              "group": "accounts"
+            },
+            {
+              "key": "e17713ad-6b83-45fe-bd3a-0b6bae21e7bc",
+              "label": "Mutual Fund SIP Corpus (HDFC/Parag Parikh)",
+              "value": 950000.0,
+              "color": "#8B5CF6",
+              "group": "assets"
+            },
+            {
+              "key": "1fd4e3e3-f0b4-4415-a901-f409d4a78872",
+              "label": "2022 Hyundai Creta",
+              "value": 1450000.0,
+              "color": "#14B8A6",
+              "group": "assets"
+            },
+            {
+              "key": "26b4b452-f1f4-44da-9e7d-74c1cd524ec3",
+              "label": "Prestige Lakeside Flat Equity",
+              "value": 9500000.0,
+              "color": "#0EA5E9",
+              "group": "assets"
+            }
+          ]
+        },
+        {
+          "date": "2026-09",
+          "value": 10220514.28,
+          "breakdowns": {
+            "accounts": 838417.31,
+            "assets": 16330000.0,
+            "liabilities": 6947903.03
+          },
+          "change": 4249425.4,
+          "composition": [
+            {
+              "key": "c8ca7e85-e4b1-4c06-9479-da5701e6e5df",
+              "label": "HDFC Car Loan \u2014 Hyundai Creta",
+              "value": 876410.99,
+              "color": "#E11D48",
+              "group": "liabilities"
+            },
+            {
+              "key": "57d38017-cecc-48b4-9235-714934154128",
+              "label": "SBI Home Loan \u2014 Prestige Lakeside",
+              "value": 5859245.39,
+              "color": "#E11D48",
+              "group": "liabilities"
+            },
+            {
+              "key": "d6bc1caf-432f-4902-96ac-72c0493b5f4f",
+              "label": "Cash Wallet",
+              "value": 16417.31,
+              "color": "#F59E0B",
+              "group": "accounts"
+            },
+            {
+              "key": "5687a190-3fff-4375-9213-ff30dfc0917f",
+              "label": "HDFC Regalia Credit Card",
+              "value": 44110.08,
+              "color": "#F43F5E",
+              "group": "liabilities"
+            },
+            {
+              "key": "5ed1e1e5-7b8d-4a05-a8fd-cb33e68334e5",
+              "label": "SBI Savings",
+              "value": 822000.0,
+              "color": "#3B82F6",
+              "group": "accounts"
+            },
+            {
+              "key": "fbf5f60c-b5f7-46ed-b1de-972069636c1e",
+              "label": "HDFC Salary Savings",
+              "value": 168136.57,
+              "color": "#6366F1",
+              "group": "liabilities"
+            },
+            {
+              "key": "e17713ad-6b83-45fe-bd3a-0b6bae21e7bc",
+              "label": "Mutual Fund SIP Corpus (HDFC/Parag Parikh)",
+              "value": 1850000.0,
+              "color": "#8B5CF6",
+              "group": "assets"
+            },
+            {
+              "key": "1fd4e3e3-f0b4-4415-a901-f409d4a78872",
+              "label": "2022 Hyundai Creta",
+              "value": 980000.0,
+              "color": "#14B8A6",
+              "group": "assets"
+            },
+            {
+              "key": "26b4b452-f1f4-44da-9e7d-74c1cd524ec3",
+              "label": "Prestige Lakeside Flat Equity",
+              "value": 13500000.0,
+              "color": "#0EA5E9",
+              "group": "assets"
+            }
+          ]
+        }
+      ],
+      "meta": {
+        "type": "net_worth",
+        "series_keys": [
+          "accounts",
+          "assets",
+          "liabilities"
+        ],
+        "currency": "INR",
+        "interval": "monthly",
+        "forecast_start_date": null,
+        "baseline_active": false,
+        "baseline_lookback_days": null
+      },
+      "composition": [
+        {
+          "key": "c8ca7e85-e4b1-4c06-9479-da5701e6e5df",
+          "label": "HDFC Car Loan \u2014 Hyundai Creta",
+          "value": 876410.99,
+          "color": "#E11D48",
+          "group": "liabilities"
+        },
+        {
+          "key": "57d38017-cecc-48b4-9235-714934154128",
+          "label": "SBI Home Loan \u2014 Prestige Lakeside",
+          "value": 5859245.39,
+          "color": "#E11D48",
+          "group": "liabilities"
+        },
+        {
+          "key": "d6bc1caf-432f-4902-96ac-72c0493b5f4f",
+          "label": "Cash Wallet",
+          "value": 16417.31,
+          "color": "#F59E0B",
+          "group": "accounts"
+        },
+        {
+          "key": "5687a190-3fff-4375-9213-ff30dfc0917f",
+          "label": "HDFC Regalia Credit Card",
+          "value": 44110.08,
+          "color": "#F43F5E",
+          "group": "liabilities"
+        },
+        {
+          "key": "5ed1e1e5-7b8d-4a05-a8fd-cb33e68334e5",
+          "label": "SBI Savings",
+          "value": 822000.0,
+          "color": "#3B82F6",
+          "group": "accounts"
+        },
+        {
+          "key": "fbf5f60c-b5f7-46ed-b1de-972069636c1e",
+          "label": "HDFC Salary Savings",
+          "value": 168136.57,
+          "color": "#6366F1",
+          "group": "liabilities"
+        },
+        {
+          "key": "e17713ad-6b83-45fe-bd3a-0b6bae21e7bc",
+          "label": "Mutual Fund SIP Corpus (HDFC/Parag Parikh)",
+          "value": 1850000.0,
+          "color": "#8B5CF6",
+          "group": "assets"
+        },
+        {
+          "key": "1fd4e3e3-f0b4-4415-a901-f409d4a78872",
+          "label": "2022 Hyundai Creta",
+          "value": 980000.0,
+          "color": "#14B8A6",
+          "group": "assets"
+        },
+        {
+          "key": "26b4b452-f1f4-44da-9e7d-74c1cd524ec3",
+          "label": "Prestige Lakeside Flat Equity",
+          "value": 13500000.0,
+          "color": "#0EA5E9",
+          "group": "assets"
+        }
+      ],
+      "category_trend": []
+    },
+    "/api/reports/income-expenses": {
+      "summary": {
+        "primary_value": -175013.7,
+        "change_amount": -93276.7,
+        "change_percent": -106.85,
+        "breakdowns": [
+          {
+            "key": "income",
+            "label": "Income",
+            "value": 750000.0,
+            "color": "#10B981"
+          },
+          {
+            "key": "expenses",
+            "label": "Expenses",
+            "value": 925013.7,
+            "color": "#F43F5E"
+          },
+          {
+            "key": "projectedIncome",
+            "label": "Projected Income",
+            "value": 440000.0,
+            "color": "#34D399"
+          },
+          {
+            "key": "projectedExpenses",
+            "label": "Projected Expenses",
+            "value": 77896.0,
+            "color": "#FB7185"
+          },
+          {
+            "key": "netIncome",
+            "label": "Net Income",
+            "value": -175013.7,
+            "color": "#6366F1"
+          }
+        ]
+      },
+      "trend": [
+        {
+          "date": "2026-06",
+          "value": -87297.9,
+          "breakdowns": {
+            "income": 0.0,
+            "expenses": 87297.9,
+            "projectedIncome": 0.0,
+            "projectedExpenses": 0.0
+          },
+          "change": null,
+          "composition": [
+            {
+              "key": "264a1a97-2306-466c-86a6-90f987cb4a6b",
+              "label": "Shopping",
+              "value": 1042.76,
+              "color": "#F97316",
+              "group": "expenses"
+            },
+            {
+              "key": "8b32233c-c876-4b84-8341-477132fd8beb",
+              "label": "Housing",
+              "value": 55997.79,
+              "color": "#8B5CF6",
+              "group": "expenses"
+            },
+            {
+              "key": "a0e553a3-bb07-40ed-861e-2749e5be5910",
+              "label": "Leisure",
+              "value": 2162.88,
+              "color": "#EC4899",
+              "group": "expenses"
+            },
+            {
+              "key": "de400c4c-45cb-4953-bca8-fd82fc5dad86",
+              "label": "Food & Dining",
+              "value": 529.25,
+              "color": "#F59E0B",
+              "group": "expenses"
+            },
+            {
+              "key": "f406541f-f687-4642-99fc-ae0a9fc158f7",
+              "label": "Transport",
+              "value": 27565.22,
+              "color": "#3B82F6",
+              "group": "expenses"
+            }
+          ]
+        },
+        {
+          "date": "2026-07",
+          "value": 28343.31,
+          "breakdowns": {
+            "income": 265000.0,
+            "expenses": 236656.69,
+            "projectedIncome": 0.0,
+            "projectedExpenses": 0.0
+          },
+          "change": null,
+          "composition": [
+            {
+              "key": "264a1a97-2306-466c-86a6-90f987cb4a6b",
+              "label": "Shopping",
+              "value": 29335.17,
+              "color": "#F97316",
+              "group": "expenses"
+            },
+            {
+              "key": "8b32233c-c876-4b84-8341-477132fd8beb",
+              "label": "Housing",
+              "value": 68497.79,
+              "color": "#8B5CF6",
+              "group": "expenses"
+            },
+            {
+              "key": "a0e553a3-bb07-40ed-861e-2749e5be5910",
+              "label": "Leisure",
+              "value": 6372.42,
+              "color": "#EC4899",
+              "group": "expenses"
+            },
+            {
+              "key": "de400c4c-45cb-4953-bca8-fd82fc5dad86",
+              "label": "Food & Dining",
+              "value": 6054.85,
+              "color": "#F59E0B",
+              "group": "expenses"
+            },
+            {
+              "key": "f406541f-f687-4642-99fc-ae0a9fc158f7",
+              "label": "Transport",
+              "value": 37949.33,
+              "color": "#3B82F6",
+              "group": "expenses"
+            },
+            {
+              "key": "04cb4cf8-bc29-4a06-871f-07f0d2caf476",
+              "label": "Subscriptions",
+              "value": 768.0,
+              "color": "#6366F1",
+              "group": "expenses"
+            },
+            {
+              "key": "2cb86188-734a-48d6-be1e-0e8641b2fe33",
+              "label": "Utilities",
+              "value": 4227.01,
+              "color": "#F97316",
+              "group": "expenses"
+            },
+            {
+              "key": "60b6676d-8dd4-40ca-942b-4d12b498aa67",
+              "label": "Education & Family",
+              "value": 63500.0,
+              "color": "#6366F1",
+              "group": "expenses"
+            },
+            {
+              "key": "72ae10a3-4ff1-462b-85a8-5cfa29be4690",
+              "label": "Health",
+              "value": 1619.3,
+              "color": "#EF4444",
+              "group": "expenses"
+            },
+            {
+              "key": "a976ab32-7e45-4c54-82eb-5bb4ab758d0f",
+              "label": "Groceries",
+              "value": 18332.82,
+              "color": "#10B981",
+              "group": "expenses"
+            },
+            {
+              "key": "f4e3712f-0821-4f45-ac35-fea8c7ccbd60",
+              "label": "Salary & Income",
+              "value": 265000.0,
+              "color": "#16A34A",
+              "group": "income"
+            }
+          ]
+        },
+        {
+          "date": "2026-08",
+          "value": 64515.49,
+          "breakdowns": {
+            "income": 265000.0,
+            "expenses": 200484.51,
+            "projectedIncome": 220000.0,
+            "projectedExpenses": 38948.0
+          },
+          "change": null,
+          "composition": [
+            {
+              "key": "264a1a97-2306-466c-86a6-90f987cb4a6b",
+              "label": "Shopping",
+              "value": 58652.93,
+              "color": "#F97316",
+              "group": "expenses"
+            },
+            {
+              "key": "8b32233c-c876-4b84-8341-477132fd8beb",
+              "label": "Housing",
+              "value": 80997.79,
+              "color": "#8B5CF6",
+              "group": "expenses"
+            },
+            {
+              "key": "a0e553a3-bb07-40ed-861e-2749e5be5910",
+              "label": "Leisure",
+              "value": 9287.98,
+              "color": "#EC4899",
+              "group": "expenses"
+            },
+            {
+              "key": "de400c4c-45cb-4953-bca8-fd82fc5dad86",
+              "label": "Food & Dining",
+              "value": 6035.88,
+              "color": "#F59E0B",
+              "group": "expenses"
+            },
+            {
+              "key": "f406541f-f687-4642-99fc-ae0a9fc158f7",
+              "label": "Transport",
+              "value": 42773.29,
+              "color": "#3B82F6",
+              "group": "expenses"
+            },
+            {
+              "key": "04cb4cf8-bc29-4a06-871f-07f0d2caf476",
+              "label": "Subscriptions",
+              "value": 1417.0,
+              "color": "#6366F1",
+              "group": "expenses"
+            },
+            {
+              "key": "2cb86188-734a-48d6-be1e-0e8641b2fe33",
+              "label": "Utilities",
+              "value": 4905.02,
+              "color": "#F97316",
+              "group": "expenses"
+            },
+            {
+              "key": "60b6676d-8dd4-40ca-942b-4d12b498aa67",
+              "label": "Education & Family",
+              "value": 15000.0,
+              "color": "#6366F1",
+              "group": "expenses"
+            },
+            {
+              "key": "72ae10a3-4ff1-462b-85a8-5cfa29be4690",
+              "label": "Health",
+              "value": 1534.6,
+              "color": "#EF4444",
+              "group": "expenses"
+            },
+            {
+              "key": "a976ab32-7e45-4c54-82eb-5bb4ab758d0f",
+              "label": "Groceries",
+              "value": 18828.02,
+              "color": "#10B981",
+              "group": "expenses"
+            },
+            {
+              "key": "f4e3712f-0821-4f45-ac35-fea8c7ccbd60",
+              "label": "Salary & Income",
+              "value": 485000.0,
+              "color": "#16A34A",
+              "group": "income"
+            }
+          ]
+        },
+        {
+          "date": "2026-09",
+          "value": -180574.6,
+          "breakdowns": {
+            "income": 220000.0,
+            "expenses": 400574.6,
+            "projectedIncome": 220000.0,
+            "projectedExpenses": 38948.0
+          },
+          "change": null,
+          "composition": [
+            {
+              "key": "264a1a97-2306-466c-86a6-90f987cb4a6b",
+              "label": "Shopping",
+              "value": 52717.63,
+              "color": "#F97316",
+              "group": "expenses"
+            },
+            {
+              "key": "8b32233c-c876-4b84-8341-477132fd8beb",
+              "label": "Housing",
+              "value": 280997.79,
+              "color": "#8B5CF6",
+              "group": "expenses"
+            },
+            {
+              "key": "a0e553a3-bb07-40ed-861e-2749e5be5910",
+              "label": "Leisure",
+              "value": 1313.64,
+              "color": "#EC4899",
+              "group": "expenses"
+            },
+            {
+              "key": "de400c4c-45cb-4953-bca8-fd82fc5dad86",
+              "label": "Food & Dining",
+              "value": 1828.5,
+              "color": "#F59E0B",
+              "group": "expenses"
+            },
+            {
+              "key": "f406541f-f687-4642-99fc-ae0a9fc158f7",
+              "label": "Transport",
+              "value": 29385.66,
+              "color": "#3B82F6",
+              "group": "expenses"
+            },
+            {
+              "key": "04cb4cf8-bc29-4a06-871f-07f0d2caf476",
+              "label": "Subscriptions",
+              "value": 1417.0,
+              "color": "#6366F1",
+              "group": "expenses"
+            },
+            {
+              "key": "2cb86188-734a-48d6-be1e-0e8641b2fe33",
+              "label": "Utilities",
+              "value": 5530.49,
+              "color": "#F97316",
+              "group": "expenses"
+            },
+            {
+              "key": "60b6676d-8dd4-40ca-942b-4d12b498aa67",
+              "label": "Education & Family",
+              "value": 63500.0,
+              "color": "#6366F1",
+              "group": "expenses"
+            },
+            {
+              "key": "a976ab32-7e45-4c54-82eb-5bb4ab758d0f",
+              "label": "Groceries",
+              "value": 2831.89,
+              "color": "#10B981",
+              "group": "expenses"
+            },
+            {
+              "key": "f4e3712f-0821-4f45-ac35-fea8c7ccbd60",
+              "label": "Salary & Income",
+              "value": 440000.0,
+              "color": "#16A34A",
+              "group": "income"
+            }
+          ]
+        }
+      ],
+      "meta": {
+        "type": "income_expenses",
+        "series_keys": [
+          "income",
+          "expenses",
+          "projectedIncome",
+          "projectedExpenses"
+        ],
+        "currency": "INR",
+        "interval": "monthly",
+        "forecast_start_date": null,
+        "baseline_active": false,
+        "baseline_lookback_days": null
+      },
+      "composition": [
+        {
+          "key": "04cb4cf8-bc29-4a06-871f-07f0d2caf476",
+          "label": "Subscriptions",
+          "value": 3602.0,
+          "color": "#6366F1",
+          "group": "expenses"
+        },
+        {
+          "key": "264a1a97-2306-466c-86a6-90f987cb4a6b",
+          "label": "Shopping",
+          "value": 141748.49,
+          "color": "#F97316",
+          "group": "expenses"
+        },
+        {
+          "key": "2cb86188-734a-48d6-be1e-0e8641b2fe33",
+          "label": "Utilities",
+          "value": 14662.52,
+          "color": "#F97316",
+          "group": "expenses"
+        },
+        {
+          "key": "60b6676d-8dd4-40ca-942b-4d12b498aa67",
+          "label": "Education & Family",
+          "value": 142000.0,
+          "color": "#6366F1",
+          "group": "expenses"
+        },
+        {
+          "key": "72ae10a3-4ff1-462b-85a8-5cfa29be4690",
+          "label": "Health",
+          "value": 3153.9,
+          "color": "#EF4444",
+          "group": "expenses"
+        },
+        {
+          "key": "8b32233c-c876-4b84-8341-477132fd8beb",
+          "label": "Housing",
+          "value": 486491.16,
+          "color": "#8B5CF6",
+          "group": "expenses"
+        },
+        {
+          "key": "a0e553a3-bb07-40ed-861e-2749e5be5910",
+          "label": "Leisure",
+          "value": 19136.92,
+          "color": "#EC4899",
+          "group": "expenses"
+        },
+        {
+          "key": "a976ab32-7e45-4c54-82eb-5bb4ab758d0f",
+          "label": "Groceries",
+          "value": 39992.73,
+          "color": "#10B981",
+          "group": "expenses"
+        },
+        {
+          "key": "de400c4c-45cb-4953-bca8-fd82fc5dad86",
+          "label": "Food & Dining",
+          "value": 14448.48,
+          "color": "#F59E0B",
+          "group": "expenses"
+        },
+        {
+          "key": "f406541f-f687-4642-99fc-ae0a9fc158f7",
+          "label": "Transport",
+          "value": 137673.5,
+          "color": "#3B82F6",
+          "group": "expenses"
+        },
+        {
+          "key": "f4e3712f-0821-4f45-ac35-fea8c7ccbd60",
+          "label": "Salary & Income",
+          "value": 1190000.0,
+          "color": "#16A34A",
+          "group": "income"
+        }
+      ],
+      "category_trend": [
+        {
+          "key": "8b32233c-c876-4b84-8341-477132fd8beb",
+          "label": "Housing",
+          "color": "#8B5CF6",
+          "total": 486491.16,
+          "group": "expenses",
+          "series": [
+            {
+              "date": "2026-06",
+              "value": 55997.79,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-07",
+              "value": 68497.79,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-08",
+              "value": 80997.79,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-09",
+              "value": 280997.79,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            }
+          ]
+        },
+        {
+          "key": "60b6676d-8dd4-40ca-942b-4d12b498aa67",
+          "label": "Education & Family",
+          "color": "#6366F1",
+          "total": 142000.0,
+          "group": "expenses",
+          "series": [
+            {
+              "date": "2026-06",
+              "value": 0.0,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-07",
+              "value": 63500.0,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-08",
+              "value": 15000.0,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-09",
+              "value": 63500.0,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            }
+          ]
+        },
+        {
+          "key": "264a1a97-2306-466c-86a6-90f987cb4a6b",
+          "label": "Shopping",
+          "color": "#F97316",
+          "total": 141748.49,
+          "group": "expenses",
+          "series": [
+            {
+              "date": "2026-06",
+              "value": 1042.76,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-07",
+              "value": 29335.17,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-08",
+              "value": 58652.93,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-09",
+              "value": 52717.63,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            }
+          ]
+        },
+        {
+          "key": "f406541f-f687-4642-99fc-ae0a9fc158f7",
+          "label": "Transport",
+          "color": "#3B82F6",
+          "total": 137673.5,
+          "group": "expenses",
+          "series": [
+            {
+              "date": "2026-06",
+              "value": 27565.22,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-07",
+              "value": 37949.33,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-08",
+              "value": 42773.29,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-09",
+              "value": 29385.66,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            }
+          ]
+        },
+        {
+          "key": "a976ab32-7e45-4c54-82eb-5bb4ab758d0f",
+          "label": "Groceries",
+          "color": "#10B981",
+          "total": 39992.73,
+          "group": "expenses",
+          "series": [
+            {
+              "date": "2026-06",
+              "value": 0.0,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-07",
+              "value": 18332.82,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-08",
+              "value": 18828.02,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-09",
+              "value": 2831.89,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            }
+          ]
+        },
+        {
+          "key": "a0e553a3-bb07-40ed-861e-2749e5be5910",
+          "label": "Leisure",
+          "color": "#EC4899",
+          "total": 19136.92,
+          "group": "expenses",
+          "series": [
+            {
+              "date": "2026-06",
+              "value": 2162.88,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-07",
+              "value": 6372.42,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-08",
+              "value": 9287.98,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-09",
+              "value": 1313.64,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            }
+          ]
+        },
+        {
+          "key": "2cb86188-734a-48d6-be1e-0e8641b2fe33",
+          "label": "Utilities",
+          "color": "#F97316",
+          "total": 14662.52,
+          "group": "expenses",
+          "series": [
+            {
+              "date": "2026-06",
+              "value": 0.0,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-07",
+              "value": 4227.01,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-08",
+              "value": 4905.02,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-09",
+              "value": 5530.49,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            }
+          ]
+        },
+        {
+          "key": "de400c4c-45cb-4953-bca8-fd82fc5dad86",
+          "label": "Food & Dining",
+          "color": "#F59E0B",
+          "total": 14448.48,
+          "group": "expenses",
+          "series": [
+            {
+              "date": "2026-06",
+              "value": 529.25,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-07",
+              "value": 6054.85,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-08",
+              "value": 6035.88,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-09",
+              "value": 1828.5,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            }
+          ]
+        },
+        {
+          "key": "04cb4cf8-bc29-4a06-871f-07f0d2caf476",
+          "label": "Subscriptions",
+          "color": "#6366F1",
+          "total": 3602.0,
+          "group": "expenses",
+          "series": [
+            {
+              "date": "2026-06",
+              "value": 0.0,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-07",
+              "value": 768.0,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-08",
+              "value": 1417.0,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-09",
+              "value": 1417.0,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            }
+          ]
+        },
+        {
+          "key": "72ae10a3-4ff1-462b-85a8-5cfa29be4690",
+          "label": "Health",
+          "color": "#EF4444",
+          "total": 3153.9,
+          "group": "expenses",
+          "series": [
+            {
+              "date": "2026-06",
+              "value": 0.0,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-07",
+              "value": 1619.3,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-08",
+              "value": 1534.6,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-09",
+              "value": 0.0,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            }
+          ]
+        },
+        {
+          "key": "f4e3712f-0821-4f45-ac35-fea8c7ccbd60",
+          "label": "Salary & Income",
+          "color": "#16A34A",
+          "total": 1190000.0,
+          "group": "income",
+          "series": [
+            {
+              "date": "2026-06",
+              "value": 0.0,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-07",
+              "value": 265000.0,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-08",
+              "value": 485000.0,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            },
+            {
+              "date": "2026-09",
+              "value": 440000.0,
+              "breakdowns": {},
+              "change": null,
+              "composition": []
+            }
+          ]
+        }
+      ]
+    },
+    "/api/reports/cash-flow": {
+      "summary": {
+        "primary_value": -5611329.72,
+        "change_amount": 498156.0,
+        "change_percent": 8.15,
+        "breakdowns": [
+          {
+            "key": "startingBalance",
+            "label": "Starting Balance",
+            "value": -6109485.72,
+            "color": "#6366F1"
+          },
+          {
+            "key": "projectedIncome",
+            "label": "Projected Income",
+            "value": 660000.0,
+            "color": "#10B981"
+          },
+          {
+            "key": "projectedExpenses",
+            "label": "Projected Expenses",
+            "value": 161844.0,
+            "color": "#F43F5E"
+          },
+          {
+            "key": "endingBalance",
+            "label": "Ending Balance",
+            "value": -5611329.72,
+            "color": "#8B5CF6"
+          }
+        ]
+      },
+      "trend": [
+        {
+          "date": "2026-08-11",
+          "value": -5934244.18,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-12",
+          "value": -5937907.63,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 3663.45
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-13",
+          "value": -5938694.06,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 786.43
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-14",
+          "value": -5939370.33,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 676.27
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-15",
+          "value": -5897906.22,
+          "breakdowns": {
+            "inflow": 45000.0,
+            "outflow": 3535.89
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-16",
+          "value": -5900579.19,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 2672.97
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-17",
+          "value": -5903440.74,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 2861.55
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-18",
+          "value": -5905931.38,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 2490.64
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-19",
+          "value": -5906251.38,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 320.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-20",
+          "value": -5906251.38,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-21",
+          "value": -5910247.33,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 3995.95
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-22",
+          "value": -5913059.39,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 2812.06
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-23",
+          "value": -5915897.43,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 2838.04
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-24",
+          "value": -5915897.43,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-25",
+          "value": -5916452.4,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 554.97
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-26",
+          "value": -5916452.4,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-27",
+          "value": -5917257.63,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 805.23
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-28",
+          "value": -5917482.17,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 224.54
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-29",
+          "value": -5923142.88,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 5660.71
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-30",
+          "value": -5927101.9,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 3959.02
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-08-31",
+          "value": -5928911.12,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 1809.22
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-01",
+          "value": -5708911.12,
+          "breakdowns": {
+            "inflow": 220000.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-02",
+          "value": -5709085.68,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 174.56
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-03",
+          "value": -5758528.99,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 49443.31
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-04",
+          "value": -5758754.3,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 225.31
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-05",
+          "value": -5855083.98,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 96329.68
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-06",
+          "value": -5856397.62,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 1313.64
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-07",
+          "value": -6063047.74,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 206650.12
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-08",
+          "value": -6067973.26,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 4925.52
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-09",
+          "value": -6068622.26,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 649.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-10",
+          "value": -6109163.66,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 40541.4
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-11",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 322.06
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-12",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-13",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-14",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-15",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-16",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-17",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-18",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-19",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-20",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-21",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-22",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-23",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-24",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-25",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-26",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-27",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-28",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-29",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-09-30",
+          "value": -6109485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-01",
+          "value": -5904485.72,
+          "breakdowns": {
+            "inflow": 220000.0,
+            "outflow": 15000.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-02",
+          "value": -5904485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-03",
+          "value": -5904485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-04",
+          "value": -5904485.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-05",
+          "value": -5941985.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 37500.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-06",
+          "value": -5941985.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-07",
+          "value": -5941985.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-08",
+          "value": -5942784.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 799.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-09",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 649.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-10",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-11",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-12",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-13",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-14",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-15",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-16",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-17",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-18",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-19",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-20",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-21",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-22",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-23",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-24",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-25",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-26",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-27",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-28",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-29",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-30",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-10-31",
+          "value": -5943433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-01",
+          "value": -5738433.72,
+          "breakdowns": {
+            "inflow": 220000.0,
+            "outflow": 15000.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-02",
+          "value": -5738433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-03",
+          "value": -5738433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-04",
+          "value": -5738433.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-05",
+          "value": -5775933.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 37500.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-06",
+          "value": -5775933.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-07",
+          "value": -5775933.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-08",
+          "value": -5776732.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 799.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-09",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 649.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-10",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-11",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-12",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-13",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-14",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-15",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-16",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-17",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-18",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-19",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-20",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-21",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-22",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-23",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-24",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-25",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-26",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-27",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-28",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-29",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-11-30",
+          "value": -5777381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-12-01",
+          "value": -5572381.72,
+          "breakdowns": {
+            "inflow": 220000.0,
+            "outflow": 15000.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-12-02",
+          "value": -5572381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-12-03",
+          "value": -5572381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-12-04",
+          "value": -5572381.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-12-05",
+          "value": -5609881.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 37500.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-12-06",
+          "value": -5609881.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-12-07",
+          "value": -5609881.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-12-08",
+          "value": -5610680.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 799.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-12-09",
+          "value": -5611329.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 649.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-12-10",
+          "value": -5611329.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        },
+        {
+          "date": "2026-12-11",
+          "value": -5611329.72,
+          "breakdowns": {
+            "inflow": 0.0,
+            "outflow": 0.0
+          },
+          "change": null,
+          "composition": []
+        }
+      ],
+      "meta": {
+        "type": "cash_flow",
+        "series_keys": [
+          "balance"
+        ],
+        "currency": "INR",
+        "interval": "daily",
+        "forecast_start_date": "2026-09-11",
+        "baseline_active": false,
+        "baseline_lookback_days": null
+      },
+      "composition": [
+        {
+          "key": "f4e3712f-0821-4f45-ac35-fea8c7ccbd60",
+          "label": "Salary & Income",
+          "value": 660000.0,
+          "color": "#16A34A",
+          "group": "income"
+        },
+        {
+          "key": "8b32233c-c876-4b84-8341-477132fd8beb",
+          "label": "Housing",
+          "value": 82500.0,
+          "color": "#8B5CF6",
+          "group": "expenses"
+        },
+        {
+          "key": "264a1a97-2306-466c-86a6-90f987cb4a6b",
+          "label": "Shopping",
+          "value": 75000.0,
+          "color": "#F97316",
+          "group": "expenses"
+        },
+        {
+          "key": "2cb86188-734a-48d6-be1e-0e8641b2fe33",
+          "label": "Utilities",
+          "value": 2397.0,
+          "color": "#F97316",
+          "group": "expenses"
+        },
+        {
+          "key": "04cb4cf8-bc29-4a06-871f-07f0d2caf476",
+          "label": "Subscriptions",
+          "value": 1947.0,
+          "color": "#6366F1",
+          "group": "expenses"
+        }
+      ],
+      "category_trend": []
+    },
+    "/api/search": {
+      "query": "BESCOM",
+      "results": [
+        {
+          "type": "transaction",
+          "id": "47da7b8e-137c-4d22-83e2-776686aa4e1a",
+          "label": "BESCOM Electricity Bill",
+          "subtitle": null,
+          "amount": 3932.49,
+          "currency": "INR",
+          "date": "2026-09-07",
+          "icon": null,
+          "color": null,
+          "meta": {
+            "account_id": "fbf5f60c-b5f7-46ed-b1de-972069636c1e",
+            "category_id": "2cb86188-734a-48d6-be1e-0e8641b2fe33",
+            "tx_type": "debit"
+          }
+        },
+        {
+          "type": "transaction",
+          "id": "24c67c96-8c45-4c18-bf90-5c0febd80d64",
+          "label": "BESCOM Electricity Bill",
+          "subtitle": null,
+          "amount": 3307.02,
+          "currency": "INR",
+          "date": "2026-08-07",
+          "icon": null,
+          "color": null,
+          "meta": {
+            "account_id": "fbf5f60c-b5f7-46ed-b1de-972069636c1e",
+            "category_id": "2cb86188-734a-48d6-be1e-0e8641b2fe33",
+            "tx_type": "debit"
+          }
+        },
+        {
+          "type": "transaction",
+          "id": "17dbae19-3fae-430a-a5e3-563ea689952e",
+          "label": "BESCOM Electricity Bill",
+          "subtitle": null,
+          "amount": 3428.01,
+          "currency": "INR",
+          "date": "2026-07-07",
+          "icon": null,
+          "color": null,
+          "meta": {
+            "account_id": "fbf5f60c-b5f7-46ed-b1de-972069636c1e",
+            "category_id": "2cb86188-734a-48d6-be1e-0e8641b2fe33",
+            "tx_type": "debit"
+          }
+        },
+        {
+          "type": "payee",
+          "id": "63987ee5-a121-4bbf-b9eb-4e7e0e1948e1",
+          "label": "BESCOM",
+          "subtitle": "company",
+          "amount": null,
+          "currency": null,
+          "date": null,
+          "icon": null,
+          "color": null,
+          "meta": {
+            "is_favorite": false
+          }
+        }
+      ]
+    },
+    "/api/v1/loans/dashboard": {
+      "next_due_payments": [
+        {
+          "account_id": "57d38017-cecc-48b4-9235-714934154128",
+          "account_name": "SBI Home Loan \u2014 Prestige Lakeside",
+          "due_date": "2026-10-05",
+          "emi_amount": "55997.79",
+          "days_until_due": 24
+        },
+        {
+          "account_id": "c8ca7e85-e4b1-4c06-9479-da5701e6e5df",
+          "account_name": "HDFC Car Loan \u2014 Hyundai Creta",
+          "due_date": "2026-10-10",
+          "emi_amount": "24910.03",
+          "days_until_due": 29
+        },
+        {
+          "account_id": "57d38017-cecc-48b4-9235-714934154128",
+          "account_name": "SBI Home Loan \u2014 Prestige Lakeside",
+          "due_date": "2026-11-05",
+          "emi_amount": "55997.79",
+          "days_until_due": 55
+        },
+        {
+          "account_id": "c8ca7e85-e4b1-4c06-9479-da5701e6e5df",
+          "account_name": "HDFC Car Loan \u2014 Hyundai Creta",
+          "due_date": "2026-11-10",
+          "emi_amount": "24910.03",
+          "days_until_due": 60
+        },
+        {
+          "account_id": "57d38017-cecc-48b4-9235-714934154128",
+          "account_name": "SBI Home Loan \u2014 Prestige Lakeside",
+          "due_date": "2026-12-05",
+          "emi_amount": "55997.79",
+          "days_until_due": 85
+        }
+      ],
+      "recent_payments": [
+        {
+          "account_name": "HDFC Car Loan \u2014 Hyundai Creta",
+          "payment_date": "2026-09-10",
+          "amount_paid": "24910.03"
+        },
+        {
+          "account_name": "Personal Loan \u2014 QuickCash Demo",
+          "payment_date": "2026-09-10",
+          "amount_paid": "210.78"
+        },
+        {
+          "account_name": "SBI Home Loan \u2014 Prestige Lakeside",
+          "payment_date": "2026-09-05",
+          "amount_paid": "55997.79"
+        },
+        {
+          "account_name": "SBI Home Loan \u2014 Prestige Lakeside",
+          "payment_date": "2026-09-05",
+          "amount_paid": "55997.79"
+        },
+        {
+          "account_name": "Personal Loan \u2014 QuickCash Demo",
+          "payment_date": "2026-08-10",
+          "amount_paid": "210.78"
+        }
+      ],
+      "alerts": [],
+      "total_monthly_emi": "80907.82",
+      "total_outstanding": "6535656.38",
+      "active_loans_count": 2,
+      "ytd_principal_paid": null,
+      "ytd_interest_paid": null
+    }
+  },
+  "notes": []
+}
