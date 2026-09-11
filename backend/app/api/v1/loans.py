@@ -715,3 +715,75 @@ async def calculate_prepayment_savings(
         "new_emi_reduce_emi": str(new_emi),
         "new_tenure_reduce_tenure": new_months,
     }
+
+
+@router.post("/simulations/early-payment")
+async def simulate_early_payment(
+    simulation_data: dict,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Simulate early payment scenarios (reduce EMI vs reduce tenure)."""
+    from app.services import loan_simulation_service
+    from decimal import Decimal
+    from datetime import date as dt_date
+
+    account_id = uuid.UUID(simulation_data["account_id"])
+    prepayment_amount = Decimal(str(simulation_data["prepayment_amount"]))
+    prepayment_date = dt_date.fromisoformat(simulation_data.get("prepayment_date", date.today().isoformat()))
+
+    result = await loan_simulation_service.simulate_early_payment(
+        session=db,
+        account_id=account_id,
+        prepayment_amount=prepayment_amount,
+        prepayment_date=prepayment_date,
+    )
+
+    return result
+
+
+@router.post("/simulations/preclosure")
+async def simulate_preclosure(
+    simulation_data: dict,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Simulate loan pre-closure and calculate payoff amount."""
+    from app.services import loan_simulation_service
+    from datetime import date as dt_date
+
+    account_id = uuid.UUID(simulation_data["account_id"])
+    closure_date = dt_date.fromisoformat(simulation_data.get("closure_date", date.today().isoformat()))
+
+    result = await loan_simulation_service.simulate_preclosure(
+        session=db,
+        account_id=account_id,
+        closure_date=closure_date,
+    )
+
+    return result
+
+
+@router.post("/simulations/interest-rate-change")
+async def simulate_interest_rate_change(
+    simulation_data: dict,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: uuid.UUID = Depends(require_workspace_access),
+):
+    """Simulate impact of interest rate change."""
+    from app.services import loan_simulation_service
+    from decimal import Decimal
+    from datetime import date as dt_date
+
+    account_id = uuid.UUID(simulation_data["account_id"])
+    new_interest_rate = Decimal(str(simulation_data["new_interest_rate"]))
+    effective_from_date = dt_date.fromisoformat(simulation_data.get("effective_from_date", date.today().isoformat()))
+
+    result = await loan_simulation_service.simulate_interest_rate_change(
+        session=db,
+        account_id=account_id,
+        new_interest_rate=new_interest_rate,
+        effective_from_date=effective_from_date,
+    )
+
+    return result

@@ -9,6 +9,7 @@ import { formatCurrency } from '@/lib/utils';
 import { LoanScheduleTable } from './LoanScheduleTable';
 import { PrepaymentDialog } from './PrepaymentDialog';
 import { LoanAnalyticsCharts } from './LoanAnalyticsCharts';
+import { LoanSimulations } from '@/components/loans/LoanSimulations';
 import { useState } from 'react';
 
 interface LoanOverview {
@@ -158,6 +159,7 @@ export function LoanDetailPage() {
         <TabsList>
           <TabsTrigger value="schedule">Schedule</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="simulations">Simulations</TabsTrigger>
         </TabsList>
 
         <TabsContent value="schedule" className="mt-4">
@@ -166,6 +168,16 @@ export function LoanDetailPage() {
 
         <TabsContent value="analytics" className="mt-4">
           <LoanAnalyticsCharts accountId={accountId!} />
+        </TabsContent>
+
+        <TabsContent value="simulations" className="mt-4">
+          <LoanSimulations
+            accountId={accountId!}
+            currentEmi={parseFloat(overview.principal_paid) + parseFloat(overview.interest_paid)}
+            outstandingBalance={parseFloat(overview.principal_remaining)}
+            currentRate={0}
+            remainingMonths={overview.emis_remaining}
+          />
         </TabsContent>
       </Tabs>
 
