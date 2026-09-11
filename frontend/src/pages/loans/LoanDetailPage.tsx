@@ -5,11 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Download, RefreshCw, DollarSign } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency } from '@/lib/format';
+import { accounts } from '@/lib/api';
+import { useAuth } from '@/contexts/auth-context';
+import { useDisplayLocale } from '@/hooks/use-display-locale';
 import { LoanScheduleTable } from './LoanScheduleTable';
 import { PrepaymentDialog } from './PrepaymentDialog';
 import { LoanAnalyticsCharts } from './LoanAnalyticsCharts';
 import { LoanSimulations } from '@/components/loans/LoanSimulations';
+import { CombinedLoanSimulator } from '@/components/loans/CombinedLoanSimulator';
 import { useState } from 'react';
 
 interface LoanOverview {
@@ -25,7 +29,7 @@ interface LoanOverview {
 
 async function fetchLoanOverview(accountId: string): Promise<LoanOverview> {
   const response = await fetch(`/api/v1/loans/${accountId}/overview`, {
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'X-Workspace-Id': localStorage.getItem('workspace_id') || '' },
   });
   if (!response.ok) throw new Error('Failed to fetch loan overview');
   return response.json();
@@ -33,7 +37,7 @@ async function fetchLoanOverview(accountId: string): Promise<LoanOverview> {
 
 async function exportScheduleCSV(accountId: string) {
   const response = await fetch(`/api/v1/loans/${accountId}/schedule/export`, {
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'X-Workspace-Id': localStorage.getItem('workspace_id') || '' },
   });
   if (!response.ok) throw new Error('Failed to export schedule');
 
@@ -51,12 +55,23 @@ async function exportScheduleCSV(accountId: string) {
 export function LoanDetailPage() {
   const { accountId } = useParams<{ accountId: string }>();
   const [prepaymentDialogOpen, setPrepaymentDialogOpen] = useState(false);
+  const { user } = useAuth();
+  const locale = useDisplayLocale();
+  const userCurrency = user?.preferences?.currency_display ?? 'USD';
 
   const { data: overview, isLoading, error, refetch } = useQuery({
     queryKey: ['loan-overview', accountId],
     queryFn: () => fetchLoanOverview(accountId!),
     enabled: !!accountId,
   });
+
+  const { data: account } = useQuery({
+    queryKey: ['accounts', accountId],
+    queryFn: () => accounts.get(accountId!),
+    enabled: !!accountId,
+  });
+
+  const currency = account?.currency ?? userCurrency;
 
   if (isLoading) {
     return (
@@ -124,9 +139,9 @@ export function LoanDetailPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Principal Paid</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(parseFloat(overview.principal_paid))}</div>
+            <div className="text-2xl font-bold">{formatCurrency(parseFloat(overview.principal_paid), currency, locale)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Remaining: {formatCurrency(parseFloat(overview.principal_remaining))}
+              Remaining: {formatCurrency(parseFloat(overview.principal_remaining), currency, locale)}
             </p>
           </CardContent>
         </Card>
@@ -136,9 +151,9 @@ export function LoanDetailPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Interest Paid</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(parseFloat(overview.interest_paid))}</div>
+            <div className="text-2xl font-bold">{formatCurrency(parseFloat(overview.interest_paid), currency, locale)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Remaining: {formatCurrency(parseFloat(overview.interest_remaining))}
+              Remaining: {formatCurrency(parseFloat(overview.interest_remaining), currency, locale)}
             </p>
           </CardContent>
         </Card>
@@ -148,7 +163,7 @@ export function LoanDetailPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Prepayments</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(parseFloat(overview.total_prepayments))}</div>
+            <div className="text-2xl font-bold">{formatCurrency(parseFloat(overview.total_prepayments), currency, locale)}</div>
             <p className="text-xs text-muted-foreground mt-1">Total prepaid</p>
           </CardContent>
         </Card>
@@ -160,14 +175,15 @@ export function LoanDetailPage() {
           <TabsTrigger value="schedule">Schedule</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="simulations">Simulations</TabsTrigger>
+          <TabsTrigger value="combined">Combined plan</TabsTrigger>
         </TabsList>
 
         <TabsContent value="schedule" className="mt-4">
-          <LoanScheduleTable accountId={accountId!} />
+          <LoanScheduleTable accountId={accountId!} currency={currency} locale={locale} />
         </TabsContent>
 
         <TabsContent value="analytics" className="mt-4">
-          <LoanAnalyticsCharts accountId={accountId!} />
+          <LoanAnalyticsCharts accountId={accountId!} currency={currency} locale={locale} />
         </TabsContent>
 
         <TabsContent value="simulations" className="mt-4">
@@ -177,7 +193,13 @@ export function LoanDetailPage() {
             outstandingBalance={parseFloat(overview.principal_remaining)}
             currentRate={0}
             remainingMonths={overview.emis_remaining}
+            currency={currency}
+            locale={locale}
           />
+        </TabsContent>
+
+        <TabsContent value="combined" className="mt-4">
+          <CombinedLoanSimulator accountId={accountId!} currency={currency} locale={locale} />
         </TabsContent>
       </Tabs>
 
@@ -191,3 +213,5 @@ export function LoanDetailPage() {
     </div>
   );
 }
+
+export default LoanDetailPage
