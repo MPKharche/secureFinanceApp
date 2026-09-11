@@ -18,6 +18,7 @@ class _RedisStore:
         self.getdel = AsyncMock(side_effect=self._getdel)
         self.set = AsyncMock(side_effect=self._set)
         self.delete = AsyncMock(side_effect=self._delete)
+        self.exists = AsyncMock(side_effect=self._exists)
         pipe = AsyncMock()
         pipe.zremrangebyscore = AsyncMock()
         pipe.zcard = AsyncMock()
@@ -37,6 +38,9 @@ class _RedisStore:
 
     async def _delete(self, key):
         self.store.pop(key, None)
+
+    async def _exists(self, key):
+        return 1 if key in self.store else 0
 
 
 BROWSER_ORIGIN = "https://securo.test"
@@ -59,6 +63,7 @@ def _passkey_redis_store(_mock_redis):
 
     with patch("app.core.redis.get_redis", _fake), \
          patch("app.core.rate_limit.get_redis", _fake), \
+         patch("app.core.token_revoke.get_redis", _fake), \
          patch("app.api.custom_auth.get_redis", _fake), \
          patch("app.api.two_factor.get_redis", _fake), \
          patch("app.api.passkeys.get_redis", _fake):

@@ -72,6 +72,8 @@ from app.agents.models import (  # noqa: E402,F401
     KnowledgeDoc,
     KnowledgeChunk,
     LlmUsage,
+    McpIssuedToken,
+    McpTokenDenylist,
 )
 
 # Use SQLite for tests — fast, no external dependency.
@@ -557,9 +559,29 @@ async def test_user_with_2fa(session: AsyncSession, clean_db) -> User:
 
 @pytest.fixture(autouse=True)
 def _mock_redis():
-    """Provide a no-op Redis mock so rate limiting never blocks tests."""
+    """In-memory Redis stand-in so rate limits stay off and JWT denylist works."""
+    store: dict[str, str] = {}
     mock = AsyncMock()
-    # Pipeline mock that always reports 0 prior requests (never rate-limits)
+
+    async def mock_get(key):
+        return store.get(key)
+
+    async def mock_set(key, value, ex=None):
+        store[key] = value
+        return True
+
+    async def mock_delete(key):
+        store.pop(key, None)
+        return 1
+
+    async def mock_exists(key):
+        return 1 if key in store else 0
+
+    mock.get = AsyncMock(side_effect=mock_get)
+    mock.set = AsyncMock(side_effect=mock_set)
+    mock.delete = AsyncMock(side_effect=mock_delete)
+    mock.exists = AsyncMock(side_effect=mock_exists)
+
     pipe_mock = AsyncMock()
     pipe_mock.zremrangebyscore = AsyncMock()
     pipe_mock.zcard = AsyncMock()
@@ -567,21 +589,17 @@ def _mock_redis():
     pipe_mock.expire = AsyncMock()
     pipe_mock.execute = AsyncMock(return_value=[0, 0, True, True])
     mock.pipeline = lambda: pipe_mock
-    # Key-value ops for 2FA temp tokens
-    mock.get = AsyncMock(return_value=None)
-    mock.set = AsyncMock()
-    mock.delete = AsyncMock()
 
     async def _fake_get_redis():
         return mock
 
-    # Reset the cached singleton so no real Redis connection leaks into tests
     import app.core.redis as redis_mod
     original = redis_mod._redis
     redis_mod._redis = None
 
     with patch("app.core.redis.get_redis", _fake_get_redis), \
          patch("app.core.rate_limit.get_redis", _fake_get_redis), \
+         patch("app.core.token_revoke.get_redis", _fake_get_redis), \
          patch("app.api.custom_auth.get_redis", _fake_get_redis), \
          patch("app.api.two_factor.get_redis", _fake_get_redis):
         yield mock

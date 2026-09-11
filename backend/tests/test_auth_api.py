@@ -59,7 +59,25 @@ async def test_get_me(client: AsyncClient, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_get_me_unauthenticated(client: AsyncClient, clean_db):
+async def test_logout_revokes_access_token(client: AsyncClient, test_user):
+    login = await client.post(
+        "/api/auth/login",
+        data={"username": "test@example.com", "password": "testpass123"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert login.status_code == 200
+    token = login.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    me = await client.get("/api/users/me", headers=headers)
+    assert me.status_code == 200
+
+    out = await client.post("/api/auth/logout", headers=headers)
+    assert out.status_code == 200
+
+    me_after = await client.get("/api/users/me", headers=headers)
+    assert me_after.status_code == 401
+
     response = await client.get("/api/users/me")
     assert response.status_code == 401
 

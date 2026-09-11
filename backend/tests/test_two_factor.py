@@ -27,6 +27,11 @@ def _make_redis_mock_with_store():
     mock.set = AsyncMock(side_effect=mock_set)
     mock.delete = AsyncMock(side_effect=mock_delete)
 
+    async def mock_exists(key):
+        return 1 if key in store else 0
+
+    mock.exists = AsyncMock(side_effect=mock_exists)
+
     # Pipeline for rate limiter (always allow)
     pipe_mock = MagicMock()
     pipe_mock.execute = AsyncMock(return_value=[0, 0, True, True])
@@ -45,6 +50,7 @@ def _override_redis_with_store(_mock_redis):
 
     with patch("app.core.redis.get_redis", _fake), \
          patch("app.core.rate_limit.get_redis", _fake), \
+         patch("app.core.token_revoke.get_redis", _fake), \
          patch("app.api.custom_auth.get_redis", _fake), \
          patch("app.api.two_factor.get_redis", _fake):
         yield mock
@@ -269,6 +275,7 @@ async def test_verify_2fa_with_valid_token(client: AsyncClient, test_user_with_2
 
     with patch("app.api.two_factor.get_redis", _fake), \
          patch("app.core.rate_limit.get_redis", _fake), \
+         patch("app.core.token_revoke.get_redis", _fake), \
          patch("app.api.custom_auth.get_redis", _fake):
         totp = pyotp.TOTP(test_user_with_2fa.totp_secret)
         resp = await client.post(

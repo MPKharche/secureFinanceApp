@@ -222,6 +222,34 @@ async def test_propose_update_delete_budget(session: AsyncSession, test_user, te
     assert gone.get("deleted") is True
 
 
+async def test_propose_create_budget_redirects_to_update(
+    session: AsyncSession, test_user, test_categories
+):
+    create = REGISTRY["propose_create_budget"].handler
+    ctx = CallContext(user_id=test_user.id, external=True)
+    month = date.today().replace(day=1).isoformat()
+    first = await create(
+        session=session,
+        ctx=ctx,
+        category_id=str(test_categories[0].id),
+        month=month,
+        amount=3500,
+        apply=True,
+    )
+    assert first.get("applied") is True
+    again = await create(
+        session=session,
+        ctx=ctx,
+        category_id=str(test_categories[0].id),
+        month=month,
+        amount=4050,
+        apply=True,
+    )
+    assert again.get("next_tool") == "propose_update_budget"
+    assert again["existing_budget_id"] == first["id"]
+    assert again["next_args"]["amount"] == 4050.0
+
+
 async def test_propose_update_goal_add_amount(session: AsyncSession, test_user):
     from app.models.goal import Goal
 

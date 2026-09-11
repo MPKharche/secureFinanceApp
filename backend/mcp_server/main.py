@@ -49,7 +49,7 @@ async def health():
 async def mcp(request: Request) -> JSONResponse:
     # Auth first — never accept unauthenticated calls.
     try:
-        ctx = verify_request(request)
+        ctx = await verify_request(request)
     except Exception as exc:  # HTTPException from verify_request
         status_code = getattr(exc, "status_code", 401)
         detail = getattr(exc, "detail", str(exc))
