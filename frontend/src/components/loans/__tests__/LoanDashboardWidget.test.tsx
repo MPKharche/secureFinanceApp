@@ -4,6 +4,16 @@ import { BrowserRouter } from 'react-router-dom';
 import { LoanDashboardWidget } from '../LoanDashboardWidget';
 import { vi } from 'vitest';
 
+vi.mock('@/contexts/auth-context', () => ({
+  useAuth: () => ({
+    user: { preferences: { currency_display: 'INR' } },
+  }),
+}));
+
+vi.mock('@/hooks/use-display-locale', () => ({
+  useDisplayLocale: () => 'en-IN',
+}));
+
 const mockDashboardData = {
   next_due_payments: [
     {

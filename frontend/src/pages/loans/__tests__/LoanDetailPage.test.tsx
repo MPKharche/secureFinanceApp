@@ -5,6 +5,27 @@ import { LoanDetailPage } from '../LoanDetailPage';
 import { vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 
+vi.mock('@/contexts/auth-context', () => ({
+  useAuth: () => ({
+    user: { preferences: { currency_display: 'INR' } },
+  }),
+}));
+
+vi.mock('@/hooks/use-display-locale', () => ({
+  useDisplayLocale: () => 'en-IN',
+}));
+
+vi.mock('@/lib/api', async () => {
+  const actual = await vi.importActual<any>('@/lib/api');
+  return {
+    ...actual,
+    accounts: {
+      ...actual.accounts,
+      get: vi.fn(async () => ({ id: '123-456', currency: 'INR', name: 'Home Loan' })),
+    },
+  };
+});
+
 const mockOverview = {
   progress_percent: 25.5,
   emis_paid: 6,
@@ -31,23 +52,32 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 );
 
 // Mock child components
-vi.mock('../../components/loans/LoanScheduleTable', () => ({
+vi.mock('@/components/loans/LoanSimulations', () => ({
+  LoanSimulations: () => <div data-testid="loan-simulations">Simulations</div>,
+}));
+
+vi.mock('@/components/loans/CombinedLoanSimulator', () => ({
+  CombinedLoanSimulator: () => <div data-testid="combined-sim">Combined</div>,
+}));
+
+vi.mock('./LoanScheduleTable', () => ({
   LoanScheduleTable: ({ accountId }: { accountId: string }) => (
     <div data-testid="schedule-table">Schedule for {accountId}</div>
   ),
 }));
 
-vi.mock('../../components/loans/PrepaymentDialog', () => ({
-  PrepaymentDialog: ({ open, onSuccess }: any) => (
-    open ? <div data-testid="prepayment-dialog">Prepayment Dialog</div> : null
-  ),
-}));
-
-vi.mock('../../components/loans/LoanAnalyticsCharts', () => ({
+vi.mock('./LoanAnalyticsCharts', () => ({
   LoanAnalyticsCharts: ({ accountId }: { accountId: string }) => (
     <div data-testid="analytics-charts">Analytics for {accountId}</div>
   ),
 }));
+
+vi.mock('./PrepaymentDialog', () => ({
+  PrepaymentDialog: ({ open }: any) => (
+    open ? <div data-testid="prepayment-dialog">Prepayment Dialog</div> : null
+  ),
+}));
+
 
 describe('LoanDetailPage', () => {
   beforeEach(() => {
