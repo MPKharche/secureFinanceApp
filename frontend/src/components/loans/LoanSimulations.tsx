@@ -5,8 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Calculator, TrendingDown, DollarSign, Percent } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { Calculator, DollarSign, Percent } from 'lucide-react';
+import { formatCurrency } from '@/lib/format';
 
 interface LoanSimulationsProps {
   accountId: string;
@@ -14,6 +14,8 @@ interface LoanSimulationsProps {
   outstandingBalance: number;
   currentRate: number;
   remainingMonths: number;
+  currency?: string;
+  locale?: string;
 }
 
 interface EarlyPaymentResult {
@@ -82,11 +84,16 @@ interface RateChangeResult {
 
 export function LoanSimulations({
   accountId,
-  currentEmi,
-  outstandingBalance,
+  currentEmi: _currentEmi,
+  outstandingBalance: _outstandingBalance,
   currentRate,
-  remainingMonths,
+  remainingMonths: _remainingMonths,
+  currency = 'USD',
+  locale = 'en-US',
 }: LoanSimulationsProps) {
+  void _currentEmi
+  void _outstandingBalance
+  void _remainingMonths
   const [earlyPaymentAmount, setEarlyPaymentAmount] = useState('');
   const [earlyPaymentDate, setEarlyPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [earlyPaymentResult, setEarlyPaymentResult] = useState<EarlyPaymentResult | null>(null);
@@ -113,6 +120,7 @@ export function LoanSimulations({
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'X-Workspace-Id': localStorage.getItem('workspace_id') || '',
         },
         body: JSON.stringify({
           account_id: accountId,
@@ -143,6 +151,7 @@ export function LoanSimulations({
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'X-Workspace-Id': localStorage.getItem('workspace_id') || '',
         },
         body: JSON.stringify({
           account_id: accountId,
@@ -172,6 +181,7 @@ export function LoanSimulations({
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'X-Workspace-Id': localStorage.getItem('workspace_id') || '',
         },
         body: JSON.stringify({
           account_id: accountId,
@@ -259,21 +269,21 @@ export function LoanSimulations({
                       <CardContent className="space-y-2">
                         <div>
                           <div className="text-2xl font-bold text-green-600">
-                            {formatCurrency(earlyPaymentResult.reduce_emi.new_emi)}
+                            {formatCurrency(earlyPaymentResult.reduce_emi.new_emi, currency, locale)}
                           </div>
                           <p className="text-xs text-muted-foreground">New EMI</p>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span>Reduction:</span>
                           <span className="font-medium">
-                            {formatCurrency(earlyPaymentResult.reduce_emi.emi_reduction)} (
+                            {formatCurrency(earlyPaymentResult.reduce_emi.emi_reduction, currency, locale)} (
                             {earlyPaymentResult.reduce_emi.emi_reduction_percent.toFixed(1)}%)
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span>Interest Saved:</span>
                           <span className="font-medium text-green-600">
-                            {formatCurrency(earlyPaymentResult.reduce_emi.interest_saved)}
+                            {formatCurrency(earlyPaymentResult.reduce_emi.interest_saved, currency, locale)}
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
@@ -301,12 +311,12 @@ export function LoanSimulations({
                         <div className="flex justify-between text-sm">
                           <span>Interest Saved:</span>
                           <span className="font-medium text-green-600">
-                            {formatCurrency(earlyPaymentResult.reduce_tenure.interest_saved)}
+                            {formatCurrency(earlyPaymentResult.reduce_tenure.interest_saved, currency, locale)}
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span>EMI:</span>
-                          <span>{formatCurrency(earlyPaymentResult.reduce_tenure.emi)}</span>
+                          <span>{formatCurrency(earlyPaymentResult.reduce_tenure.emi, currency, locale)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span>New Payoff:</span>
@@ -348,7 +358,7 @@ export function LoanSimulations({
                     <CardContent className="pt-6">
                       <div className="text-center">
                         <div className="text-3xl font-bold text-blue-900">
-                          {formatCurrency(preclosureResult.total_payoff_amount)}
+                          {formatCurrency(preclosureResult.total_payoff_amount, currency, locale)}
                         </div>
                         <p className="text-sm text-blue-700 mt-1">Total Payoff Amount</p>
                       </div>
@@ -359,26 +369,26 @@ export function LoanSimulations({
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span>Outstanding Principal:</span>
-                        <span className="font-medium">{formatCurrency(preclosureResult.outstanding_principal)}</span>
+                        <span className="font-medium">{formatCurrency(preclosureResult.outstanding_principal, currency, locale)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Accrued Interest:</span>
-                        <span className="font-medium">{formatCurrency(preclosureResult.accrued_interest)}</span>
+                        <span className="font-medium">{formatCurrency(preclosureResult.accrued_interest, currency, locale)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Prepayment Penalty ({preclosureResult.prepayment_penalty_rate}%):</span>
-                        <span className="font-medium">{formatCurrency(preclosureResult.prepayment_penalty)}</span>
+                        <span className="font-medium">{formatCurrency(preclosureResult.prepayment_penalty, currency, locale)}</span>
                       </div>
                     </div>
 
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span>Interest Saved:</span>
-                        <span className="font-medium text-green-600">{formatCurrency(preclosureResult.interest_saved)}</span>
+                        <span className="font-medium text-green-600">{formatCurrency(preclosureResult.interest_saved, currency, locale)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Net Savings:</span>
-                        <span className="font-medium text-green-600">{formatCurrency(preclosureResult.net_savings)}</span>
+                        <span className="font-medium text-green-600">{formatCurrency(preclosureResult.net_savings, currency, locale)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Remaining EMIs:</span>
@@ -389,9 +399,9 @@ export function LoanSimulations({
 
                   <Alert>
                     <AlertDescription className="text-sm">
-                      You have paid {formatCurrency(preclosureResult.paid_to_date.total)} so far (
-                      {formatCurrency(preclosureResult.paid_to_date.principal)} principal +
-                      {formatCurrency(preclosureResult.paid_to_date.interest)} interest)
+                      You have paid {formatCurrency(preclosureResult.paid_to_date.total, currency, locale)} so far (
+                      {formatCurrency(preclosureResult.paid_to_date.principal, currency, locale)} principal +
+                      {formatCurrency(preclosureResult.paid_to_date.interest, currency, locale)} interest)
                     </AlertDescription>
                   </Alert>
                 </div>
@@ -452,11 +462,11 @@ export function LoanSimulations({
                         <div className="text-right">
                           <div className="text-sm text-muted-foreground">EMI Impact</div>
                           <div className="text-2xl font-bold">
-                            {formatCurrency(rateChangeResult.new_emi)}
+                            {formatCurrency(rateChangeResult.new_emi, currency, locale)}
                           </div>
                           <div className={`text-sm ${rateChangeResult.is_favorable ? 'text-green-600' : 'text-red-600'}`}>
                             {rateChangeResult.emi_change > 0 ? '+' : ''}
-                            {formatCurrency(rateChangeResult.emi_change)} ({rateChangeResult.emi_change_percent.toFixed(1)}%)
+                            {formatCurrency(rateChangeResult.emi_change, currency, locale)} ({rateChangeResult.emi_change_percent.toFixed(1)}%)
                           </div>
                         </div>
                       </div>
@@ -467,32 +477,32 @@ export function LoanSimulations({
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span>Current EMI:</span>
-                        <span className="font-medium">{formatCurrency(rateChangeResult.current_emi)}</span>
+                        <span className="font-medium">{formatCurrency(rateChangeResult.current_emi, currency, locale)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>New EMI:</span>
-                        <span className="font-medium">{formatCurrency(rateChangeResult.new_emi)}</span>
+                        <span className="font-medium">{formatCurrency(rateChangeResult.new_emi, currency, locale)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Outstanding:</span>
-                        <span>{formatCurrency(rateChangeResult.outstanding_balance)}</span>
+                        <span>{formatCurrency(rateChangeResult.outstanding_balance, currency, locale)}</span>
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span>Current Total Interest:</span>
-                        <span className="font-medium">{formatCurrency(rateChangeResult.current_total_interest)}</span>
+                        <span className="font-medium">{formatCurrency(rateChangeResult.current_total_interest, currency, locale)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>New Total Interest:</span>
-                        <span className="font-medium">{formatCurrency(rateChangeResult.new_total_interest)}</span>
+                        <span className="font-medium">{formatCurrency(rateChangeResult.new_total_interest, currency, locale)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Difference:</span>
                         <span className={`font-medium ${rateChangeResult.is_favorable ? 'text-green-600' : 'text-red-600'}`}>
                           {rateChangeResult.interest_difference > 0 ? '+' : ''}
-                          {formatCurrency(rateChangeResult.interest_difference)}
+                          {formatCurrency(rateChangeResult.interest_difference, currency, locale)}
                         </span>
                       </div>
                     </div>

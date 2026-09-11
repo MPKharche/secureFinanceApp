@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, TrendingUp, Calendar } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency } from '@/lib/format';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/auth-context';
+import { useDisplayLocale } from '@/hooks/use-display-locale';
 
 interface LoanDashboardData {
   next_due_payments: Array<{
@@ -30,13 +32,17 @@ interface LoanDashboardData {
 
 async function fetchLoanDashboard(): Promise<LoanDashboardData> {
   const response = await fetch('/api/v1/loans/dashboard', {
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'X-Workspace-Id': localStorage.getItem('workspace_id') || '' },
   });
   if (!response.ok) throw new Error('Failed to fetch loan dashboard');
   return response.json();
 }
 
 export function LoanDashboardWidget() {
+  const { user } = useAuth();
+  const locale = useDisplayLocale();
+  const userCurrency = user?.preferences?.currency_display ?? 'USD';
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['loan-dashboard'],
     queryFn: fetchLoanDashboard,
@@ -91,11 +97,11 @@ export function LoanDashboardWidget() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Total Outstanding</p>
-            <p className="text-2xl font-bold">{formatCurrency(parseFloat(data.total_outstanding))}</p>
+            <p className="text-2xl font-bold">{formatCurrency(parseFloat(data.total_outstanding), userCurrency, locale)}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Monthly EMI</p>
-            <p className="text-2xl font-bold">{formatCurrency(parseFloat(data.total_monthly_emi))}</p>
+            <p className="text-2xl font-bold">{formatCurrency(parseFloat(data.total_monthly_emi), userCurrency, locale)}</p>
           </div>
         </div>
 
@@ -132,7 +138,7 @@ export function LoanDashboardWidget() {
                       {new Date(payment.due_date).toLocaleDateString()}
                     </p>
                   </div>
-                  <p className="text-sm font-medium">{formatCurrency(parseFloat(payment.emi_amount))}</p>
+                  <p className="text-sm font-medium">{formatCurrency(parseFloat(payment.emi_amount), userCurrency, locale)}</p>
                 </div>
               ))}
             </div>
@@ -150,7 +156,7 @@ export function LoanDashboardWidget() {
               {data.recent_payments.slice(0, 3).map((payment, idx) => (
                 <div key={idx} className="flex justify-between items-center text-sm">
                   <span className="text-muted-foreground">{payment.account_name}</span>
-                  <span className="font-medium">{formatCurrency(parseFloat(payment.amount_paid))}</span>
+                  <span className="font-medium">{formatCurrency(parseFloat(payment.amount_paid), userCurrency, locale)}</span>
                 </div>
               ))}
             </div>
