@@ -9,12 +9,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db, require_workspace_access
+from app.core.database import get_async_session
+from app.core.workspace_context import current_workspace, current_writable_workspace
 from app.schemas.loan_schedule import (
     LoanScheduleEntryRead,
-    ScheduleEntryUpdate,
-    BulkDateUpdate,
-    StatusUpdate,
+    LoanScheduleEntryUpdate,
+    BulkUpdateDatesRequest,
+    MarkPaymentStatusRequest,
     PrepaymentCreate,
     PrepaymentSimulation,
     PrepaymentRead,
@@ -31,14 +32,14 @@ async def get_loan_schedule(
     status: Optional[str] = Query(None, pattern="^(scheduled|paid|partial|missed|skipped)$"),
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Retrieve amortization schedule for a loan account."""
     entries = await loan_schedule_service.get_schedule(
         db=db,
         account_id=account_id,
-        workspace_id=workspace_id,
+        workspace_id=workspace.workspace_id,
         status=status,
         from_date=from_date,
         to_date=to_date,
@@ -52,7 +53,7 @@ async def get_loan_schedule(
         result = await db.execute(
             select(Account).where(
                 Account.id == account_id,
-                Account.workspace_id == workspace_id,
+                Account.workspace_id == workspace.workspace_id,
             )
         )
         account = result.scalar_one_or_none()
@@ -65,14 +66,14 @@ async def get_loan_schedule(
 @router.get("/{account_id}/schedule/export")
 async def export_schedule_csv(
     account_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Export loan schedule as CSV."""
     entries = await loan_schedule_service.get_schedule(
         db=db,
         account_id=account_id,
-        workspace_id=workspace_id,
+        workspace_id=workspace.workspace_id,
     )
 
     if not entries:
@@ -115,15 +116,15 @@ async def export_schedule_csv(
 @router.patch("/schedule/{entry_id}", response_model=LoanScheduleEntryRead)
 async def update_schedule_entry(
     entry_id: uuid.UUID,
-    update_data: ScheduleEntryUpdate,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    update_data: LoanScheduleEntryUpdate,
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Update a single schedule entry (due date, EMI amount, etc)."""
     updated = await loan_schedule_service.update_schedule_entry(
         db=db,
         entry_id=entry_id,
-        workspace_id=workspace_id,
+        workspace_id=workspace.workspace_id,
         update_data=update_data.model_dump(exclude_unset=True),
     )
 
@@ -137,7 +138,7 @@ async def update_schedule_entry(
     result = await db.execute(
         select(LoanAmortizationSchedule).where(
             LoanAmortizationSchedule.id == entry_id,
-            LoanAmortizationSchedule.workspace_id == workspace_id,
+            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
         )
     )
     entry = result.scalar_one()
@@ -146,15 +147,15 @@ async def update_schedule_entry(
 
 @router.post("/schedule/bulk-update-dates")
 async def bulk_update_dates(
-    update_data: BulkDateUpdate,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    update_data: BulkUpdateDatesRequest,
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Bulk update due dates (shift or change EMI day)."""
     updated_count = await loan_schedule_service.bulk_update_dates(
         db=db,
         account_id=update_data.account_id,
-        workspace_id=workspace_id,
+        workspace_id=workspace.workspace_id,
         from_emi_number=update_data.from_emi_number,
         shift_days=update_data.shift_days,
         new_day_of_month=update_data.new_day_of_month,
@@ -166,15 +167,15 @@ async def bulk_update_dates(
 @router.put("/schedule/{entry_id}/status", response_model=LoanScheduleEntryRead)
 async def mark_entry_status(
     entry_id: uuid.UUID,
-    status_data: StatusUpdate,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    status_data: MarkPaymentStatusRequest,
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Mark a schedule entry's payment status."""
     updated = await loan_schedule_service.update_schedule_entry(
         db=db,
         entry_id=entry_id,
-        workspace_id=workspace_id,
+        workspace_id=workspace.workspace_id,
         update_data={"payment_status": status_data.payment_status},
     )
 
@@ -188,7 +189,7 @@ async def mark_entry_status(
     result = await db.execute(
         select(LoanAmortizationSchedule).where(
             LoanAmortizationSchedule.id == entry_id,
-            LoanAmortizationSchedule.workspace_id == workspace_id,
+            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
         )
     )
     entry = result.scalar_one()
@@ -199,14 +200,14 @@ async def mark_entry_status(
 @router.post("/prepayments/simulate")
 async def simulate_prepayment(
     simulation_data: PrepaymentSimulation,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Simulate prepayment options (reduce_emi vs reduce_tenure)."""
     result = await loan_payment_service.simulate_prepayment(
         db=db,
         account_id=simulation_data.account_id,
-        workspace_id=workspace_id,
+        workspace_id=workspace.workspace_id,
         prepayment_amount=simulation_data.prepayment_amount,
         annual_interest_rate=simulation_data.annual_interest_rate,
         current_emi_number=simulation_data.current_emi_number,
@@ -218,14 +219,14 @@ async def simulate_prepayment(
 @router.post("/prepayments", response_model=PrepaymentRead)
 async def record_prepayment(
     prepayment_data: PrepaymentCreate,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Record a prepayment and regenerate schedule."""
     prepayment = await loan_payment_service.record_prepayment(
         db=db,
         account_id=prepayment_data.account_id,
-        workspace_id=workspace_id,
+        workspace_id=workspace.workspace_id,
         prepayment_amount=prepayment_data.prepayment_amount,
         annual_interest_rate=prepayment_data.annual_interest_rate,
         current_emi_number=prepayment_data.current_emi_number,
@@ -241,8 +242,8 @@ async def record_prepayment(
 @router.get("/{account_id}/prepayments", response_model=list[PrepaymentRead])
 async def list_prepayments(
     account_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """List prepayment history for a loan account."""
     from app.models.loan_prepayment import LoanPrepayment
@@ -263,8 +264,8 @@ async def list_prepayments(
 @router.post("/schedule/auto-link")
 async def auto_link_transactions(
     link_data: AutoLinkRequest,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Auto-link transactions to schedule entries with confidence scoring."""
     from app.schemas.loan_schedule import AutoLinkRequest
@@ -272,7 +273,7 @@ async def auto_link_transactions(
     matches = await loan_payment_service.auto_link_transactions(
         db=db,
         account_id=link_data.account_id,
-        workspace_id=workspace_id,
+        workspace_id=workspace.workspace_id,
         date_tolerance_days=link_data.date_tolerance_days,
         amount_tolerance_percent=link_data.amount_tolerance_percent,
     )
@@ -284,8 +285,8 @@ async def auto_link_transactions(
 async def manual_link_transaction(
     entry_id: uuid.UUID,
     link_data: dict,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Manually link a transaction to a schedule entry."""
     transaction_id = uuid.UUID(link_data["transaction_id"])
@@ -294,7 +295,7 @@ async def manual_link_transaction(
     updated = await loan_schedule_service.update_schedule_entry(
         db=db,
         entry_id=entry_id,
-        workspace_id=workspace_id,
+        workspace_id=workspace.workspace_id,
         update_data={
             "linked_transaction_id": transaction_id,
             "payment_status": "paid",
@@ -311,7 +312,7 @@ async def manual_link_transaction(
     result = await db.execute(
         select(LoanAmortizationSchedule).where(
             LoanAmortizationSchedule.id == entry_id,
-            LoanAmortizationSchedule.workspace_id == workspace_id,
+            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
         )
     )
     entry = result.scalar_one()
@@ -321,8 +322,8 @@ async def manual_link_transaction(
 @router.get("/{account_id}/overview")
 async def get_loan_overview(
     account_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Get loan overview metrics (progress, principal/interest breakdown)."""
     from app.services import loan_analytics_service
@@ -330,7 +331,7 @@ async def get_loan_overview(
     overview = await loan_analytics_service.get_loan_overview(
         db=db,
         account_id=account_id,
-        workspace_id=workspace_id,
+        workspace_id=workspace.workspace_id,
     )
 
     if not overview:
@@ -343,8 +344,8 @@ async def get_loan_overview(
 async def get_yearly_breakdown(
     account_id: uuid.UUID,
     group_by: str = Query("year", pattern="^(year|quarter|month)$"),
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Get yearly/quarterly/monthly breakdown of payments."""
     from app.services import loan_analytics_service
@@ -352,7 +353,7 @@ async def get_yearly_breakdown(
     breakdown = await loan_analytics_service.get_yearly_breakdown(
         db=db,
         account_id=account_id,
-        workspace_id=workspace_id,
+        workspace_id=workspace.workspace_id,
         group_by=group_by,
     )
 
@@ -362,15 +363,15 @@ async def get_yearly_breakdown(
 @router.get("/debt-ratios")
 async def calculate_debt_ratios(
     monthly_income: Optional[Decimal] = None,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Calculate debt-to-income and other financial ratios."""
     from app.services import loan_analytics_service
     
     ratios = await loan_analytics_service.calculate_debt_ratios(
         db=db,
-        workspace_id=workspace_id,
+        workspace_id=workspace.workspace_id,
         monthly_income=monthly_income,
     )
 
@@ -379,15 +380,15 @@ async def calculate_debt_ratios(
 
 @router.get("/dashboard")
 async def get_dashboard_summary(
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Get dashboard summary with next payments, recent activity, and alerts."""
     from app.services import loan_analytics_service
     
     summary = await loan_analytics_service.get_dashboard_summary(
         db=db,
-        workspace_id=workspace_id,
+        workspace_id=workspace.workspace_id,
     )
 
     return summary
@@ -396,8 +397,8 @@ async def get_dashboard_summary(
 @router.post("/schedule/regenerate")
 async def regenerate_schedule(
     regenerate_data: dict,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Regenerate loan schedule from a specific EMI number with new parameters."""
     from decimal import Decimal
@@ -416,7 +417,7 @@ async def regenerate_schedule(
     entries = await loan_schedule_service.regenerate_schedule(
         db=db,
         account_id=account_id,
-        workspace_id=workspace_id,
+        workspace_id=workspace.workspace_id,
         from_emi_number=from_emi_number,
         new_principal=new_principal,
         new_annual_rate=new_annual_rate,
@@ -439,8 +440,8 @@ async def regenerate_schedule(
 @router.post("/schedule/bulk-mark-status")
 async def bulk_mark_status(
     bulk_data: dict,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Bulk mark payment status for multiple schedule entries."""
     entry_ids = [uuid.UUID(id_str) for id_str in bulk_data["entry_ids"]]
@@ -456,7 +457,7 @@ async def bulk_mark_status(
         update(LoanAmortizationSchedule)
         .where(
             LoanAmortizationSchedule.id.in_(entry_ids),
-            LoanAmortizationSchedule.workspace_id == workspace_id,
+            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
         )
         .values(payment_status=payment_status)
     )
@@ -470,8 +471,8 @@ async def bulk_mark_status(
 @router.post("/schedule/bulk-delete")
 async def bulk_delete_schedules(
     bulk_data: dict,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Bulk delete schedule entries for specific accounts and version."""
     account_ids = [uuid.UUID(id_str) for id_str in bulk_data["account_ids"]]
@@ -485,7 +486,7 @@ async def bulk_delete_schedules(
         .where(
             LoanAmortizationSchedule.account_id.in_(account_ids),
             LoanAmortizationSchedule.schedule_version == schedule_version,
-            LoanAmortizationSchedule.workspace_id == workspace_id,
+            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
         )
     )
     
@@ -498,8 +499,8 @@ async def bulk_delete_schedules(
 @router.post("/schedule/bulk-export")
 async def bulk_export_schedules(
     bulk_data: dict,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Bulk export schedules for multiple loans as ZIP file."""
     import zipfile
@@ -513,7 +514,7 @@ async def bulk_export_schedules(
             entries = await loan_schedule_service.get_schedule(
                 db=db,
                 account_id=account_id,
-                workspace_id=workspace_id,
+                workspace_id=workspace.workspace_id,
             )
             
             if entries:
@@ -549,7 +550,7 @@ async def bulk_export_schedules(
 @router.post("/loans/calculate-emi")
 async def calculate_emi(
     calc_data: dict,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_session),
 ):
     """Calculate EMI for given loan parameters."""
     from decimal import Decimal
@@ -575,8 +576,8 @@ async def calculate_emi(
 @router.post("/loans/validate-schedule")
 async def validate_schedule(
     validate_data: dict,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Validate schedule integrity (balance continuity, EMI consistency)."""
     from decimal import Decimal
@@ -589,7 +590,7 @@ async def validate_schedule(
         select(LoanAmortizationSchedule)
         .where(
             LoanAmortizationSchedule.account_id == account_id,
-            LoanAmortizationSchedule.workspace_id == workspace_id,
+            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
         )
         .order_by(LoanAmortizationSchedule.schedule_version, LoanAmortizationSchedule.emi_number)
     )
@@ -622,8 +623,8 @@ async def validate_schedule(
 
 @router.get("/loans/summary")
 async def get_loan_summary(
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Get summary of all loans in workspace."""
     from sqlalchemy import select, func
@@ -633,7 +634,7 @@ async def get_loan_summary(
     # Get all loan accounts
     result = await db.execute(
         select(Account).where(
-            Account.workspace_id == workspace_id,
+            Account.workspace_id == workspace.workspace_id,
             Account.subtype == "loan",
         )
     )
@@ -668,7 +669,7 @@ async def get_loan_summary(
 @router.post("/loans/calculate-savings")
 async def calculate_prepayment_savings(
     savings_data: dict,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_session),
 ):
     """Calculate interest savings from prepayment."""
     from decimal import Decimal
@@ -720,8 +721,8 @@ async def calculate_prepayment_savings(
 @router.post("/simulations/early-payment")
 async def simulate_early_payment(
     simulation_data: dict,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Simulate early payment scenarios (reduce EMI vs reduce tenure)."""
     from app.services import loan_simulation_service
@@ -745,8 +746,8 @@ async def simulate_early_payment(
 @router.post("/simulations/preclosure")
 async def simulate_preclosure(
     simulation_data: dict,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Simulate loan pre-closure and calculate payoff amount."""
     from app.services import loan_simulation_service
@@ -767,8 +768,8 @@ async def simulate_preclosure(
 @router.post("/simulations/interest-rate-change")
 async def simulate_interest_rate_change(
     simulation_data: dict,
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Simulate impact of interest rate change."""
     from app.services import loan_simulation_service
