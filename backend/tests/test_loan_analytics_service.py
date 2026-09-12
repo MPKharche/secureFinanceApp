@@ -49,6 +49,8 @@ async def test_get_loan_overview(session: AsyncSession, workspace_id: uuid.UUID,
     assert overview["progress_pct"] == 0.00
     assert overview["emis_paid"] == 0
     assert overview["emis_remaining"] == 12
+    assert overview["principal_progress_percent"] == 0.0
+    assert overview["interest_progress_percent"] == 0.0
 
 
 @pytest.mark.asyncio

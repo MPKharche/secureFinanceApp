@@ -44,6 +44,15 @@ async def get_loan_overview(session: AsyncSession, account_id: uuid.UUID) -> dic
     progress_pct = (float(principal_paid) / float(original) * 100) if original else 0.0
     total_prepayments = account.total_prepayments or Decimal("0")
 
+    principal_total = principal_paid + principal_remaining
+    interest_total = interest_paid + interest_remaining
+    principal_progress_percent = (
+        float(principal_paid) / float(principal_total) * 100 if principal_total else 0.0
+    )
+    interest_progress_percent = (
+        float(interest_paid) / float(interest_total) * 100 if interest_total else 0.0
+    )
+
     return {
         # Legacy / service-test keys
         "original_principal": float(original),
@@ -58,6 +67,8 @@ async def get_loan_overview(session: AsyncSession, account_id: uuid.UUID) -> dic
         "principal_remaining": float(principal_remaining),
         "interest_paid": float(interest_paid),
         "interest_remaining": float(interest_remaining),
+        "principal_progress_percent": principal_progress_percent,
+        "interest_progress_percent": interest_progress_percent,
         "total_prepayments": str(total_prepayments),
     }
 

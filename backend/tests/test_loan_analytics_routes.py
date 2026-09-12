@@ -79,6 +79,8 @@ async def test_get_loan_overview(
     assert "principal_remaining" in data
     assert "interest_paid" in data
     assert "interest_remaining" in data
+    assert "principal_progress_percent" in data
+    assert "interest_progress_percent" in data
     assert "total_prepayments" in data
 
     assert data["emis_paid"] == 2
