@@ -251,6 +251,7 @@ async def list_prepayments(
     from app.models.loan_prepayment import LoanPrepayment
     from sqlalchemy import select
 
+    await _require_loan_account(db, account_id, workspace.id)
     result = await db.execute(
         select(LoanPrepayment)
         .where(
