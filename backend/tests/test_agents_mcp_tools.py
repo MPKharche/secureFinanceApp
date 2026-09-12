@@ -475,6 +475,84 @@ async def test_propose_create_transaction_unknown_account(
     assert r["error"] == "account not found"
 
 
+async def test_propose_create_transaction_persists_notes(
+    session: AsyncSession, test_user, test_account, test_categories
+):
+    """User free-form detail must land in notes, not be dropped."""
+    from sqlalchemy import select
+    from app.models.transaction import Transaction
+
+    handler = REGISTRY["propose_create_transaction"].handler
+    ctx = CallContext(user_id=test_user.id, external=True)
+    note = "for groceries weekly stock — keep receipt note: bought milk+eggs"
+    r = await handler(
+        session=session,
+        ctx=ctx,
+        description="Big Bazaar",
+        amount=500.0,
+        type="debit",
+        account_id=str(test_account.id),
+        category_id=str(test_categories[0].id),
+        notes=note,
+        apply=True,
+    )
+    assert r.get("applied") is True
+    assert r["proposed"]["notes"] == note
+    row = (await session.execute(
+        select(Transaction).where(Transaction.id == uuid.UUID(r["id"]))
+    )).scalar_one()
+    assert row.notes == note
+    assert row.description == "Big Bazaar"
+
+
+async def test_propose_create_transaction_overflow_description_to_notes(
+    session: AsyncSession, test_user, test_account
+):
+    """Long description is clamped; overflow is preserved in notes."""
+    from mcp_server.tools.proposals import _DESC_MAX, _normalize_description_and_notes
+
+    long_desc = ("Paid to Big Bazaar for groceries weekly stock bought milk eggs bread "
+                 "and vegetables near home ") * 8
+    assert len(long_desc) > _DESC_MAX
+    desc, notes = _normalize_description_and_notes(long_desc, "receipt kept")
+    assert len(desc) <= _DESC_MAX
+    assert notes is not None
+    assert "receipt kept" in notes
+    assert len(notes) <= 1000
+
+    handler = REGISTRY["propose_create_transaction"].handler
+    ctx = CallContext(user_id=test_user.id, external=True)
+    r = await handler(
+        session=session,
+        ctx=ctx,
+        description=long_desc,
+        amount=500.0,
+        type="debit",
+        account_id=str(test_account.id),
+        notes="receipt kept",
+        apply=True,
+    )
+    assert r.get("applied") is True
+    assert len(r["proposed"]["description"]) <= _DESC_MAX
+    assert "receipt kept" in (r["proposed"]["notes"] or "")
+
+
+async def test_normalize_description_and_notes_unit():
+    from mcp_server.tools.proposals import _normalize_description_and_notes
+
+    d, n = _normalize_description_and_notes("  Big Bazaar  ", "  bought milk+eggs  ")
+    assert d == "Big Bazaar"
+    assert n == "bought milk+eggs"
+
+    d, n = _normalize_description_and_notes("Only title", None)
+    assert d == "Only title"
+    assert n is None
+
+    d, n = _normalize_description_and_notes("Same", "same")
+    assert d == "Same"
+    assert n == "same"  # casefold dedupe keeps first notes chunk only if identical casefold to overflow; here notes alone
+
+
 async def test_propose_update_transaction_no_changes(
     session: AsyncSession, ctx: CallContext, test_transactions
 ):
