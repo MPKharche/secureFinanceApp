@@ -3,6 +3,7 @@ import csv
 import io
 import uuid
 from datetime import date
+from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -10,7 +11,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
-from app.core.workspace_context import current_workspace, current_writable_workspace
+from app.core.workspace_context import WorkspaceContext, current_workspace, current_writable_workspace
 from app.schemas.loan_schedule import (
     LoanScheduleEntryRead,
     LoanScheduleEntryUpdate,
@@ -547,7 +548,7 @@ async def bulk_export_schedules(
     )
 
 
-@router.post("/loans/calculate-emi")
+@router.post("/calculate-emi")
 async def calculate_emi(
     calc_data: dict,
     db: AsyncSession = Depends(get_async_session),
@@ -573,7 +574,7 @@ async def calculate_emi(
     }
 
 
-@router.post("/loans/validate-schedule")
+@router.post("/validate-schedule")
 async def validate_schedule(
     validate_data: dict,
     db: AsyncSession = Depends(get_async_session),
@@ -621,7 +622,7 @@ async def validate_schedule(
     return {"is_valid": is_valid, "issues": issues}
 
 
-@router.get("/loans/summary")
+@router.get("/summary")
 async def get_loan_summary(
     db: AsyncSession = Depends(get_async_session),
     workspace: WorkspaceContext = Depends(current_workspace),
@@ -666,7 +667,7 @@ async def get_loan_summary(
     }
 
 
-@router.post("/loans/calculate-savings")
+@router.post("/calculate-savings")
 async def calculate_prepayment_savings(
     savings_data: dict,
     db: AsyncSession = Depends(get_async_session),
