@@ -46,13 +46,18 @@ async def get_loan_schedule(
     workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Retrieve amortization schedule for a loan account."""
+    await _require_loan_account(db, account_id, workspace.id)
+    filters = {}
+    if status is not None:
+        filters["payment_status"] = status
+    if from_date is not None:
+        filters["from_date"] = from_date
+    if to_date is not None:
+        filters["to_date"] = to_date
     entries = await loan_schedule_service.get_schedule(
-        db=db,
+        session=db,
         account_id=account_id,
-        workspace_id=workspace.workspace_id,
-        status=status,
-        from_date=from_date,
-        to_date=to_date,
+        filters=filters or None,
     )
 
     if not entries:
@@ -63,7 +68,7 @@ async def get_loan_schedule(
         result = await db.execute(
             select(Account).where(
                 Account.id == account_id,
-                Account.workspace_id == workspace.workspace_id,
+                Account.workspace_id == workspace.id,
             )
         )
         account = result.scalar_one_or_none()
@@ -80,10 +85,10 @@ async def export_schedule_csv(
     workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Export loan schedule as CSV."""
+    await _require_loan_account(db, account_id, workspace.id)
     entries = await loan_schedule_service.get_schedule(
-        db=db,
+        session=db,
         account_id=account_id,
-        workspace_id=workspace.workspace_id,
     )
 
     if not entries:
@@ -131,27 +136,16 @@ async def update_schedule_entry(
     workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Update a single schedule entry (due date, EMI amount, etc)."""
-    updated = await loan_schedule_service.update_schedule_entry(
-        db=db,
-        entry_id=entry_id,
-        workspace_id=workspace.workspace_id,
-        update_data=update_data.model_dump(exclude_unset=True),
-    )
-
-    if not updated:
-        raise HTTPException(status_code=404, detail="Schedule entry not found")
-
-    # Fetch and return the updated entry
-    from app.models.loan_schedule import LoanAmortizationSchedule
-    from sqlalchemy import select
-
-    result = await db.execute(
-        select(LoanAmortizationSchedule).where(
-            LoanAmortizationSchedule.id == entry_id,
-            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
+    try:
+        entry, _affected = await loan_schedule_service.update_schedule_entry(
+            session=db,
+            entry_id=entry_id,
+            updates=update_data.model_dump(exclude_unset=True),
         )
-    )
-    entry = result.scalar_one()
+    except Exception:
+        raise HTTPException(status_code=404, detail="Schedule entry not found")
+    if entry.workspace_id != workspace.id:
+        raise HTTPException(status_code=404, detail="Schedule entry not found")
     return entry
 
 
@@ -162,13 +156,13 @@ async def bulk_update_dates(
     workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Bulk update due dates (shift or change EMI day)."""
+    await _require_loan_account(db, update_data.account_id, workspace.id)
     updated_count = await loan_schedule_service.bulk_update_dates(
-        db=db,
+        session=db,
         account_id=update_data.account_id,
-        workspace_id=workspace.workspace_id,
         from_emi_number=update_data.from_emi_number,
         shift_days=update_data.shift_days,
-        new_day_of_month=update_data.new_day_of_month,
+        new_emi_day=update_data.new_emi_day or update_data.new_day_of_month,
     )
 
     return {"updated_count": updated_count}
@@ -182,47 +176,45 @@ async def mark_entry_status(
     workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Mark a schedule entry's payment status."""
-    updated = await loan_schedule_service.update_schedule_entry(
-        db=db,
-        entry_id=entry_id,
-        workspace_id=workspace.workspace_id,
-        update_data={"payment_status": status_data.payment_status},
-    )
-
-    if not updated:
-        raise HTTPException(status_code=404, detail="Schedule entry not found")
-
-    # Fetch and return the updated entry
-    from app.models.loan_schedule import LoanAmortizationSchedule
-    from sqlalchemy import select
-
-    result = await db.execute(
-        select(LoanAmortizationSchedule).where(
-            LoanAmortizationSchedule.id == entry_id,
-            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
+    updates = {"payment_status": status_data.payment_status}
+    if status_data.actual_payment_date is not None:
+        updates["actual_payment_date"] = status_data.actual_payment_date
+    if status_data.actual_amount_paid is not None:
+        updates["actual_amount_paid"] = status_data.actual_amount_paid
+    if status_data.transaction_id is not None:
+        updates["linked_transaction_id"] = status_data.transaction_id
+    try:
+        entry, _affected = await loan_schedule_service.update_schedule_entry(
+            session=db,
+            entry_id=entry_id,
+            updates=updates,
         )
-    )
-    entry = result.scalar_one()
+    except Exception:
+        raise HTTPException(status_code=404, detail="Schedule entry not found")
+    if entry.workspace_id != workspace.id:
+        raise HTTPException(status_code=404, detail="Schedule entry not found")
     return entry
-
 
 
 @router.post("/prepayments/simulate")
 async def simulate_prepayment(
-    simulation_data: PrepaymentSimulation,
+    simulation_data: dict,
     db: AsyncSession = Depends(get_async_session),
     workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Simulate prepayment options (reduce_emi vs reduce_tenure)."""
-    result = await loan_payment_service.simulate_prepayment(
-        db=db,
-        account_id=simulation_data.account_id,
-        workspace_id=workspace.workspace_id,
-        prepayment_amount=simulation_data.prepayment_amount,
-        annual_interest_rate=simulation_data.annual_interest_rate,
-        current_emi_number=simulation_data.current_emi_number,
+    account_id = uuid.UUID(str(simulation_data["account_id"]))
+    await _require_loan_account(db, account_id, workspace.id)
+    prepayment_amount = Decimal(str(simulation_data["prepayment_amount"]))
+    prepayment_date = date.fromisoformat(
+        str(simulation_data.get("prepayment_date", date.today().isoformat()))
     )
-
+    result = await loan_payment_service.simulate_prepayment(
+        session=db,
+        account_id=account_id,
+        prepayment_amount=prepayment_amount,
+        prepayment_date=prepayment_date,
+    )
     return result
 
 
@@ -233,18 +225,18 @@ async def record_prepayment(
     workspace: WorkspaceContext = Depends(current_workspace),
 ):
     """Record a prepayment and regenerate schedule."""
-    prepayment = await loan_payment_service.record_prepayment(
-        db=db,
-        account_id=prepayment_data.account_id,
-        workspace_id=workspace.workspace_id,
-        prepayment_amount=prepayment_data.prepayment_amount,
-        annual_interest_rate=prepayment_data.annual_interest_rate,
-        current_emi_number=prepayment_data.current_emi_number,
-        recalculation_method=prepayment_data.recalculation_method,
-    )
-
-    if not prepayment:
-        raise HTTPException(status_code=404, detail="Account not found")
+    await _require_loan_account(db, prepayment_data.account_id, workspace.id)
+    try:
+        prepayment = await loan_payment_service.record_prepayment(
+            session=db,
+            account_id=prepayment_data.account_id,
+            prepayment_amount=prepayment_data.prepayment_amount,
+            prepayment_date=prepayment_data.prepayment_date,
+            method=prepayment_data.recalculation_method,
+            transaction_id=prepayment_data.transaction_id,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=404, detail=str(exc) or "Account not found") from exc
 
     return prepayment
 
@@ -259,11 +251,12 @@ async def list_prepayments(
     from app.models.loan_prepayment import LoanPrepayment
     from sqlalchemy import select
 
+    await _require_loan_account(db, account_id, workspace.id)
     result = await db.execute(
         select(LoanPrepayment)
         .where(
             LoanPrepayment.account_id == account_id,
-            LoanPrepayment.workspace_id == workspace_id,
+            LoanPrepayment.workspace_id == workspace.id,
         )
         .order_by(LoanPrepayment.created_at.desc())
     )
@@ -280,15 +273,20 @@ async def auto_link_transactions(
     """Auto-link transactions to schedule entries with confidence scoring."""
     from app.schemas.loan_schedule import AutoLinkRequest
     
-    matches = await loan_payment_service.auto_link_transactions(
-        db=db,
+    await _require_loan_account(db, link_data.account_id, workspace.id)
+    tol = link_data.amount_tolerance_percent if link_data.amount_tolerance_percent is not None else link_data.amount_tolerance_pct
+    matches, auto_linked, needs_review = await loan_payment_service.auto_link_transactions(
+        session=db,
         account_id=link_data.account_id,
-        workspace_id=workspace.workspace_id,
         date_tolerance_days=link_data.date_tolerance_days,
-        amount_tolerance_percent=link_data.amount_tolerance_percent,
+        amount_tolerance_pct=tol,
     )
 
-    return {"linked_count": len(matches), "matches": matches}
+    return {
+        "linked_count": auto_linked,
+        "requires_review_count": needs_review,
+        "matches": matches,
+    }
 
 
 @router.post("/schedule/{entry_id}/link", response_model=LoanScheduleEntryRead)
@@ -301,31 +299,19 @@ async def manual_link_transaction(
     """Manually link a transaction to a schedule entry."""
     transaction_id = uuid.UUID(link_data["transaction_id"])
     
-    # Update the schedule entry
-    updated = await loan_schedule_service.update_schedule_entry(
-        db=db,
-        entry_id=entry_id,
-        workspace_id=workspace.workspace_id,
-        update_data={
-            "linked_transaction_id": transaction_id,
-            "payment_status": "paid",
-        },
-    )
-
-    if not updated:
-        raise HTTPException(status_code=404, detail="Schedule entry not found")
-
-    # Fetch and return the updated entry
-    from app.models.loan_schedule import LoanAmortizationSchedule
-    from sqlalchemy import select
-
-    result = await db.execute(
-        select(LoanAmortizationSchedule).where(
-            LoanAmortizationSchedule.id == entry_id,
-            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
+    try:
+        entry, _affected = await loan_schedule_service.update_schedule_entry(
+            session=db,
+            entry_id=entry_id,
+            updates={
+                "linked_transaction_id": transaction_id,
+                "payment_status": "paid",
+            },
         )
-    )
-    entry = result.scalar_one()
+    except Exception:
+        raise HTTPException(status_code=404, detail="Schedule entry not found")
+    if entry.workspace_id != workspace.id:
+        raise HTTPException(status_code=404, detail="Schedule entry not found")
     return entry
 
 
@@ -338,10 +324,10 @@ async def get_loan_overview(
     """Get loan overview metrics (progress, principal/interest breakdown)."""
     from app.services import loan_analytics_service
     
+    await _require_loan_account(db, account_id, workspace.id)
     overview = await loan_analytics_service.get_loan_overview(
-        db=db,
+        session=db,
         account_id=account_id,
-        workspace_id=workspace.workspace_id,
     )
 
     if not overview:
@@ -360,10 +346,10 @@ async def get_yearly_breakdown(
     """Get yearly/quarterly/monthly breakdown of payments."""
     from app.services import loan_analytics_service
     
+    await _require_loan_account(db, account_id, workspace.id)
     breakdown = await loan_analytics_service.get_yearly_breakdown(
-        db=db,
+        session=db,
         account_id=account_id,
-        workspace_id=workspace.workspace_id,
         group_by=group_by,
     )
 
@@ -380,12 +366,23 @@ async def calculate_debt_ratios(
     from app.services import loan_analytics_service
     
     ratios = await loan_analytics_service.calculate_debt_ratios(
-        db=db,
-        workspace_id=workspace.workspace_id,
+        session=db,
+        workspace_id=workspace.id,
         monthly_income=monthly_income,
     )
-
-    return ratios
+    # Flatten to shape expected by route tests / older FE drafts
+    agg = ratios.get("aggregate_metrics", {})
+    debt = ratios.get("debt_ratios", {})
+    comparison = ratios.get("comparison", {})
+    return {
+        **ratios,
+        "total_monthly_emi": str(agg.get("total_monthly_emi", 0)),
+        "total_outstanding": str(agg.get("total_outstanding", 0)),
+        "weighted_avg_interest_rate": str(agg.get("weighted_avg_interest_rate", 0)),
+        "debt_to_income_ratio": debt.get("debt_to_income_ratio"),
+        "emi_to_income_ratio": debt.get("emi_to_income_ratio"),
+        "health_status": comparison.get("status"),
+    }
 
 
 @router.get("/dashboard")
@@ -397,11 +394,41 @@ async def get_dashboard_summary(
     from app.services import loan_analytics_service
     
     summary = await loan_analytics_service.get_dashboard_summary(
-        db=db,
-        workspace_id=workspace.workspace_id,
+        session=db,
+        workspace_id=workspace.id,
     )
-
-    return summary
+    # Normalize keys for LoanDashboardWidget
+    next_due = []
+    for p in summary.get("next_due_payments", []):
+        next_due.append({
+            "account_id": p.get("account_id") or p.get("loan_id"),
+            "account_name": p.get("account_name") or p.get("loan_name"),
+            "due_date": p.get("due_date"),
+            "emi_amount": str(p.get("emi_amount", "")),
+            "days_until_due": p.get("days_until_due"),
+        })
+    recent = []
+    for p in summary.get("recent_payments", []):
+        recent.append({
+            "account_name": p.get("account_name") or p.get("loan_name"),
+            "payment_date": p.get("payment_date"),
+            "amount_paid": str(p.get("amount_paid") or p.get("amount") or ""),
+        })
+    alerts = []
+    for a in summary.get("alerts", []):
+        alerts.append({
+            "type": a.get("type", "info"),
+            "message": a.get("message", ""),
+            "account_id": a.get("account_id") or a.get("loan_id") or "",
+        })
+    return {
+        **summary,
+        "next_due_payments": next_due,
+        "recent_payments": recent,
+        "alerts": alerts,
+        "total_monthly_emi": str(summary.get("total_monthly_emi", "")),
+        "total_outstanding": str(summary.get("total_outstanding", "")),
+    }
 
 
 @router.post("/schedule/regenerate")
@@ -424,15 +451,17 @@ async def regenerate_schedule(
     if from_emi_number < 1:
         raise HTTPException(status_code=422, detail="from_emi_number must be >= 1")
 
+    await _require_loan_account(db, account_id, workspace.id)
     entries = await loan_schedule_service.regenerate_schedule(
-        db=db,
+        session=db,
         account_id=account_id,
-        workspace_id=workspace.workspace_id,
         from_emi_number=from_emi_number,
-        new_principal=new_principal,
-        new_annual_rate=new_annual_rate,
-        new_tenure_months=new_tenure_months,
-        start_date=start_date,
+        new_params={
+            "new_principal_balance": new_principal,
+            "new_interest_rate": new_annual_rate,
+            "new_tenure_months": new_tenure_months,
+            "start_date": start_date,
+        },
     )
 
     if not entries:
@@ -467,7 +496,7 @@ async def bulk_mark_status(
         update(LoanAmortizationSchedule)
         .where(
             LoanAmortizationSchedule.id.in_(entry_ids),
-            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
+            LoanAmortizationSchedule.workspace_id == workspace.id,
         )
         .values(payment_status=payment_status)
     )
@@ -496,7 +525,7 @@ async def bulk_delete_schedules(
         .where(
             LoanAmortizationSchedule.account_id.in_(account_ids),
             LoanAmortizationSchedule.schedule_version == schedule_version,
-            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
+            LoanAmortizationSchedule.workspace_id == workspace.id,
         )
     )
     
@@ -522,9 +551,8 @@ async def bulk_export_schedules(
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         for account_id in account_ids:
             entries = await loan_schedule_service.get_schedule(
-                db=db,
+                session=db,
                 account_id=account_id,
-                workspace_id=workspace.workspace_id,
             )
             
             if entries:
@@ -600,7 +628,7 @@ async def validate_schedule(
         select(LoanAmortizationSchedule)
         .where(
             LoanAmortizationSchedule.account_id == account_id,
-            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
+            LoanAmortizationSchedule.workspace_id == workspace.id,
         )
         .order_by(LoanAmortizationSchedule.schedule_version, LoanAmortizationSchedule.emi_number)
     )
@@ -644,7 +672,7 @@ async def get_loan_summary(
     # Get all loan accounts
     result = await db.execute(
         select(Account).where(
-            Account.workspace_id == workspace.workspace_id,
+            Account.workspace_id == workspace.id,
             Account.subtype == "loan",
         )
     )
@@ -682,7 +710,7 @@ async def calculate_prepayment_savings(
     db: AsyncSession = Depends(get_async_session),
 ):
     """Calculate interest savings from prepayment."""
-    from decimal import Decimal
+    from decimal import Decimal, ROUND_UP
     import math
     
     remaining_principal = Decimal(savings_data["remaining_principal"])
