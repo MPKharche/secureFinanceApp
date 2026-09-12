@@ -49,7 +49,7 @@ async def get_loan_schedule(
     entries = await loan_schedule_service.get_schedule(
         db=db,
         account_id=account_id,
-        workspace_id=workspace.workspace_id,
+        workspace_id=workspace.id,
         status=status,
         from_date=from_date,
         to_date=to_date,
@@ -63,7 +63,7 @@ async def get_loan_schedule(
         result = await db.execute(
             select(Account).where(
                 Account.id == account_id,
-                Account.workspace_id == workspace.workspace_id,
+                Account.workspace_id == workspace.id,
             )
         )
         account = result.scalar_one_or_none()
@@ -83,7 +83,7 @@ async def export_schedule_csv(
     entries = await loan_schedule_service.get_schedule(
         db=db,
         account_id=account_id,
-        workspace_id=workspace.workspace_id,
+        workspace_id=workspace.id,
     )
 
     if not entries:
@@ -134,7 +134,7 @@ async def update_schedule_entry(
     updated = await loan_schedule_service.update_schedule_entry(
         db=db,
         entry_id=entry_id,
-        workspace_id=workspace.workspace_id,
+        workspace_id=workspace.id,
         update_data=update_data.model_dump(exclude_unset=True),
     )
 
@@ -148,7 +148,7 @@ async def update_schedule_entry(
     result = await db.execute(
         select(LoanAmortizationSchedule).where(
             LoanAmortizationSchedule.id == entry_id,
-            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
+            LoanAmortizationSchedule.workspace_id == workspace.id,
         )
     )
     entry = result.scalar_one()
@@ -165,7 +165,7 @@ async def bulk_update_dates(
     updated_count = await loan_schedule_service.bulk_update_dates(
         db=db,
         account_id=update_data.account_id,
-        workspace_id=workspace.workspace_id,
+        workspace_id=workspace.id,
         from_emi_number=update_data.from_emi_number,
         shift_days=update_data.shift_days,
         new_day_of_month=update_data.new_day_of_month,
@@ -185,7 +185,7 @@ async def mark_entry_status(
     updated = await loan_schedule_service.update_schedule_entry(
         db=db,
         entry_id=entry_id,
-        workspace_id=workspace.workspace_id,
+        workspace_id=workspace.id,
         update_data={"payment_status": status_data.payment_status},
     )
 
@@ -199,7 +199,7 @@ async def mark_entry_status(
     result = await db.execute(
         select(LoanAmortizationSchedule).where(
             LoanAmortizationSchedule.id == entry_id,
-            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
+            LoanAmortizationSchedule.workspace_id == workspace.id,
         )
     )
     entry = result.scalar_one()
@@ -217,7 +217,7 @@ async def simulate_prepayment(
     result = await loan_payment_service.simulate_prepayment(
         db=db,
         account_id=simulation_data.account_id,
-        workspace_id=workspace.workspace_id,
+        workspace_id=workspace.id,
         prepayment_amount=simulation_data.prepayment_amount,
         annual_interest_rate=simulation_data.annual_interest_rate,
         current_emi_number=simulation_data.current_emi_number,
@@ -236,7 +236,7 @@ async def record_prepayment(
     prepayment = await loan_payment_service.record_prepayment(
         db=db,
         account_id=prepayment_data.account_id,
-        workspace_id=workspace.workspace_id,
+        workspace_id=workspace.id,
         prepayment_amount=prepayment_data.prepayment_amount,
         annual_interest_rate=prepayment_data.annual_interest_rate,
         current_emi_number=prepayment_data.current_emi_number,
@@ -263,7 +263,7 @@ async def list_prepayments(
         select(LoanPrepayment)
         .where(
             LoanPrepayment.account_id == account_id,
-            LoanPrepayment.workspace_id == workspace_id,
+            LoanPrepayment.workspace_id == workspace.id,
         )
         .order_by(LoanPrepayment.created_at.desc())
     )
@@ -283,7 +283,7 @@ async def auto_link_transactions(
     matches = await loan_payment_service.auto_link_transactions(
         db=db,
         account_id=link_data.account_id,
-        workspace_id=workspace.workspace_id,
+        workspace_id=workspace.id,
         date_tolerance_days=link_data.date_tolerance_days,
         amount_tolerance_percent=link_data.amount_tolerance_percent,
     )
@@ -305,7 +305,7 @@ async def manual_link_transaction(
     updated = await loan_schedule_service.update_schedule_entry(
         db=db,
         entry_id=entry_id,
-        workspace_id=workspace.workspace_id,
+        workspace_id=workspace.id,
         update_data={
             "linked_transaction_id": transaction_id,
             "payment_status": "paid",
@@ -322,7 +322,7 @@ async def manual_link_transaction(
     result = await db.execute(
         select(LoanAmortizationSchedule).where(
             LoanAmortizationSchedule.id == entry_id,
-            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
+            LoanAmortizationSchedule.workspace_id == workspace.id,
         )
     )
     entry = result.scalar_one()
@@ -341,7 +341,7 @@ async def get_loan_overview(
     overview = await loan_analytics_service.get_loan_overview(
         db=db,
         account_id=account_id,
-        workspace_id=workspace.workspace_id,
+        workspace_id=workspace.id,
     )
 
     if not overview:
@@ -363,7 +363,7 @@ async def get_yearly_breakdown(
     breakdown = await loan_analytics_service.get_yearly_breakdown(
         db=db,
         account_id=account_id,
-        workspace_id=workspace.workspace_id,
+        workspace_id=workspace.id,
         group_by=group_by,
     )
 
@@ -381,7 +381,7 @@ async def calculate_debt_ratios(
     
     ratios = await loan_analytics_service.calculate_debt_ratios(
         db=db,
-        workspace_id=workspace.workspace_id,
+        workspace_id=workspace.id,
         monthly_income=monthly_income,
     )
 
@@ -398,7 +398,7 @@ async def get_dashboard_summary(
     
     summary = await loan_analytics_service.get_dashboard_summary(
         db=db,
-        workspace_id=workspace.workspace_id,
+        workspace_id=workspace.id,
     )
 
     return summary
@@ -427,7 +427,7 @@ async def regenerate_schedule(
     entries = await loan_schedule_service.regenerate_schedule(
         db=db,
         account_id=account_id,
-        workspace_id=workspace.workspace_id,
+        workspace_id=workspace.id,
         from_emi_number=from_emi_number,
         new_principal=new_principal,
         new_annual_rate=new_annual_rate,
@@ -467,7 +467,7 @@ async def bulk_mark_status(
         update(LoanAmortizationSchedule)
         .where(
             LoanAmortizationSchedule.id.in_(entry_ids),
-            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
+            LoanAmortizationSchedule.workspace_id == workspace.id,
         )
         .values(payment_status=payment_status)
     )
@@ -496,7 +496,7 @@ async def bulk_delete_schedules(
         .where(
             LoanAmortizationSchedule.account_id.in_(account_ids),
             LoanAmortizationSchedule.schedule_version == schedule_version,
-            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
+            LoanAmortizationSchedule.workspace_id == workspace.id,
         )
     )
     
@@ -524,7 +524,7 @@ async def bulk_export_schedules(
             entries = await loan_schedule_service.get_schedule(
                 db=db,
                 account_id=account_id,
-                workspace_id=workspace.workspace_id,
+                workspace_id=workspace.id,
             )
             
             if entries:
@@ -600,7 +600,7 @@ async def validate_schedule(
         select(LoanAmortizationSchedule)
         .where(
             LoanAmortizationSchedule.account_id == account_id,
-            LoanAmortizationSchedule.workspace_id == workspace.workspace_id,
+            LoanAmortizationSchedule.workspace_id == workspace.id,
         )
         .order_by(LoanAmortizationSchedule.schedule_version, LoanAmortizationSchedule.emi_number)
     )
@@ -644,7 +644,7 @@ async def get_loan_summary(
     # Get all loan accounts
     result = await db.execute(
         select(Account).where(
-            Account.workspace_id == workspace.workspace_id,
+            Account.workspace_id == workspace.id,
             Account.subtype == "loan",
         )
     )
