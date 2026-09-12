@@ -94,6 +94,66 @@ def _can_apply(ctx: CallContext, apply: bool) -> bool:
     return bool(apply) and ctx.external
 
 
+# DB columns: description String(500), notes String(1000). Agents often
+# summarize the user message into `description` and drop free-form detail.
+# These helpers keep every user-provided detail by parking overflow in notes
+# and clamping to column limits without inventing content.
+_DESC_MAX = 500
+_NOTES_MAX = 1000
+
+
+def _clean_optional_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    return cleaned or None
+
+
+def _join_notes(*parts: str | None) -> str | None:
+    chunks = [p.strip() for p in parts if p and p.strip()]
+    if not chunks:
+        return None
+    # Prefer unique order-preserving chunks so we do not duplicate when the
+    # model already put the same sentence in both fields.
+    seen: set[str] = set()
+    unique: list[str] = []
+    for c in chunks:
+        key = c.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(c)
+    joined = "\n".join(unique)
+    if len(joined) <= _NOTES_MAX:
+        return joined
+    return joined[: _NOTES_MAX - 1].rstrip() + "…"
+
+
+def _normalize_description_and_notes(
+    description: str,
+    notes: str | None,
+) -> tuple[str, str | None]:
+    """Keep a short title in description; never lose user detail.
+
+    If description exceeds 500 chars, the overflow moves into notes.
+    Notes are clamped to 1000 chars. Content is never invented — only
+    relocated / truncated with an ellipsis when the DB limit forces it.
+    """
+    desc = (description or "").strip()
+    note = _clean_optional_text(notes)
+    overflow: str | None = None
+    if len(desc) > _DESC_MAX:
+        # Keep a clean cut near a space when possible.
+        cut = desc.rfind(" ", 0, _DESC_MAX - 1)
+        if cut < int(_DESC_MAX * 0.6):
+            cut = _DESC_MAX - 1
+        overflow = desc[cut:].strip()
+        desc = desc[:cut].rstrip(" -–,;:") or desc[:_DESC_MAX]
+    note = _join_notes(note, overflow)
+    return desc, note
+
+
+
 def _tx_snapshot(
     tx: Transaction,
     *,
@@ -400,8 +460,18 @@ async def propose_create_budget(
     description=_PROPOSAL_PREFACE
     + (
         "Build a preview for adding a one-off transaction (e.g. 'add a "
-        "R$50 lunch today'). Validates the account/category exist; "
+        "R$50 lunch today'). Validates the account/category/payee exist; "
         "leaves currency to the account's default when not provided.\n\n"
+        "Field split (critical — do not drop user detail):\n"
+        "- `description`: short payee/merchant title only (≤500).\n"
+        "- `notes`: ALL free-form user detail — receipt lines, purpose, "
+        "location, card/SMS text, trip ids, 'keep note: …', weekly stock, "
+        "etc. Pass the user's words; do not summarize them away. If the "
+        "only text field you have is long, put the overflow in `notes`.\n"
+        "- `payee_id`: optional id from `list_payees` when there is an "
+        "exact/known match. Never invent a payee name or id.\n"
+        "- `category_id`: optional id from `list_categories` (or a prior "
+        "similar txn). Leave unset rather than guessing a fake category.\n\n"
         "Group splits: pass `group_id` + `splits` to attach a Splitwise-"
         "style breakdown. `splits.share_type='equal'` divides the amount "
         "evenly across the listed `member_ids` — perfect for 'crie no "
@@ -413,7 +483,16 @@ async def propose_create_budget(
     parameters={
         "type": "object",
         "properties": {
-            "description": {"type": "string", "minLength": 1, "maxLength": 500},
+            "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500,
+                "description": (
+                    "Short payee/merchant title for the row (e.g. 'Big Bazaar'). "
+                    "Do NOT stuff receipt notes here — put those in `notes`. "
+                    "If this exceeds 500 chars the server moves the overflow into notes."
+                ),
+            },
             "amount": {
                 "type": "number",
                 "exclusiveMinimum": 0,
@@ -425,10 +504,29 @@ async def propose_create_budget(
                 "description": "debit = expense, credit = income",
             },
             "account_id": {"type": "string", "format": "uuid"},
-            "category_id": {"type": "string", "format": "uuid"},
+            "category_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Optional category id from list_categories. Omit if unknown — do not invent.",
+            },
+            "payee_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Optional payee id from list_payees when there is a factual match. Omit if unknown — do not invent a merchant.",
+            },
             "date": {"type": "string", "format": "date", "description": "Defaults to today"},
             "currency": {"type": "string", "description": "Defaults to the account's currency"},
-            "notes": {"type": "string"},
+            "notes": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": (
+                    "REQUIRED whenever the user gave any free-form detail beyond "
+                    "amount/payee/date. Persist their words: purpose ('for groceries "
+                    "weekly stock'), receipt notes ('bought milk+eggs'), location, "
+                    "card/SMS text, trip/voucher ids, etc. Never drop or heavily "
+                    "summarize. Leave unset only when there truly is no extra detail."
+                ),
+            },
             "group_id": {
                 "type": "string",
                 "format": "uuid",
@@ -480,6 +578,7 @@ async def propose_create_transaction(
     type: str,
     account_id: str,
     category_id: str | None = None,
+    payee_id: str | None = None,
     date: str | None = None,
     currency: str | None = None,
     notes: str | None = None,
@@ -487,6 +586,7 @@ async def propose_create_transaction(
     splits: dict[str, Any] | None = None,
     apply: bool = False,
 ) -> dict[str, Any]:
+    description, notes = _normalize_description_and_notes(description, notes)
     ws_id = await resolve_workspace_id(session, ctx)
     acc_id = parse_uuid(account_id)
     acc = (
@@ -508,6 +608,18 @@ async def propose_create_transaction(
         ).scalar_one_or_none()
         if cat is None:
             return {"error": "category not found"}
+
+    payee = None
+    if payee_id:
+        payee = (
+            await session.execute(
+                select(Payee).where(
+                    Payee.id == parse_uuid(payee_id), Payee.workspace_id == ws_id
+                )
+            )
+        ).scalar_one_or_none()
+        if payee is None:
+            return {"error": "payee not found"}
 
     # Validate group + splits (if any) so the preview is honest.
     splits_preview: list[dict[str, Any]] | None = None
@@ -600,7 +712,7 @@ async def propose_create_transaction(
 
     target_date = parse_date(date) or _today()
     proposed: dict[str, Any] = {
-        "description": description.strip(),
+        "description": description,
         "amount": float(amount),
         "currency": (currency or acc.currency or "USD").upper(),
         "type": type,
@@ -609,7 +721,9 @@ async def propose_create_transaction(
         "account_name": acc.name,
         "category_id": str(cat.id) if cat else None,
         "category_name": cat.name if cat else None,
-        "notes": (notes or None),
+        "payee_id": str(payee.id) if payee else None,
+        "payee_name": payee.name if payee else None,
+        "notes": notes,
     }
     if splits_preview is not None:
         assert splits is not None
@@ -658,6 +772,7 @@ async def propose_create_transaction(
                     type=type,
                     account_id=acc.id,
                     category_id=cat.id if cat else None,
+                    payee_id=payee.id if payee else None,
                     currency=proposed["currency"],
                     notes=notes,
                     splits=splits_payload,
@@ -705,8 +820,20 @@ async def propose_create_transaction(
                 "description": "Move the booking to another account (from list_accounts)",
             },
             "category_id": {"type": "string", "format": "uuid"},
-            "payee_id": {"type": "string", "format": "uuid"},
-            "notes": {"type": "string"},
+            "payee_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Payee id from list_payees. Omit rather than inventing.",
+            },
+            "notes": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": (
+                    "Replace notes with the full user-provided detail. Do not "
+                    "strip receipt / purpose text when editing other fields — "
+                    "re-pass existing notes if they must stay."
+                ),
+            },
             "is_ignored": {"type": "boolean"},
             "status": {"type": "string", "enum": ["posted", "pending"]},
             "apply_to": {
@@ -799,9 +926,20 @@ async def propose_update_transaction(
 
     update_data: dict[str, Any] = {}
     changes: dict[str, Any] = {}
-    if description is not None:
-        update_data["description"] = description.strip()
-        changes["description"] = description.strip()
+    # Normalize description/notes together when either is touched so a long
+    # description still parks overflow in notes instead of failing the DB.
+    if description is not None or notes is not None:
+        # When only notes changes, keep the existing description as the base
+        # title; when only description changes, keep existing notes.
+        base_desc = description if description is not None else (tx.description or "")
+        base_notes = notes if notes is not None else tx.notes
+        norm_desc, norm_notes = _normalize_description_and_notes(base_desc, base_notes)
+        if description is not None or norm_desc != (tx.description or ""):
+            update_data["description"] = norm_desc
+            changes["description"] = norm_desc
+        if notes is not None or norm_notes != tx.notes:
+            update_data["notes"] = norm_notes
+            changes["notes"] = norm_notes
     if amount is not None:
         update_data["amount"] = Decimal(str(amount))
         changes["amount"] = float(amount)
@@ -826,9 +964,6 @@ async def propose_update_transaction(
         update_data["payee_id"] = payee.id
         changes["payee_id"] = str(payee.id)
         changes["payee_name"] = payee.name
-    if notes is not None:
-        update_data["notes"] = notes
-        changes["notes"] = notes
     if is_ignored is not None:
         update_data["is_ignored"] = bool(is_ignored)
         changes["is_ignored"] = bool(is_ignored)
