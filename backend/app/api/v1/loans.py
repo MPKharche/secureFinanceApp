@@ -12,6 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
 from app.core.workspace_context import WorkspaceContext, current_workspace, current_writable_workspace
+from sqlalchemy import select
+
+from app.models.account import Account
 from app.schemas.loan_schedule import (
     LoanScheduleEntryRead,
     LoanScheduleEntryUpdate,
@@ -22,7 +25,13 @@ from app.schemas.loan_schedule import (
     PrepaymentRead,
     AutoLinkRequest,
 )
+from app.schemas.loan_commitment import (
+    CombinedSimulationRequest,
+    CommitmentCreate,
+    CommitmentRead,
+)
 from app.services import loan_schedule_service, loan_payment_service
+from app.services import loan_combined_simulation_service, loan_commitment_service
 
 router = APIRouter()
 
@@ -789,3 +798,86 @@ async def simulate_interest_rate_change(
     )
 
     return result
+
+
+async def _require_loan_account(
+    db: AsyncSession, account_id: uuid.UUID, workspace_id: uuid.UUID
+) -> Account:
+    result = await db.execute(
+        select(Account).where(Account.id == account_id, Account.workspace_id == workspace_id)
+    )
+    account = result.scalar_one_or_none()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return account
+
+
+@router.post("/simulations/combined")
+async def simulate_combined_scenarios(
+    body: CombinedSimulationRequest,
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
+):
+    """Combined scenario ground: prepay + recurring + rate changes (+ EMI holiday) interplay."""
+    await _require_loan_account(db, body.account_id, workspace.id)
+    try:
+        return await loan_combined_simulation_service.simulate_combined(
+            session=db,
+            account_id=body.account_id,
+            events=[e.model_dump(mode="json") for e in body.events],
+            strategy=body.strategy,
+            as_of_date=body.as_of_date,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/commitments", response_model=list[CommitmentRead])
+async def list_loan_commitments(
+    account_id: Optional[uuid.UUID] = None,
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
+):
+    return await loan_commitment_service.list_commitments(
+        db, workspace.id, account_id=account_id
+    )
+
+
+@router.post("/commitments", response_model=CommitmentRead)
+async def create_loan_commitment(
+    body: CommitmentCreate,
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_writable_workspace),
+):
+    await _require_loan_account(db, body.account_id, workspace.id)
+    try:
+        return await loan_commitment_service.commit_plan_action(
+            db,
+            workspace_id=workspace.id,
+            user_id=workspace.user_id,
+            account_id=body.account_id,
+            kind=body.kind,
+            amount=body.amount,
+            start_date=body.start_date,
+            end_date=body.end_date,
+            day_of_month=body.day_of_month,
+            funding_account_id=body.funding_account_id,
+            category_id=body.category_id,
+            notes=body.notes,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/commitments/{commitment_id}/cancel", response_model=CommitmentRead)
+async def cancel_loan_commitment(
+    commitment_id: uuid.UUID,
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_writable_workspace),
+):
+    try:
+        return await loan_commitment_service.cancel_commitment(
+            db, commitment_id, workspace.id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
