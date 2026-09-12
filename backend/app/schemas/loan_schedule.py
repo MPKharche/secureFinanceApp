@@ -66,8 +66,10 @@ class LoanScheduleResponse(BaseModel):
 
 # Bulk Operations
 class BulkUpdateDatesRequest(BaseModel):
+    account_id: uuid.UUID
     shift_days: Optional[int] = None
     new_emi_day: Optional[int] = Field(None, ge=1, le=31)
+    new_day_of_month: Optional[int] = Field(None, ge=1, le=31)  # alias
     from_emi_number: Optional[int] = Field(None, ge=1)
 
 
@@ -82,6 +84,7 @@ class RegenerateScheduleRequest(BaseModel):
 
 # Prepayment Schemas
 class PrepaymentCreate(BaseModel):
+    account_id: uuid.UUID
     prepayment_amount: Decimal = Field(..., gt=0)
     prepayment_date: date
     recalculation_method: str = Field(..., pattern="^(reduce_emi|reduce_tenure)$")
@@ -130,10 +133,12 @@ class PrepaymentSimulation(BaseModel):
 
 # Transaction Linking
 class AutoLinkRequest(BaseModel):
+    account_id: uuid.UUID
     from_date: Optional[date] = None
     to_date: Optional[date] = None
     date_tolerance_days: int = Field(5, ge=0, le=30)
     amount_tolerance_pct: Decimal = Field(Decimal("2.0"), ge=0, le=100)
+    amount_tolerance_percent: Optional[Decimal] = None  # alias used by older routes
     auto_approve: bool = False
 
 

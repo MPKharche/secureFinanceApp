@@ -11,13 +11,17 @@ from app.models.loan_schedule import LoanAmortizationSchedule
 from app.models.loan_prepayment import LoanPrepayment
 
 
-async def get_loan_overview(session: AsyncSession, account_id: uuid.UUID) -> dict:
-    """Get comprehensive loan overview metrics."""
-    # Fetch account
-    result = await session.execute(select(Account).where(Account.id == account_id))
-    account = result.scalar_one()
+async def get_loan_overview(session: AsyncSession, account_id: uuid.UUID) -> dict | None:
+    """Get comprehensive loan overview metrics.
 
-    # Get schedule entries for current version
+    Returns keys expected by the loan detail UI / route tests, plus legacy
+    aliases used by unit tests (progress_pct, original_principal, …).
+    """
+    result = await session.execute(select(Account).where(Account.id == account_id))
+    account = result.scalar_one_or_none()
+    if account is None:
+        return None
+
     schedule_result = await session.execute(
         select(LoanAmortizationSchedule).where(
             LoanAmortizationSchedule.account_id == account_id,
@@ -26,28 +30,35 @@ async def get_loan_overview(session: AsyncSession, account_id: uuid.UUID) -> dic
     )
     entries = list(schedule_result.scalars().all())
 
-    # Calculate aggregates
     paid_entries = [e for e in entries if e.payment_status == "paid"]
     remaining_entries = [e for e in entries if e.payment_status == "scheduled"]
 
-    principal_paid = sum(e.principal_component for e in paid_entries)
-    interest_paid = sum(e.interest_component for e in paid_entries)
+    principal_paid = sum((e.principal_component for e in paid_entries), Decimal("0"))
+    interest_paid = sum((e.interest_component for e in paid_entries), Decimal("0"))
     total_paid = principal_paid + interest_paid
 
-    total_remaining_principal = sum(e.principal_component for e in remaining_entries)
-    total_remaining_interest = sum(e.interest_component for e in remaining_entries)
+    principal_remaining = sum((e.principal_component for e in remaining_entries), Decimal("0"))
+    interest_remaining = sum((e.interest_component for e in remaining_entries), Decimal("0"))
 
-    progress_pct = (float(principal_paid) / float(account.original_principal) * 100) if account.original_principal else 0
+    original = account.original_principal or Decimal("0")
+    progress_pct = (float(principal_paid) / float(original) * 100) if original else 0.0
+    total_prepayments = account.total_prepayments or Decimal("0")
 
     return {
-        "original_principal": float(account.original_principal or 0),
+        # Legacy / service-test keys
+        "original_principal": float(original),
         "current_outstanding": float(account.balance),
-        "principal_paid": float(principal_paid),
-        "interest_paid": float(interest_paid),
         "total_paid": float(total_paid),
         "progress_pct": progress_pct,
+        # UI / route-test keys
+        "progress_percent": progress_pct,
         "emis_paid": len(paid_entries),
         "emis_remaining": len(remaining_entries),
+        "principal_paid": float(principal_paid),
+        "principal_remaining": float(principal_remaining),
+        "interest_paid": float(interest_paid),
+        "interest_remaining": float(interest_remaining),
+        "total_prepayments": str(total_prepayments),
     }
 
 
@@ -117,10 +128,15 @@ async def get_yearly_breakdown(session: AsyncSession, account_id: uuid.UUID, gro
     # Convert to list and format
     result = []
     for period_data in sorted(breakdown.values(), key=lambda x: x["period"]):
+        principal = float(period_data["principal_component"])
+        interest = float(period_data["interest_component"])
         result.append({
             "period": period_data["period"],
-            "principal_component": float(period_data["principal_component"]),
-            "interest_component": float(period_data["interest_component"]),
+            "principal_component": principal,
+            "interest_component": interest,
+            # Aliases expected by route tests / some FE drafts
+            "principal_paid": principal,
+            "interest_paid": interest,
             "total_paid": float(period_data["total_paid"]),
             "prepayments": float(period_data["prepayments"]),
             "closing_balance": float(period_data["closing_balance"]),
