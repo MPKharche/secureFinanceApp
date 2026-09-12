@@ -112,8 +112,9 @@ describe('LoanDetailPage', () => {
     });
 
     expect(screen.getByText('6 of 24 EMIs paid')).toBeInTheDocument();
-    expect(screen.getByText('Principal Paid')).toBeInTheDocument();
-    expect(screen.getByText('Interest Paid')).toBeInTheDocument();
+    // 120000 / (120000+480000) = 20.0%; 45000 / (45000+135000) = 25.0%
+    expect(screen.getByText('Principal Paid (20.0%)')).toBeInTheDocument();
+    expect(screen.getByText('Interest Paid (25.0%)')).toBeInTheDocument();
     expect(screen.getByText('Prepayments')).toBeInTheDocument();
   });
 

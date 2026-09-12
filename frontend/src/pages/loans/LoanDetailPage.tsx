@@ -25,6 +25,18 @@ interface LoanOverview {
   interest_paid: string;
   interest_remaining: string;
   total_prepayments: string;
+  principal_progress_percent?: number;
+  interest_progress_percent?: number;
+}
+
+/** Completion % of paid / (paid + remaining); 0 when total is 0. */
+function completionPercent(paid: number, remaining: number, fromApi?: number): number {
+  if (typeof fromApi === 'number' && Number.isFinite(fromApi)) {
+    return fromApi;
+  }
+  const total = paid + remaining;
+  if (!total || !Number.isFinite(total)) return 0;
+  return (paid / total) * 100;
 }
 
 async function fetchLoanOverview(accountId: string): Promise<LoanOverview> {
@@ -136,7 +148,13 @@ export function LoanDetailPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Principal Paid</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Principal Paid ({completionPercent(
+                parseFloat(overview.principal_paid),
+                parseFloat(overview.principal_remaining),
+                overview.principal_progress_percent,
+              ).toFixed(1)}%)
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(parseFloat(overview.principal_paid), currency, locale)}</div>
@@ -148,7 +166,13 @@ export function LoanDetailPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Interest Paid</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Interest Paid ({completionPercent(
+                parseFloat(overview.interest_paid),
+                parseFloat(overview.interest_remaining),
+                overview.interest_progress_percent,
+              ).toFixed(1)}%)
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(parseFloat(overview.interest_paid), currency, locale)}</div>
