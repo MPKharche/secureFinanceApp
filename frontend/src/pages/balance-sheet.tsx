@@ -63,7 +63,7 @@ function savePrefs(prefs: BsPrefs) {
   localStorage.setItem(PREFS_KEY, JSON.stringify(prefs))
 }
 
-function fidelityBadge(fidelity: string, t: (k: string, o?: object) => string) {
+function fidelityBadge(fidelity: string, t: (key: string) => string) {
   if (fidelity === 'as_of') return t('balanceSheet.fidelityAsOf')
   if (fidelity === 'reconstructed') return t('balanceSheet.fidelityReconstructed')
   return t('balanceSheet.fidelityApprox')
