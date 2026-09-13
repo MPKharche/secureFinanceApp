@@ -24,7 +24,7 @@ if str(BACKEND) not in sys.path:
 from sqlalchemy import select
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.core.database import AsyncSessionLocal
+from app.core.database import async_session_maker
 from app.models.account import Account
 from app.models.asset import Asset
 from app.models.category import Category
@@ -90,7 +90,7 @@ async def _ensure_recurring(session, workspace_id, user_id, data: RecurringTrans
 
 
 async def main() -> dict:
-    async with AsyncSessionLocal() as session:
+    async with async_session_maker() as session:
         loan = await session.get(Account, LOAN_ID)
         if not loan or loan.type != "loan":
             raise SystemExit(f"Loan {LOAN_ID} not found")
