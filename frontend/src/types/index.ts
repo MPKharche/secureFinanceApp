@@ -1043,6 +1043,46 @@ export interface ReportResponse {
   category_trend: CategoryTrendItem[]
 }
 
+export interface BalanceSheetLine {
+  key: string
+  label: string
+  value: number
+  currency: string
+  group: 'cash_accounts' | 'investments' | 'loans' | 'other_liabilities' | string
+  section: 'assets' | 'liabilities' | string
+  fidelity: 'as_of' | 'approx_current' | 'reconstructed' | string
+  fidelity_note?: string | null
+  account_type?: string | null
+  href?: string | null
+  meta?: Record<string, unknown> | null
+}
+
+export interface BalanceSheetAssumption {
+  key: string
+  label: string
+  value: string
+  description: string
+  options?: string[] | null
+}
+
+export interface BalanceSheetTotals {
+  assets: number
+  liabilities: number
+  net_worth: number
+  cash_accounts: number
+  investments: number
+  loans: number
+}
+
+export interface BalanceSheetResponse {
+  as_of: string
+  currency: string
+  totals: BalanceSheetTotals
+  lines: BalanceSheetLine[]
+  assumptions: BalanceSheetAssumption[]
+  gaps: string[]
+}
+
 // --- Invoices -------------------------------------------------------------
 // The ledger of what clients owe. Only reachable from a business
 // workspace: the module resolver leaves `invoices` out of a personal

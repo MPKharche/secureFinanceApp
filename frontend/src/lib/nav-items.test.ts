@@ -40,13 +40,16 @@ describe('nav catalog', () => {
   })
 
   it('has a link for every module in the catalog', () => {
-    const covered = navItems.filter((i) => i.type === 'link').map((i) => i.module)
+    const covered = new Set(
+      navItems.filter((i) => i.type === 'link').map((i) => i.module),
+    )
     expect([...covered].sort()).toEqual([...MODULE_IDS].sort())
   })
 
-  it('gives every link a distinct module', () => {
+  it('covers every module at least once (balance sheet shares reports)', () => {
     const covered = navItems.filter((i) => i.type === 'link').map((i) => i.module)
-    expect(new Set(covered).size).toBe(covered.length)
+    expect(new Set(covered).size).toBe(MODULE_IDS.length)
+    expect(covered.filter((m) => m === 'reports')).toHaveLength(2)
   })
 })
 
@@ -59,6 +62,7 @@ describe('visibleNavItems', () => {
       'loans',
       'import',
       'reports',
+      'balanceSheet',
       'assets',
       'budgets',
       'goals',

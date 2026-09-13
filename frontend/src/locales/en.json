@@ -128,7 +128,8 @@
     "groupAdmin": "Administration",
     "groupAgents": "AI",
     "agents": "Agents",
-    "aiAgents": "AI Agents"
+    "aiAgents": "AI Agents",
+    "balanceSheet": "Balance Sheet"
   },
   "loans": {
     "section": "Liabilities",
@@ -2012,5 +2013,39 @@
         "subtitle": "Add a connection to point Planet Finance at your local Ollama, OpenAI, Anthropic, or any OpenAI-compatible endpoint."
       }
     }
+  },
+  "balanceSheet": {
+    "section": "Statements",
+    "title": "Balance Sheet",
+    "asOf": "As of",
+    "asOfDate": "As of {{date}}",
+    "today": "Today",
+    "netWorth": "Net worth",
+    "totalAssets": "Total assets",
+    "totalLiabilities": "Total liabilities",
+    "cashAccounts": "Cash & accounts",
+    "investments": "Investments & assets",
+    "liabilities": "Liabilities",
+    "assumptions": "Assumptions",
+    "assumptionsTitle": "Key assumptions",
+    "assumptionsHint": "G4-lite drivers for this statement. Preferences persist in this browser.",
+    "insuranceBasis": "Insurance value basis",
+    "insuranceBasisHelp": "SAD = Sum Assured on Death. SV = illustrative surrender value from CoS (not a live insurer quote). Recorded = ledger AssetValue.",
+    "basisRecorded": "Recorded value",
+    "basisSad": "Sum Assured on Death (SAD)",
+    "basisSv": "Illustrative surrender value (SV)",
+    "fidelityAsOf": "as-of",
+    "fidelityReconstructed": "reconstructed",
+    "fidelityApprox": "≈ current",
+    "fidelityHelp": "How this line was valued",
+    "someApprox": "some lines approx / reconstructed",
+    "empty": "No balances for this date",
+    "emptyHint": "Add accounts, investments, or loans — then reopen this statement.",
+    "emptyCash": "No cash or deposit accounts",
+    "emptyInvestments": "No investments or other assets",
+    "emptyLiabilities": "No loans or other liabilities",
+    "gapsTitle": "Documented gaps",
+    "loadError": "Could not load balance sheet",
+    "loadErrorHint": "Check your connection and try again."
   }
 }

@@ -56,3 +56,43 @@ class ReportResponse(BaseModel):
     meta: ReportMeta
     composition: list[ReportCompositionItem] = []
     category_trend: list[CategoryTrendItem] = []
+
+
+class BalanceSheetLine(BaseModel):
+    key: str
+    label: str
+    value: float
+    currency: str
+    group: str  # cash_accounts | investments | loans | other_liabilities
+    section: str  # assets | liabilities
+    fidelity: str  # as_of | approx_current | reconstructed
+    fidelity_note: str | None = None
+    account_type: str | None = None
+    href: str | None = None
+    meta: dict | None = None
+
+
+class BalanceSheetAssumption(BaseModel):
+    key: str
+    label: str
+    value: str
+    description: str
+    options: list[str] | None = None
+
+
+class BalanceSheetTotals(BaseModel):
+    assets: float
+    liabilities: float
+    net_worth: float
+    cash_accounts: float
+    investments: float
+    loans: float
+
+
+class BalanceSheetResponse(BaseModel):
+    as_of: str
+    currency: str
+    totals: BalanceSheetTotals
+    lines: list[BalanceSheetLine]
+    assumptions: list[BalanceSheetAssumption]
+    gaps: list[str] = []

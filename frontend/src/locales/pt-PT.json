@@ -128,7 +128,8 @@
     "groupAgents": "IA",
     "agents": "Agentes",
     "aiAgents": "Agentes de IA",
-    "loans": "Loans"
+    "loans": "Loans",
+    "balanceSheet": "Balanço patrimonial"
   },
   "invoices": {
     "title": "Cobranças",
@@ -2014,5 +2015,39 @@
       "gold": "Gold loan",
       "other": "Other"
     }
+  },
+  "balanceSheet": {
+    "section": "Statements",
+    "title": "Bilanz",
+    "asOf": "As of",
+    "asOfDate": "As of {{date}}",
+    "today": "Today",
+    "netWorth": "Net worth",
+    "totalAssets": "Total assets",
+    "totalLiabilities": "Total liabilities",
+    "cashAccounts": "Cash & accounts",
+    "investments": "Investments & assets",
+    "liabilities": "Liabilities",
+    "assumptions": "Assumptions",
+    "assumptionsTitle": "Key assumptions",
+    "assumptionsHint": "G4-lite drivers for this statement. Preferences persist in this browser.",
+    "insuranceBasis": "Insurance value basis",
+    "insuranceBasisHelp": "SAD = Sum Assured on Death. SV = illustrative surrender value from CoS (not a live insurer quote). Recorded = ledger AssetValue.",
+    "basisRecorded": "Recorded value",
+    "basisSad": "Sum Assured on Death (SAD)",
+    "basisSv": "Illustrative surrender value (SV)",
+    "fidelityAsOf": "as-of",
+    "fidelityReconstructed": "reconstructed",
+    "fidelityApprox": "≈ current",
+    "fidelityHelp": "How this line was valued",
+    "someApprox": "some lines approx / reconstructed",
+    "empty": "No balances for this date",
+    "emptyHint": "Add accounts, investments, or loans — then reopen this statement.",
+    "emptyCash": "No cash or deposit accounts",
+    "emptyInvestments": "No investments or other assets",
+    "emptyLiabilities": "No loans or other liabilities",
+    "gapsTitle": "Documented gaps",
+    "loadError": "Could not load balance sheet",
+    "loadErrorHint": "Check your connection and try again."
   }
 }
