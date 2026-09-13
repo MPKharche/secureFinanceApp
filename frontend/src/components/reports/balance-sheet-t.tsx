@@ -132,9 +132,9 @@ export function BsSubGroup({
           className={cn(
             'font-semibold uppercase tracking-wider inline-flex items-center gap-1',
             compact ? 'text-[10px]' : 'text-xs',
-            tone === 'liability' && 'text-rose-700 dark:text-rose-400',
-            tone === 'asset' && 'text-emerald-700 dark:text-emerald-400',
-            tone === 'neutral' && 'text-muted-foreground',
+            tone === 'liability' && 'text-rose-700 dark:text-rose-300',
+            tone === 'asset' && 'text-emerald-700 dark:text-emerald-300',
+            tone === 'neutral' && 'text-foreground/70',
           )}
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
@@ -150,7 +150,7 @@ export function BsSubGroup({
       </div>
       {open &&
         (lines.length === 0 ? (
-          <p className={cn('text-muted-foreground/80', compact ? 'text-xs py-1' : 'text-sm py-2')}>
+          <p className={cn('text-muted-foreground', compact ? 'text-xs py-1' : 'text-sm py-2')}>
             {empty}
           </p>
         ) : (
@@ -209,7 +209,7 @@ function TColumn({
             : 'border-emerald-200/70 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20',
         )}
       >
-        <p className="text-[11px] font-medium text-muted-foreground tracking-wide">{subtitle}</p>
+        <p className="text-[11px] font-semibold tracking-wide text-foreground/70">{subtitle}</p>
         <h2
           className={cn(
             'font-semibold tracking-tight mt-0.5',
@@ -388,16 +388,12 @@ export function BalanceSheetT({
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
                 {t('balanceSheet.yourNetWorth')}
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {t('balanceSheet.netWorthBridge')}
-                {savingsBuffer > 0 && (
-                  <>
-                    {' · '}
-                    {t('balanceSheet.savingsBuffer')}:{' '}
-                    {mask(formatCurrency(savingsBuffer, currency, locale))}
-                  </>
-                )}
-              </p>
+              {savingsBuffer > 0 && (
+                <p className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                  {t('balanceSheet.savingsBuffer')}{' '}
+                  {mask(formatCurrency(savingsBuffer, currency, locale))}
+                </p>
+              )}
             </div>
             <p
               className={cn(
