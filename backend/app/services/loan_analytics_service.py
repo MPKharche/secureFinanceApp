@@ -35,12 +35,23 @@ async def get_loan_overview(session: AsyncSession, account_id: uuid.UUID) -> dic
 
     principal_paid = sum((e.principal_component for e in paid_entries), Decimal("0"))
     interest_paid = sum((e.interest_component for e in paid_entries), Decimal("0"))
+    # Guard against legacy broken schedules (negative last-EMI interest).
+    interest_paid = max(interest_paid, Decimal("0"))
     total_paid = principal_paid + interest_paid
 
     principal_remaining = sum((e.principal_component for e in remaining_entries), Decimal("0"))
     interest_remaining = sum((e.interest_component for e in remaining_entries), Decimal("0"))
+    interest_remaining = max(interest_remaining, Decimal("0"))
 
     original = account.original_principal or Decimal("0")
+    # Interest-only schedules keep principal_component=0 until a balloon stub.
+    # Fall back to outstanding principal so the overview card is coherent.
+    if principal_remaining <= 0 and remaining_entries:
+        first_remaining = min(remaining_entries, key=lambda e: e.emi_number)
+        principal_remaining = max(first_remaining.opening_balance, Decimal("0"))
+    elif principal_remaining <= 0 and original:
+        principal_remaining = max(original - principal_paid, Decimal("0"))
+
     progress_pct = (float(principal_paid) / float(original) * 100) if original else 0.0
     total_prepayments = account.total_prepayments or Decimal("0")
 

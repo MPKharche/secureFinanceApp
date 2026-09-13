@@ -827,6 +827,8 @@
     "frequency": "Frequentie",
     "monthly": "Maandelijks",
     "quarterly": "Driemaandelijks",
+    "semiannual": "Halfjaarlijks",
+    "biweekly": "Elke 2 weken",
     "weekly": "Wekelijks",
     "yearly": "Jaarlijks",
     "dayOfMonth": "Dag van de maand",

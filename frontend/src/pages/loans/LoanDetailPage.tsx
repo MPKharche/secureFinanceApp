@@ -34,9 +34,11 @@ function completionPercent(paid: number, remaining: number, fromApi?: number): n
   if (typeof fromApi === 'number' && Number.isFinite(fromApi)) {
     return fromApi;
   }
-  const total = paid + remaining;
-  if (!total || !Number.isFinite(total)) return 0;
-  return (paid / total) * 100;
+  const safePaid = Number.isFinite(paid) ? Math.max(paid, 0) : 0;
+  const safeRemaining = Number.isFinite(remaining) ? Math.max(remaining, 0) : 0;
+  const total = safePaid + safeRemaining;
+  if (!total) return 0;
+  return (safePaid / total) * 100;
 }
 
 async function fetchLoanOverview(accountId: string): Promise<LoanOverview> {
@@ -177,7 +179,7 @@ export function LoanDetailPage() {
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(parseFloat(overview.interest_paid), currency, locale)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Remaining: {formatCurrency(parseFloat(overview.interest_remaining), currency, locale)}
+              Remaining: {formatCurrency(Math.max(parseFloat(overview.interest_remaining) || 0, 0), currency, locale)}
             </p>
           </CardContent>
         </Card>

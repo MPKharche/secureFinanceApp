@@ -893,6 +893,8 @@
     "frequency": "Częstotliwość",
     "monthly": "Miesięcznie",
     "quarterly": "Kwartalnie",
+    "semiannual": "Co pół roku",
+    "biweekly": "Co 2 tygodnie",
     "weekly": "Tygodniowo",
     "yearly": "Rocznie",
     "dayOfMonth": "Dzień miesiąca",

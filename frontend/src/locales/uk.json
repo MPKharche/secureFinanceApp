@@ -837,6 +837,8 @@
     "frequency": "Частота",
     "monthly": "Щомісяця",
     "quarterly": "Щоквартально",
+    "semiannual": "Раз на півроку",
+    "biweekly": "Раз на 2 тижні",
     "weekly": "Щотижня",
     "yearly": "Щороку",
     "dayOfMonth": "День місяця",

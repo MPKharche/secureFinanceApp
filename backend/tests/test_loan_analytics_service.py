@@ -138,3 +138,68 @@ async def test_calculate_debt_ratios(session: AsyncSession, workspace_id: uuid.U
     assert ratios["aggregate_metrics"]["total_monthly_emi"] > 16000.00
     assert ratios["debt_ratios"]["debt_to_income_ratio"] < 1.0
     assert ratios["debt_ratios"]["emi_to_income_ratio"] < 1.0
+
+
+@pytest.mark.asyncio
+async def test_overview_clamps_negative_remaining_interest(
+    session: AsyncSession, workspace_id: uuid.UUID, user_id: uuid.UUID
+):
+    """Legacy broken last-EMI rows must not surface negative remaining interest."""
+    from app.models.loan_schedule import LoanAmortizationSchedule
+    from datetime import date as _date
+
+    account = Account(
+        id=uuid.uuid4(),
+        user_id=user_id,
+        workspace_id=workspace_id,
+        name="Broken Schedule Loan",
+        type="loan",
+        balance=Decimal("174805.00"),
+        currency="INR",
+        original_principal=Decimal("160000.00"),
+        interest_rate=Decimal("7.96"),
+        tenure_months=2,
+        emi_amount=Decimal("1061.33"),
+        disbursed_on=_date(2025, 3, 25),
+        current_schedule_version=1,
+    )
+    session.add(account)
+    await session.flush()
+    session.add_all(
+        [
+            LoanAmortizationSchedule(
+                id=uuid.uuid4(),
+                account_id=account.id,
+                workspace_id=workspace_id,
+                schedule_version=1,
+                emi_number=1,
+                due_date=_date(2025, 4, 25),
+                principal_component=Decimal("0.00"),
+                interest_component=Decimal("1061.33"),
+                emi_amount=Decimal("1061.33"),
+                opening_balance=Decimal("160000.00"),
+                closing_balance=Decimal("160000.00"),
+                payment_status="scheduled",
+            ),
+            LoanAmortizationSchedule(
+                id=uuid.uuid4(),
+                account_id=account.id,
+                workspace_id=workspace_id,
+                schedule_version=1,
+                emi_number=2,
+                due_date=_date(2025, 5, 25),
+                principal_component=Decimal("160000.00"),
+                interest_component=Decimal("-158938.67"),
+                emi_amount=Decimal("1061.33"),
+                opening_balance=Decimal("160000.00"),
+                closing_balance=Decimal("0.00"),
+                payment_status="scheduled",
+            ),
+        ]
+    )
+    await session.commit()
+
+    overview = await get_loan_overview(session, account.id)
+    assert overview is not None
+    assert overview["interest_remaining"] >= 0
+    assert overview["principal_remaining"] == 160000.0
