@@ -827,6 +827,8 @@
     "frequency": "Fréquence",
     "monthly": "Mensuelle",
     "quarterly": "Trimestrielle",
+    "semiannual": "Semestriel",
+    "biweekly": "Toutes les 2 semaines",
     "weekly": "Hebdomadaire",
     "yearly": "Annuelle",
     "dayOfMonth": "Jour du mois",

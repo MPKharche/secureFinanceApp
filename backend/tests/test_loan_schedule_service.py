@@ -244,3 +244,84 @@ async def test_regenerate_schedule_from_midpoint(session: AsyncSession, workspac
     # Account version should be incremented
     await session.refresh(account)
     assert account.current_schedule_version == 2
+
+
+@pytest.mark.asyncio
+async def test_interest_only_emi_does_not_emit_negative_interest(
+    session: AsyncSession, workspace_id: uuid.UUID, user_id: uuid.UUID
+):
+    """When EMI ≈ monthly interest, last EMI must balloon — never negative interest."""
+    principal = Decimal("160000.00")
+    rate = Decimal("7.96")
+    # EMI equal to monthly interest → non-amortizing until balloon
+    monthly_interest = (principal * rate / Decimal("1200")).quantize(Decimal("0.01"))
+    account = Account(
+        id=uuid.uuid4(),
+        user_id=user_id,
+        workspace_id=workspace_id,
+        name="Policy Loan Interest-Only Style",
+        type="loan",
+        balance=Decimal("174805.00"),
+        currency="INR",
+        original_principal=principal,
+        interest_rate=rate,
+        tenure_months=12,
+        emi_amount=monthly_interest,
+        disbursed_on=date(2025, 3, 25),
+        emi_day=25,
+        current_schedule_version=1,
+    )
+    session.add(account)
+    await session.commit()
+
+    entries = await generate_amortization_schedule(session, account.id, version=1)
+    assert len(entries) == 12
+    assert all(e.interest_component >= 0 for e in entries)
+    assert entries[-1].principal_component == principal
+    assert entries[-1].closing_balance == Decimal("0.00")
+    assert entries[-1].emi_amount == entries[-1].principal_component + entries[-1].interest_component
+
+
+@pytest.mark.asyncio
+async def test_generate_interest_only_half_yearly(
+    session: AsyncSession, workspace_id: uuid.UUID, user_id: uuid.UUID
+):
+    from app.services.loan_schedule_service import generate_interest_only_schedule
+
+    principal = Decimal("160000.00")
+    account = Account(
+        id=uuid.uuid4(),
+        user_id=user_id,
+        workspace_id=workspace_id,
+        name="ICICI Pru Policy Loan",
+        type="loan",
+        balance=Decimal("174805.00"),
+        currency="INR",
+        original_principal=principal,
+        interest_rate=Decimal("7.96"),
+        tenure_months=24,
+        emi_amount=None,
+        disbursed_on=date(2025, 3, 25),
+        emi_day=25,
+        current_schedule_version=1,
+    )
+    session.add(account)
+    await session.commit()
+
+    entries = await generate_interest_only_schedule(
+        session, account.id, cadence_months=6, include_principal_balloon=True
+    )
+    # 24/6 = 4 interest periods + 1 balloon
+    assert len(entries) == 5
+    half_year_interest = (principal * Decimal("7.96") / Decimal("100") / Decimal("2")).quantize(
+        Decimal("0.01")
+    )
+    assert entries[0].interest_component == half_year_interest
+    assert entries[0].principal_component == Decimal("0.00")
+    assert entries[0].closing_balance == principal
+    assert entries[-1].notes == "principal_repayment_stub"
+    assert entries[-1].principal_component == principal
+    assert entries[-1].closing_balance == Decimal("0.00")
+    await session.refresh(account)
+    assert account.current_schedule_version == 2
+    assert account.emi_amount == half_year_interest

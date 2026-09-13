@@ -827,6 +827,8 @@
     "frequency": "Häufigkeit",
     "monthly": "Monatlich",
     "quarterly": "Vierteljährlich",
+    "semiannual": "Halbjährlich",
+    "biweekly": "Alle 2 Wochen",
     "weekly": "Wöchentlich",
     "yearly": "Jährlich",
     "dayOfMonth": "Tag des Monats",

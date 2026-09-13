@@ -858,6 +858,8 @@
     "frequency": "Frequency",
     "monthly": "Monthly",
     "quarterly": "Quarterly",
+    "semiannual": "Every 6 months",
+    "biweekly": "Every 2 weeks",
     "weekly": "Weekly",
     "yearly": "Yearly",
     "dayOfMonth": "Day of month",

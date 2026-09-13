@@ -50,9 +50,11 @@ def _match_window(frequency: str) -> tuple[int, int]:
     a day or two early. Windows stay well under one period so a charge can
     never match the neighbouring occurrence.
     """
-    if frequency == "weekly":
+    if frequency in ("weekly", "biweekly"):
         return 2, 2
-    # monthly / yearly
+    if frequency in ("semiannual", "half_yearly", "semi_annual", "yearly"):
+        return 5, 10
+    # monthly / quarterly
     return 3, 5
 
 

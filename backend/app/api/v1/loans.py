@@ -431,6 +431,35 @@ async def get_dashboard_summary(
     }
 
 
+
+@router.post("/{account_id}/schedule/interest-only")
+async def generate_interest_only_schedule(
+    account_id: uuid.UUID,
+    cadence_months: int = Query(6, ge=1, le=12),
+    include_principal_balloon: bool = Query(True),
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_writable_workspace),
+):
+    """Replace current schedule with an interest-only cadence (e.g. half-yearly policy loans)."""
+    await _require_loan_account(db, account_id, workspace.id)
+    try:
+        entries = await loan_schedule_service.generate_interest_only_schedule(
+            session=db,
+            account_id=account_id,
+            cadence_months=cadence_months,
+            include_principal_balloon=include_principal_balloon,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {
+        "account_id": str(account_id),
+        "entries": len(entries),
+        "cadence_months": cadence_months,
+        "include_principal_balloon": include_principal_balloon,
+        "schedule_version": entries[0].schedule_version if entries else None,
+    }
+
+
 @router.post("/schedule/regenerate")
 async def regenerate_schedule(
     regenerate_data: dict,

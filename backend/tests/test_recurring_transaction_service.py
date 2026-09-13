@@ -811,3 +811,13 @@ async def test_generate_pending_weekend_adjustment_respects_nominal_end_date(
     await session.refresh(rec)
     assert rec.next_occurrence == date(2026, 9, 1)
     assert rec.is_active is False
+
+
+def test_advance_date_semiannual():
+    assert _advance_date(date(2025, 3, 25), "semiannual") == date(2025, 9, 25)
+    assert _advance_date(date(2025, 9, 25), "half_yearly") == date(2026, 3, 25)
+    assert _advance_date(date(2025, 1, 31), "semiannual", intended_day=31) == date(2025, 7, 31)
+
+
+def test_advance_date_biweekly():
+    assert _advance_date(date(2025, 1, 1), "biweekly") == date(2025, 1, 15)

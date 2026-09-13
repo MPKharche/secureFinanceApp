@@ -77,11 +77,22 @@ async def generate_amortization_schedule(
         opening_balance = remaining_principal
         interest_component = (opening_balance * monthly_rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         principal_component = emi_amount - interest_component
+        row_emi = emi_amount
 
-        # Last EMI: principal_component = remaining balance (avoid rounding residual)
+        # Interest-only / underpayment: never invent negative principal.
+        if principal_component < 0:
+            principal_component = Decimal("0.00")
+            row_emi = interest_component
+
+        # Last EMI: clear remaining principal. Use a balloon payment when the
+        # contractual EMI cannot cover principal+interest (interest-only loans
+        # where EMI ≈ monthly interest). Never emit negative interest.
         if i == tenure_months:
+            interest_component = (opening_balance * monthly_rate).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
             principal_component = opening_balance
-            interest_component = emi_amount - principal_component
+            row_emi = principal_component + interest_component
 
         closing_balance = opening_balance - principal_component
         remaining_principal = closing_balance
@@ -95,7 +106,7 @@ async def generate_amortization_schedule(
             due_date=due_date,
             principal_component=principal_component,
             interest_component=interest_component,
-            emi_amount=emi_amount,
+            emi_amount=row_emi,
             opening_balance=opening_balance,
             closing_balance=closing_balance,
             payment_status="scheduled",
@@ -331,10 +342,18 @@ async def regenerate_schedule(
         opening_balance = remaining_principal
         interest_component = (opening_balance * monthly_rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         principal_component = new_emi - interest_component
+        row_emi = new_emi
+
+        if principal_component < 0:
+            principal_component = Decimal("0.00")
+            row_emi = interest_component
 
         if i == new_tenure - 1:
+            interest_component = (opening_balance * monthly_rate).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
             principal_component = opening_balance
-            interest_component = new_emi - principal_component
+            row_emi = principal_component + interest_component
 
         closing_balance = opening_balance - principal_component
         remaining_principal = closing_balance
@@ -348,13 +367,109 @@ async def regenerate_schedule(
             due_date=due_date,
             principal_component=principal_component,
             interest_component=interest_component,
-            emi_amount=new_emi,
+            emi_amount=row_emi,
             opening_balance=opening_balance,
             closing_balance=closing_balance,
             payment_status="scheduled",
         )
         entries.append(entry)
         session.add(entry)
+
+    await session.commit()
+    return entries
+
+
+async def generate_interest_only_schedule(
+    session: AsyncSession,
+    account_id: uuid.UUID,
+    *,
+    cadence_months: int = 6,
+    version: Optional[int] = None,
+    include_principal_balloon: bool = True,
+) -> list[LoanAmortizationSchedule]:
+    """Generate an interest-only schedule (e.g. policy loans charged half-yearly).
+
+    Each period posts accrued interest on outstanding principal with zero
+    principal reduction. Optionally appends a final balloon stub that clears
+    principal (repayment placeholder). Creates a new schedule version when
+    ``version`` is omitted.
+    """
+    if cadence_months < 1:
+        raise ValueError("cadence_months must be >= 1")
+
+    result = await session.execute(select(Account).where(Account.id == account_id))
+    account = result.scalar_one()
+
+    if account.type != "loan":
+        raise ValueError(f"Account {account_id} is not a loan account")
+    if not all([account.original_principal, account.interest_rate, account.disbursed_on]):
+        raise ValueError(f"Account {account_id} missing required loan fields")
+
+    principal = account.original_principal
+    annual_rate = account.interest_rate
+    disbursed_on = account.disbursed_on
+    emi_day = account.emi_day or disbursed_on.day
+    tenure_months = account.tenure_months or cadence_months
+    periods = max(1, tenure_months // cadence_months)
+    period_rate = (annual_rate / Decimal("100")) * (Decimal(cadence_months) / Decimal("12"))
+    interest_amount = (principal * period_rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    if version is None:
+        version = (account.current_schedule_version or 0) + 1
+    account.current_schedule_version = version
+    # Half-yearly interest charge is the contractual "EMI" for interest-only.
+    account.emi_amount = interest_amount
+
+    entries: list[LoanAmortizationSchedule] = []
+    for i in range(1, periods + 1):
+        due_date = disbursed_on + relativedelta(months=cadence_months * i)
+        try:
+            due_date = due_date.replace(day=emi_day)
+        except ValueError:
+            due_date = due_date + relativedelta(day=31)
+
+        entry = LoanAmortizationSchedule(
+            id=uuid.uuid4(),
+            account_id=account_id,
+            workspace_id=account.workspace_id,
+            schedule_version=version,
+            emi_number=i,
+            due_date=due_date,
+            principal_component=Decimal("0.00"),
+            interest_component=interest_amount,
+            emi_amount=interest_amount,
+            opening_balance=principal,
+            closing_balance=principal,
+            payment_status="scheduled",
+            notes=f"interest_only cadence={cadence_months}m",
+        )
+        entries.append(entry)
+        session.add(entry)
+
+    if include_principal_balloon:
+        balloon_n = periods + 1
+        due_date = disbursed_on + relativedelta(months=cadence_months * balloon_n)
+        try:
+            due_date = due_date.replace(day=emi_day)
+        except ValueError:
+            due_date = due_date + relativedelta(day=31)
+        balloon = LoanAmortizationSchedule(
+            id=uuid.uuid4(),
+            account_id=account_id,
+            workspace_id=account.workspace_id,
+            schedule_version=version,
+            emi_number=balloon_n,
+            due_date=due_date,
+            principal_component=principal,
+            interest_component=Decimal("0.00"),
+            emi_amount=principal,
+            opening_balance=principal,
+            closing_balance=Decimal("0.00"),
+            payment_status="scheduled",
+            notes="principal_repayment_stub",
+        )
+        entries.append(balloon)
+        session.add(balloon)
 
     await session.commit()
     return entries
