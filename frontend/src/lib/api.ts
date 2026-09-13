@@ -1325,6 +1325,45 @@ export const reports = {
     })
     return data
   },
+  forecast: async (opts: {
+    horizonYears?: number
+    inflationPct?: number
+    incomeGrowthPct?: number
+    expenseGrowthPct?: number
+    loanRatePct?: number
+    rateReset?: 'none' | 'use_assumption'
+    svPath?: 'illus_table' | 'hold_flat' | 'live'
+    premiumAnnual?: number
+    accountIds?: string[]
+  } = {}): Promise<import('@/types').ForecastResponse> => {
+    const {
+      horizonYears = 5,
+      inflationPct = 0,
+      incomeGrowthPct = 0,
+      expenseGrowthPct = 0,
+      loanRatePct,
+      rateReset = 'none',
+      svPath = 'illus_table',
+      premiumAnnual,
+      accountIds,
+    } = opts
+    const hasFilter = accountIds && accountIds.length > 0
+    const { data } = await api.get('/reports/forecast', {
+      params: {
+        horizon_years: horizonYears,
+        inflation_pct: inflationPct,
+        income_growth_pct: incomeGrowthPct,
+        expense_growth_pct: expenseGrowthPct,
+        ...(loanRatePct !== undefined ? { loan_rate_pct: loanRatePct } : {}),
+        rate_reset: rateReset,
+        sv_path: svPath,
+        ...(premiumAnnual !== undefined ? { premium_annual: premiumAnnual } : {}),
+        ...(hasFilter ? { account_ids: accountIds } : {}),
+      },
+      ...(hasFilter ? { paramsSerializer: { indexes: null as null } } : {}),
+    })
+    return data
+  },
   balanceSheet: async (
     asOf?: string,
     insuranceValueBasis: 'recorded' | 'sad' | 'sv' = 'recorded',

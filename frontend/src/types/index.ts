@@ -1120,6 +1120,46 @@ export interface ProfitLossResponse {
   gaps: string[]
 }
 
+
+export interface ForecastYear {
+  year_index: number
+  calendar_year: number
+  income: number
+  expenses: number
+  premium: number
+  loan_interest: number
+  net_cashflow: number
+  cash: number
+  investments: number
+  insurance_sv: number
+  loans: number
+  net_worth: number
+  notes: string[]
+}
+
+export interface ForecastOpening {
+  cash: number
+  investments: number
+  insurance_sv: number
+  loans: number
+  net_worth: number
+  base_income: number
+  base_expenses: number
+  premium_annual: number
+  loan_principal: number
+  loan_rate_pct: number
+}
+
+export interface ForecastResponse {
+  currency: string
+  start_year: number
+  horizon_years: number
+  opening: ForecastOpening
+  years: ForecastYear[]
+  assumptions: BalanceSheetAssumption[]
+  gaps: string[]
+}
+
 // --- Invoices -------------------------------------------------------------
 // The ledger of what clients owe. Only reachable from a business
 // workspace: the module resolver leaves `invoices` out of a personal

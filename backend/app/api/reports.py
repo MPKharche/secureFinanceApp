@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
 from app.core.workspace_context import WorkspaceContext, current_workspace
-from app.schemas.report import BalanceSheetResponse, ProfitLossResponse, ReportResponse
+from app.schemas.report import BalanceSheetResponse, ForecastResponse, ProfitLossResponse, ReportResponse
 from app.services import report_service
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
@@ -113,5 +113,44 @@ async def get_profit_loss(
         expense_growth_pct=expense_growth_pct,
         include_tax=include_tax,
         effective_tax_rate=effective_tax_rate,
+        account_ids=account_ids,
+    )
+
+
+
+@router.get("/forecast", response_model=ForecastResponse)
+async def get_forecast(
+    horizon_years: int = Query(5, ge=1, le=30, description="G3 forecast horizon in years"),
+    inflation_pct: float = Query(0.0, ge=-50, le=100, description="G4 annual inflation %"),
+    income_growth_pct: float = Query(0.0, ge=-100, le=500, description="G4 income growth path %"),
+    expense_growth_pct: float = Query(0.0, ge=-100, le=500, description="G4 expense growth path %"),
+    loan_rate_pct: float | None = Query(None, ge=0, le=100, description="Policy loan rate % assumption"),
+    rate_reset: str = Query(
+        "none",
+        pattern="^(none|use_assumption)$",
+        description="none=account rate when set; use_assumption=apply loan_rate_pct",
+    ),
+    sv_path: str = Query(
+        "illus_table",
+        pattern="^(illus_table|hold_flat|live)$",
+        description="SV path: CoS illus table, hold flat, or live (fallback)",
+    ),
+    premium_annual: float | None = Query(None, ge=0, description="Override annual premium; default from schedules/metadata"),
+    account_ids: Optional[list[uuid.UUID]] = Query(None),
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    return await report_service.get_forecast(
+        session,
+        ctx.workspace.id,
+        ctx.user_id,
+        horizon_years=horizon_years,
+        inflation_pct=inflation_pct,
+        income_growth_pct=income_growth_pct,
+        expense_growth_pct=expense_growth_pct,
+        loan_rate_pct=loan_rate_pct,
+        rate_reset=rate_reset,
+        sv_path=sv_path,
+        premium_annual=premium_annual,
         account_ids=account_ids,
     )

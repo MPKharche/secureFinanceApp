@@ -30,6 +30,9 @@ from app.schemas.report import (
     BalanceSheetResponse,
     BalanceSheetTotals,
     CategoryTrendItem,
+    ForecastOpening,
+    ForecastResponse,
+    ForecastYear,
     ProfitLossLine,
     ProfitLossResponse,
     ProfitLossTotals,
@@ -2277,7 +2280,7 @@ async def get_profit_loss(
     ]
 
     gaps = [
-        "G3 multi-year forecast not included",
+        "G3 multi-year forecast available at /reports/forecast",
         "Tax is a flat effective rate, not jurisdiction-aware brackets",
         "Category growth is uniform — no per-category drivers yet",
     ]
@@ -2304,4 +2307,385 @@ async def get_profit_loss(
         projection_lines=projection_lines,
         assumptions=assumptions,
         gaps=gaps,
+    )
+
+
+
+def _illus_sv_for_policy_year(meta: dict | None, policy_year: int) -> float | None:
+    """Look up illustrative SV for a policy year from CoS benefit illustration metadata."""
+    meta = meta or {}
+    key = f"year_{policy_year}"
+    cos = meta.get("cos_illustration") or {}
+    year_block = cos.get(key) or {}
+    for field in ("sv_approx", "ssv", "min_gsv"):
+        val = year_block.get(field)
+        if val is not None:
+            try:
+                return float(val)
+            except (TypeError, ValueError):
+                pass
+    if policy_year == 5 and meta.get("illus_sv_year5") is not None:
+        try:
+            return float(meta["illus_sv_year5"])
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _estimate_policy_year(meta: dict | None, as_of: date) -> int:
+    """Best-effort policy year index from start date or CoS year_5_approx."""
+    meta = meta or {}
+    start = meta.get("policy_start_approx")
+    if isinstance(start, str) and len(start) >= 7:
+        try:
+            y, m = int(start[:4]), int(start[5:7])
+            months = (as_of.year - y) * 12 + (as_of.month - m)
+            return max(1, months // 12 + 1)
+        except ValueError:
+            pass
+    cos = meta.get("cos_illustration") or {}
+    # year_5_approx ~ now for Pru seed → treat current as year 5
+    if cos.get("year_5") is not None:
+        return 5
+    return 1
+
+
+async def get_forecast(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+    *,
+    horizon_years: int = 5,
+    inflation_pct: float = 0.0,
+    income_growth_pct: float = 0.0,
+    expense_growth_pct: float = 0.0,
+    loan_rate_pct: float | None = None,
+    rate_reset: str = "none",
+    sv_path: str = "illus_table",
+    premium_annual: float | None = None,
+    account_ids: Optional[list[uuid.UUID]] = None,
+) -> ForecastResponse:
+    """G3 multi-year forecast driven by schedules + G4 assumption keys.
+
+    Projects cash, investments, insurance SV, loans, and net worth for
+    `horizon_years` using income/expense growth paths, inflation on expenses,
+    policy premium, policy-loan interest (optional rate reset), and SV path.
+    """
+    from app.models.asset import Asset
+
+    horizon = max(1, min(int(horizon_years or 5), 30))
+    rate_reset = (rate_reset or "none").lower()
+    if rate_reset not in {"none", "use_assumption"}:
+        rate_reset = "none"
+    sv_path = (sv_path or "illus_table").lower()
+    if sv_path not in {"illus_table", "hold_flat", "live"}:
+        sv_path = "illus_table"
+
+    today = date.today()
+    start_year = today.year
+
+    # Opening BS
+    bs = await get_balance_sheet(
+        session, workspace_id, user_id, today,
+        insurance_value_basis="sv" if sv_path != "hold_flat" else "recorded",
+        account_ids=account_ids,
+    )
+    pl = await get_profit_loss(
+        session, workspace_id, user_id,
+        year=start_year,
+        income_growth_pct=0.0,
+        expense_growth_pct=0.0,
+        include_tax=False,
+        account_ids=account_ids,
+    )
+
+    cash = float(bs.totals.cash_accounts)
+    # Split investments into insurance SV vs other using line meta
+    insurance_sv = 0.0
+    other_invest = 0.0
+    for ln in bs.lines:
+        if ln.section != "assets" or ln.group != "investments":
+            continue
+        meta = ln.meta or {}
+        if meta.get("insurance"):
+            insurance_sv += float(ln.value)
+        else:
+            other_invest += float(ln.value)
+    if insurance_sv == 0.0 and other_invest == 0.0:
+        other_invest = float(bs.totals.investments)
+    loans = float(bs.totals.loans)
+    net_worth = float(bs.totals.net_worth)
+
+    base_income = float(pl.totals.projected_income)
+    base_expenses = float(pl.totals.projected_expenses)
+
+    # Insurance / loan drivers from assets + loan accounts
+    asset_result = await session.execute(
+        select(Asset).where(Asset.workspace_id == workspace_id)
+    )
+    assets = list(asset_result.scalars().all())
+    insurance_assets = [a for a in assets if _is_insurance_asset(a)]
+
+    derived_premium = 0.0
+    derived_rate = None
+    derived_principal = loans
+    for a in insurance_assets:
+        meta = a.external_metadata or {}
+        pm = meta.get("premium_monthly")
+        if pm is None:
+            pm = (meta.get("g0_assumptions") or {}).get("premium_amount")
+        try:
+            if pm is not None:
+                derived_premium += float(pm) * 12.0
+        except (TypeError, ValueError):
+            pass
+        g0 = meta.get("g0_assumptions") or {}
+        if derived_rate is None and g0.get("loan_rate_percent") is not None:
+            try:
+                derived_rate = float(g0["loan_rate_percent"])
+            except (TypeError, ValueError):
+                pass
+        if g0.get("principal") is not None:
+            try:
+                derived_principal = float(g0["principal"])
+            except (TypeError, ValueError):
+                pass
+
+    accounts = await _get_open_accounts(session, workspace_id, account_ids)
+    account_rate = None
+    for acct in accounts:
+        if acct.type == "loan" and acct.interest_rate is not None:
+            try:
+                account_rate = float(acct.interest_rate)
+                break
+            except (TypeError, ValueError):
+                pass
+
+    if premium_annual is None:
+        premium_annual_v = round(derived_premium, 2)
+    else:
+        premium_annual_v = round(float(premium_annual), 2)
+
+    if loan_rate_pct is None:
+        assumption_rate = derived_rate if derived_rate is not None else (account_rate or 0.0)
+    else:
+        assumption_rate = float(loan_rate_pct)
+
+    # Effective rate path
+    if rate_reset == "use_assumption":
+        effective_rate = assumption_rate
+        rate_source = "assumption"
+    else:
+        effective_rate = account_rate if account_rate is not None else assumption_rate
+        rate_source = "account" if account_rate is not None else "assumption"
+
+    # Opening insurance SV for hold_flat baseline
+    opening_sv = insurance_sv
+    if opening_sv <= 0 and insurance_assets:
+        amounts = _insurance_amounts(insurance_assets[0].external_metadata)
+        if amounts["sv"] is not None:
+            opening_sv = float(amounts["sv"])
+
+    primary_currency = bs.currency
+    years: list[ForecastYear] = []
+    cash_bal = cash
+    invest_bal = other_invest
+    sv_bal = opening_sv
+    loan_bal = loans if loans > 0 else derived_principal
+    income = base_income
+    expenses = base_expenses
+    gaps: list[str] = []
+
+    if sv_path == "live":
+        gaps.append(
+            "sv_path=live is not integrated — falling back to hold_flat "
+            "(no live insurer quote API yet)"
+        )
+
+    policy_year0 = 5
+    if insurance_assets:
+        policy_year0 = _estimate_policy_year(insurance_assets[0].external_metadata, today)
+
+    for i in range(1, horizon + 1):
+        notes: list[str] = []
+        # Growth paths compound annually after year 1 base
+        if i > 1:
+            income = round(income * (1.0 + income_growth_pct / 100.0), 2)
+            # expense growth path + inflation
+            expenses = round(
+                expenses
+                * (1.0 + expense_growth_pct / 100.0)
+                * (1.0 + inflation_pct / 100.0),
+                2,
+            )
+        elif inflation_pct:
+            # Year 1: apply inflation once on base expenses (growth starts year 2)
+            expenses = round(expenses * (1.0 + inflation_pct / 100.0), 2)
+            notes.append("Year-1 expenses include inflation uplift")
+
+        premium = premium_annual_v
+        loan_interest = round(loan_bal * (effective_rate / 100.0), 2) if loan_bal > 0 else 0.0
+
+        # SV path
+        if sv_path == "illus_table" and insurance_assets:
+            target_py = policy_year0 + i
+            looked = None
+            for a in insurance_assets:
+                looked = _illus_sv_for_policy_year(a.external_metadata, target_py)
+                if looked is not None:
+                    break
+            if looked is not None:
+                sv_bal = float(looked)
+                notes.append(f"SV from CoS illus table policy year {target_py}")
+            else:
+                # Extrapolate gently from last known / year5 using inflation
+                prev = _illus_sv_for_policy_year(
+                    insurance_assets[0].external_metadata, policy_year0 + i - 1
+                )
+                base_sv = float(prev) if prev is not None else sv_bal
+                sv_bal = round(base_sv * (1.0 + max(inflation_pct, 0.0) / 100.0), 2)
+                notes.append(
+                    f"No CoS row for policy year {target_py} — extrapolated with inflation"
+                )
+                if i == 1:
+                    gaps.append(
+                        "CoS illustration only covers early policy years; later SV extrapolated"
+                    )
+        elif sv_path in {"hold_flat", "live"}:
+            # hold opening SV
+            notes.append("SV held flat (no live quote)" if sv_path == "live" else "SV held flat")
+        else:
+            notes.append("SV path defaulted to hold flat")
+
+        # Cash roll: income - expenses - premium - loan interest; investments grow with inflation lightly
+        net_cf = round(income - expenses - premium - loan_interest, 2)
+        cash_bal = round(cash_bal + net_cf, 2)
+        if inflation_pct:
+            invest_bal = round(invest_bal * (1.0 + inflation_pct / 100.0), 2)
+
+        # Interest-only: principal unchanged unless cash pays down (not modeled beyond interest)
+        nw = round(cash_bal + invest_bal + sv_bal - loan_bal, 2)
+
+        years.append(
+            ForecastYear(
+                year_index=i,
+                calendar_year=start_year + i,
+                income=round(income, 2),
+                expenses=round(expenses, 2),
+                premium=round(premium, 2),
+                loan_interest=loan_interest,
+                net_cashflow=net_cf,
+                cash=cash_bal,
+                investments=invest_bal,
+                insurance_sv=round(sv_bal, 2),
+                loans=round(loan_bal, 2),
+                net_worth=nw,
+                notes=notes,
+            )
+        )
+
+    assumptions = [
+        BalanceSheetAssumption(
+            key="horizon_years",
+            label="Horizon (years)",
+            value=str(horizon),
+            description="Number of forward years in the G3 forecast.",
+        ),
+        BalanceSheetAssumption(
+            key="inflation_pct",
+            label="Inflation %",
+            value=f"{inflation_pct:g}%",
+            description="Annual inflation applied to expenses (and invest/SV extrapolations).",
+        ),
+        BalanceSheetAssumption(
+            key="income_growth_pct",
+            label="Income growth %",
+            value=f"{income_growth_pct:g}%",
+            description="Compound annual income growth path from year 2 onward.",
+        ),
+        BalanceSheetAssumption(
+            key="expense_growth_pct",
+            label="Expense growth %",
+            value=f"{expense_growth_pct:g}%",
+            description="Compound annual expense growth path (stacked with inflation).",
+        ),
+        BalanceSheetAssumption(
+            key="loan_rate_pct",
+            label="Policy loan rate %",
+            value=f"{assumption_rate:g}%",
+            description="Assumed policy-loan interest rate (G4).",
+        ),
+        BalanceSheetAssumption(
+            key="rate_reset",
+            label="Rate reset",
+            value=rate_reset,
+            description=(
+                "none = use account interest_rate when set; "
+                "use_assumption = apply loan_rate_pct from prefs."
+            ),
+            options=["none", "use_assumption"],
+        ),
+        BalanceSheetAssumption(
+            key="sv_path",
+            label="SV path",
+            value=sv_path,
+            description=(
+                "illus_table = CoS benefit illustration by policy year; "
+                "hold_flat = freeze opening SV; "
+                "live = not available (falls back to hold_flat)."
+            ),
+            options=["illus_table", "hold_flat", "live"],
+        ),
+        BalanceSheetAssumption(
+            key="premium_annual",
+            label="Premium (annual)",
+            value=f"{premium_annual_v:g}",
+            description="Annual policy premium from schedules/metadata (or prefs override).",
+        ),
+        BalanceSheetAssumption(
+            key="reporting_currency",
+            label="Reporting currency",
+            value=primary_currency,
+            description="Workspace primary currency for forecast totals.",
+        ),
+        BalanceSheetAssumption(
+            key="effective_loan_rate",
+            label="Effective loan rate used",
+            value=f"{effective_rate:g}% ({rate_source})",
+            description="Rate actually applied after rate_reset resolution.",
+        ),
+    ]
+
+    gaps.extend([
+        "Forecast is illustrative — not advice; loan principal assumed interest-only",
+        "No per-category growth drivers or tax brackets in G3",
+        "Live insurer SV quote not integrated",
+    ])
+    # de-dupe gaps preserving order
+    seen = set()
+    uniq_gaps = []
+    for g in gaps:
+        if g not in seen:
+            seen.add(g)
+            uniq_gaps.append(g)
+
+    return ForecastResponse(
+        currency=primary_currency,
+        start_year=start_year,
+        horizon_years=horizon,
+        opening=ForecastOpening(
+            cash=round(cash, 2),
+            investments=round(other_invest, 2),
+            insurance_sv=round(opening_sv, 2),
+            loans=round(loans if loans > 0 else derived_principal, 2),
+            net_worth=round(net_worth, 2),
+            base_income=round(base_income, 2),
+            base_expenses=round(base_expenses, 2),
+            premium_annual=premium_annual_v,
+            loan_principal=round(loans if loans > 0 else derived_principal, 2),
+            loan_rate_pct=round(effective_rate, 4),
+        ),
+        years=years,
+        assumptions=assumptions,
+        gaps=uniq_gaps,
     )
