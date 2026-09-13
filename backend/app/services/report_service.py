@@ -30,6 +30,9 @@ from app.schemas.report import (
     BalanceSheetResponse,
     BalanceSheetTotals,
     CategoryTrendItem,
+    ProfitLossLine,
+    ProfitLossResponse,
+    ProfitLossTotals,
     ReportBreakdown,
     ReportCompositionItem,
     ReportDataPoint,
@@ -1922,7 +1925,7 @@ async def get_balance_sheet(
     ]
 
     gaps.extend([
-        "G2 Profit & Loss statement not built yet.",
+        "G2 Profit & Loss available at /reports/profit-loss.",
         "G3 multi-year forecast not built yet.",
         "Live insurer SV quote not integrated — SV option uses CoS illustration only.",
         "Credit-card pending charges follow posted/provider rules used by net-worth reports.",
@@ -1957,6 +1960,348 @@ async def get_balance_sheet(
             loans=round(loans_total + other_liab_total, 2),
         ),
         lines=lines,
+        assumptions=assumptions,
+        gaps=gaps,
+    )
+
+
+async def get_profit_loss(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+    year: Optional[int] = None,
+    income_growth_pct: float = 0.0,
+    expense_growth_pct: float = 0.0,
+    include_tax: bool = False,
+    effective_tax_rate: float = 0.0,
+    account_ids: Optional[list[uuid.UUID]] = None,
+) -> ProfitLossResponse:
+    """G2 P&L: YTD actuals from posted transactions + annual projection.
+
+    Projection prefers recurring schedules for the remainder of the year when
+    they produce any forward amount; otherwise annualizes YTD run-rate.
+    G4-lite growth and tax prefs are applied to the annual projection.
+    """
+    from app.services.dashboard_service import _month_range, _get_recurring_projections
+    from app.services.fx_rate_service import convert as fx_convert
+
+    today = date.today()
+    yr = year or today.year
+    ytd_start = date(yr, 1, 1)
+    year_end = date(yr, 12, 31)
+    ytd_end = min(today, year_end) if yr == today.year else year_end
+    if yr > today.year:
+        ytd_end = ytd_start  # future year: empty YTD
+    days_in_year = 366 if calendar.isleap(yr) else 365
+    days_elapsed = max(1, (ytd_end - ytd_start).days + 1) if ytd_end >= ytd_start else 1
+    if yr > today.year:
+        days_elapsed = 1
+
+    filtered = account_ids is not None
+    acct_filter = [Transaction.account_id.in_(account_ids)] if filtered else []
+
+    user = await session.get(User, user_id)
+    primary_currency = user.primary_currency if user else get_settings().default_currency
+    accounting_mode = await get_credit_card_accounting_mode(session)
+    report_date = reporting_date_col(accounting_mode)
+    amount_expr = func.coalesce(Transaction.amount_primary, Transaction.amount)
+
+    # --- YTD by category ---
+    cat_result = await session.execute(
+        select(
+            Category.id,
+            Category.name,
+            Transaction.type,
+            func.sum(amount_expr),
+        )
+        .select_from(Transaction)
+        .join(Account, Transaction.account_id == Account.id)
+        .outerjoin(Category, Transaction.category_id == Category.id)
+        .where(
+            Transaction.workspace_id == workspace_id,
+            Account.is_closed == False,
+            report_date >= ytd_start,
+            report_date <= ytd_end,
+            Transaction.source != "opening_balance",
+            Transaction.status == "posted",
+            counts_as_user_pnl(),
+            *acct_filter,
+        )
+        .group_by(Category.id, Category.name, Transaction.type)
+    )
+
+    income_map: dict[str, tuple[str, float]] = {}
+    expense_map: dict[str, tuple[str, float]] = {}
+    for row in cat_result.all():
+        cat_id, cat_name, txn_type, total_amount = row
+        amount = abs(float(total_amount or 0))
+        if amount <= 0:
+            continue
+        key = str(cat_id) if cat_id else "uncategorized"
+        label = cat_name or "Uncategorized"
+        if txn_type == "credit":
+            prev = income_map.get(key, (label, 0.0))[1]
+            income_map[key] = (label, prev + amount)
+        else:
+            prev = expense_map.get(key, (label, 0.0))[1]
+            expense_map[key] = (label, prev + amount)
+
+    ytd_income = round(sum(v for _, v in income_map.values()), 2)
+    ytd_expenses = round(sum(v for _, v in expense_map.values()), 2)
+    ytd_net = round(ytd_income - ytd_expenses, 2)
+
+    ytd_lines: list[ProfitLossLine] = []
+    for key, (label, value) in sorted(income_map.items(), key=lambda x: -x[1][1]):
+        ytd_lines.append(ProfitLossLine(
+            key=f"ytd-inc-{key}",
+            label=label,
+            value=round(value, 2),
+            currency=primary_currency,
+            section="income",
+            group=key,
+            source="ytd_actual",
+            href=f"/transactions?category={key}" if key != "uncategorized" else "/transactions",
+        ))
+    for key, (label, value) in sorted(expense_map.items(), key=lambda x: -x[1][1]):
+        ytd_lines.append(ProfitLossLine(
+            key=f"ytd-exp-{key}",
+            label=label,
+            value=round(value, 2),
+            currency=primary_currency,
+            section="expense",
+            group=key,
+            source="ytd_actual",
+            href=f"/transactions?category={key}" if key != "uncategorized" else "/transactions",
+        ))
+
+    # --- Forward schedule projections (tomorrow → year end) ---
+    schedule_income: dict[str, tuple[str, float]] = {}
+    schedule_expense: dict[str, tuple[str, float]] = {}
+    forward_start = ytd_end + timedelta(days=1)
+    if forward_start <= year_end and yr <= today.year:
+        cursor = forward_start.replace(day=1)
+        while cursor <= year_end:
+            m_start, m_end = _month_range(cursor)
+            window_start = max(m_start, forward_start)
+            window_end = min(m_end, year_end)
+            if window_start <= window_end:
+                projections = await _get_recurring_projections(
+                    session, workspace_id, window_start, window_end, account_ids
+                )
+                for proj in projections:
+                    converted, _ = await fx_convert(
+                        session,
+                        Decimal(str(proj["amount"])),
+                        proj["currency"],
+                        primary_currency,
+                    )
+                    amt = float(converted)
+                    cat_id = proj.get("category_id")
+                    key = str(cat_id) if cat_id else "uncategorized"
+                    label = "Scheduled"
+                    if cat_id:
+                        cat_row = await session.execute(
+                            select(Category.name).where(Category.id == cat_id)
+                        )
+                        name = cat_row.scalar_one_or_none()
+                        if name:
+                            label = name
+                    if proj["type"] == "credit":
+                        prev = schedule_income.get(key, (label, 0.0))[1]
+                        schedule_income[key] = (label, prev + amt)
+                    else:
+                        prev = schedule_expense.get(key, (label, 0.0))[1]
+                        schedule_expense[key] = (label, prev + amt)
+            # next month
+            if cursor.month == 12:
+                break
+            cursor = date(cursor.year, cursor.month + 1, 1)
+
+    sched_inc_total = sum(v for _, v in schedule_income.values())
+    sched_exp_total = sum(v for _, v in schedule_expense.values())
+    use_schedules = (sched_inc_total + sched_exp_total) > 0 and yr == today.year
+
+    projection_lines: list[ProfitLossLine] = []
+    if use_schedules:
+        projection_method = "schedules"
+        # Annual = YTD + remaining schedules, then growth on the full annual figure
+        base_income = ytd_income + sched_inc_total
+        base_expenses = ytd_expenses + sched_exp_total
+        # Build lines: scale isn't needed — show YTD+schedule per category
+        all_inc_keys = set(income_map) | set(schedule_income)
+        all_exp_keys = set(expense_map) | set(schedule_expense)
+        for key in all_inc_keys:
+            ytd_v = income_map.get(key, ("", 0.0))[1]
+            sch_v = schedule_income.get(key, ("", 0.0))[1]
+            label = income_map.get(key, schedule_income.get(key, (key, 0)))[0]
+            raw = ytd_v + sch_v
+            projection_lines.append(ProfitLossLine(
+                key=f"proj-inc-{key}",
+                label=label,
+                value=round(raw, 2),
+                currency=primary_currency,
+                section="income",
+                group=key,
+                source="schedule" if sch_v else "ytd_actual",
+            ))
+        for key in all_exp_keys:
+            ytd_v = expense_map.get(key, ("", 0.0))[1]
+            sch_v = schedule_expense.get(key, ("", 0.0))[1]
+            label = expense_map.get(key, schedule_expense.get(key, (key, 0)))[0]
+            raw = ytd_v + sch_v
+            projection_lines.append(ProfitLossLine(
+                key=f"proj-exp-{key}",
+                label=label,
+                value=round(raw, 2),
+                currency=primary_currency,
+                section="expense",
+                group=key,
+                source="schedule" if sch_v else "ytd_actual",
+            ))
+    else:
+        projection_method = "run_rate"
+        factor = days_in_year / float(days_elapsed) if ytd_end >= ytd_start else 1.0
+        if yr != today.year and yr < today.year:
+            # Completed past year: projection == actual (no annualization)
+            factor = 1.0
+            base_income = ytd_income
+            base_expenses = ytd_expenses
+        elif yr > today.year:
+            base_income = 0.0
+            base_expenses = 0.0
+            factor = 1.0
+        else:
+            base_income = ytd_income * factor
+            base_expenses = ytd_expenses * factor
+        for key, (label, value) in income_map.items():
+            projection_lines.append(ProfitLossLine(
+                key=f"proj-inc-{key}",
+                label=label,
+                value=round(value * factor, 2),
+                currency=primary_currency,
+                section="income",
+                group=key,
+                source="run_rate",
+            ))
+        for key, (label, value) in expense_map.items():
+            projection_lines.append(ProfitLossLine(
+                key=f"proj-exp-{key}",
+                label=label,
+                value=round(value * factor, 2),
+                currency=primary_currency,
+                section="expense",
+                group=key,
+                source="run_rate",
+            ))
+
+    growth_inc = 1.0 + (income_growth_pct / 100.0)
+    growth_exp = 1.0 + (expense_growth_pct / 100.0)
+    projected_income = round(base_income * growth_inc, 2)
+    projected_expenses = round(base_expenses * growth_exp, 2)
+
+    # Apply growth to line items proportionally
+    if abs(growth_inc - 1.0) > 1e-9:
+        for ln in projection_lines:
+            if ln.section == "income":
+                ln.value = round(ln.value * growth_inc, 2)
+                ln.source = "assumption"
+    if abs(growth_exp - 1.0) > 1e-9:
+        for ln in projection_lines:
+            if ln.section == "expense":
+                ln.value = round(ln.value * growth_exp, 2)
+                ln.source = "assumption"
+
+    projected_net = round(projected_income - projected_expenses, 2)
+    projected_tax = 0.0
+    if include_tax and projected_net > 0 and effective_tax_rate > 0:
+        projected_tax = round(projected_net * (effective_tax_rate / 100.0), 2)
+        projection_lines.append(ProfitLossLine(
+            key="proj-tax",
+            label="Estimated tax",
+            value=projected_tax,
+            currency=primary_currency,
+            section="tax",
+            group="tax",
+            source="assumption",
+        ))
+    projected_net_after_tax = round(projected_net - projected_tax, 2)
+
+    projection_lines.sort(key=lambda ln: (
+        0 if ln.section == "income" else 1 if ln.section == "expense" else 2,
+        -ln.value,
+        ln.label.lower(),
+    ))
+
+    assumptions = [
+        BalanceSheetAssumption(
+            key="reporting_currency",
+            label="Reporting currency",
+            value=primary_currency,
+            description="Workspace primary currency for P&L totals.",
+        ),
+        BalanceSheetAssumption(
+            key="projection_method",
+            label="Projection method",
+            value=projection_method,
+            description=(
+                "schedules = YTD actuals + remaining recurring rules; "
+                "run_rate = YTD annualized by day count."
+            ),
+            options=["schedules", "run_rate"],
+        ),
+        BalanceSheetAssumption(
+            key="income_growth_pct",
+            label="Income growth %",
+            value=f"{income_growth_pct:g}%",
+            description="G4-lite uplift applied to annual projected income.",
+        ),
+        BalanceSheetAssumption(
+            key="expense_growth_pct",
+            label="Expense growth %",
+            value=f"{expense_growth_pct:g}%",
+            description="G4-lite uplift applied to annual projected expenses.",
+        ),
+        BalanceSheetAssumption(
+            key="include_tax",
+            label="Include tax",
+            value="yes" if include_tax else "no",
+            description="When on, apply effective_tax_rate to positive projected net.",
+            options=["yes", "no"],
+        ),
+        BalanceSheetAssumption(
+            key="effective_tax_rate",
+            label="Effective tax rate",
+            value=f"{effective_tax_rate:g}%",
+            description="Simple flat rate — not a full tax engine (G4 lite).",
+        ),
+    ]
+
+    gaps = [
+        "G3 multi-year forecast not included",
+        "Tax is a flat effective rate, not jurisdiction-aware brackets",
+        "Category growth is uniform — no per-category drivers yet",
+    ]
+
+    return ProfitLossResponse(
+        year=yr,
+        ytd_start=ytd_start.isoformat(),
+        ytd_end=ytd_end.isoformat(),
+        currency=primary_currency,
+        days_elapsed=days_elapsed,
+        days_in_year=days_in_year,
+        projection_method=projection_method,
+        totals=ProfitLossTotals(
+            ytd_income=ytd_income,
+            ytd_expenses=ytd_expenses,
+            ytd_net=ytd_net,
+            projected_income=projected_income,
+            projected_expenses=projected_expenses,
+            projected_net=projected_net,
+            projected_tax=projected_tax,
+            projected_net_after_tax=projected_net_after_tax,
+        ),
+        ytd_lines=ytd_lines,
+        projection_lines=projection_lines,
         assumptions=assumptions,
         gaps=gaps,
     )

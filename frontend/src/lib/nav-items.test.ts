@@ -49,7 +49,7 @@ describe('nav catalog', () => {
   it('covers every module at least once (balance sheet shares reports)', () => {
     const covered = navItems.filter((i) => i.type === 'link').map((i) => i.module)
     expect(new Set(covered).size).toBe(MODULE_IDS.length)
-    expect(covered.filter((m) => m === 'reports')).toHaveLength(2)
+    expect(covered.filter((m) => m === 'reports')).toHaveLength(3)
   })
 })
 
@@ -63,6 +63,7 @@ describe('visibleNavItems', () => {
       'import',
       'reports',
       'balanceSheet',
+      'profitLoss',
       'assets',
       'budgets',
       'goals',

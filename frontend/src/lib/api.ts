@@ -1295,6 +1295,36 @@ export const reports = {
     const { data } = await api.get('/reports/cash-flow', { params: { months, interval, baseline, ...(extra.params ?? {}) }, ...(extra.paramsSerializer ? { paramsSerializer: extra.paramsSerializer } : {}) })
     return data
   },
+  profitLoss: async (opts: {
+    year?: number
+    incomeGrowthPct?: number
+    expenseGrowthPct?: number
+    includeTax?: boolean
+    effectiveTaxRate?: number
+    accountIds?: string[]
+  } = {}): Promise<import('@/types').ProfitLossResponse> => {
+    const {
+      year,
+      incomeGrowthPct = 0,
+      expenseGrowthPct = 0,
+      includeTax = false,
+      effectiveTaxRate = 0,
+      accountIds,
+    } = opts
+    const hasFilter = accountIds && accountIds.length > 0
+    const { data } = await api.get('/reports/profit-loss', {
+      params: {
+        year,
+        income_growth_pct: incomeGrowthPct,
+        expense_growth_pct: expenseGrowthPct,
+        include_tax: includeTax,
+        effective_tax_rate: effectiveTaxRate,
+        ...(hasFilter ? { account_ids: accountIds } : {}),
+      },
+      ...(hasFilter ? { paramsSerializer: { indexes: null as null } } : {}),
+    })
+    return data
+  },
   balanceSheet: async (
     asOf?: string,
     insuranceValueBasis: 'recorded' | 'sad' | 'sv' = 'recorded',

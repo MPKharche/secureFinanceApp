@@ -1083,6 +1083,43 @@ export interface BalanceSheetResponse {
   gaps: string[]
 }
 
+export interface ProfitLossLine {
+  key: string
+  label: string
+  value: number
+  currency: string
+  section: 'income' | 'expense' | 'tax' | string
+  group: string
+  source: 'ytd_actual' | 'schedule' | 'run_rate' | 'assumption' | string
+  href?: string | null
+}
+
+export interface ProfitLossTotals {
+  ytd_income: number
+  ytd_expenses: number
+  ytd_net: number
+  projected_income: number
+  projected_expenses: number
+  projected_net: number
+  projected_tax: number
+  projected_net_after_tax: number
+}
+
+export interface ProfitLossResponse {
+  year: number
+  ytd_start: string
+  ytd_end: string
+  currency: string
+  days_elapsed: number
+  days_in_year: number
+  projection_method: 'schedules' | 'run_rate' | string
+  totals: ProfitLossTotals
+  ytd_lines: ProfitLossLine[]
+  projection_lines: ProfitLossLine[]
+  assumptions: BalanceSheetAssumption[]
+  gaps: string[]
+}
+
 // --- Invoices -------------------------------------------------------------
 // The ledger of what clients owe. Only reachable from a business
 // workspace: the module resolver leaves `invoices` out of a personal
