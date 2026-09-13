@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ElementType } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
@@ -35,6 +35,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { BalanceSheetT, isInsuranceLine } from '@/components/reports/balance-sheet-t'
+import {
+  TimeSpineTable,
+  SpineTh,
+  SpineTd,
+  SpineLegend,
+} from '@/components/reports/time-spine-table'
 import { useAuth } from '@/contexts/auth-context'
 import { useCollectionFilter } from '@/contexts/collection-filter-context'
 import { useDisplayLocale } from '@/hooks/use-display-locale'
@@ -43,7 +49,9 @@ import type {
   BalanceSheetAssumption,
   BalanceSheetResponse,
   ForecastResponse,
+  ProfitLossLine,
   ProfitLossResponse,
+  ReportResponse,
 } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -154,6 +162,38 @@ function persistPrefs(prefs: OverviewPrefs) {
   )
 }
 
+function classifyExpense(label: string): 'premiums' | 'interest' | 'living' {
+  const l = label.toLowerCase()
+  if (/premium|insurance|pru|policy|lic|hdfc life/.test(l)) return 'premiums'
+  if (/interest|emi|loan|debt/.test(l)) return 'interest'
+  return 'living'
+}
+
+function shortSvPath(v: OverviewPrefs['sv_path']): string {
+  if (v === 'illus_table') return 'illus'
+  if (v === 'hold_flat') return 'flat'
+  return 'live'
+}
+
+function shortRateReset(v: OverviewPrefs['rate_reset']): string {
+  return v === 'use_assumption' ? 'assume' : 'none'
+}
+
+function monthLabel(dateStr: string, locale: string): string {
+  // Accept YYYY-MM or YYYY-MM-DD or already-formatted labels
+  const m = dateStr.match(/^(\d{4})-(\d{2})/)
+  if (!m) return dateStr
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, 1)
+  return d.toLocaleString(locale, { month: 'short' })
+}
+
+function sumByClass(lines: ProfitLossLine[], cls: 'premiums' | 'interest' | 'living') {
+  return lines
+    .filter((l) => l.section === 'expense' || l.section === 'tax')
+    .filter((l) => classifyExpense(l.label) === cls)
+    .reduce((s, l) => s + l.value, 0)
+}
+
 function SectionHead({
   title,
   href,
@@ -163,19 +203,19 @@ function SectionHead({
   title: string
   href: string
   linkLabel: string
-  icon: React.ElementType
+  icon: ElementType
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 mb-3">
+    <div className="flex items-center justify-between gap-3 mb-2">
       <div className="flex items-center gap-2 min-w-0">
-        <div className="size-7 rounded-md bg-muted flex items-center justify-center shrink-0">
+        <div className="size-6 rounded-md bg-muted flex items-center justify-center shrink-0">
           <Icon className="size-3.5 text-foreground" />
         </div>
-        <h2 className="text-base font-semibold tracking-tight truncate">{title}</h2>
+        <h2 className="text-sm font-semibold tracking-tight truncate">{title}</h2>
       </div>
       <Link
         to={href}
-        className="text-xs font-medium text-muted-foreground hover:text-foreground inline-flex items-center gap-1 shrink-0"
+        className="text-[11px] font-medium text-foreground/70 hover:text-foreground inline-flex items-center gap-1 shrink-0"
       >
         {linkLabel}
         <ExternalLink className="size-3" />
@@ -200,21 +240,21 @@ function KpiCard({
   return (
     <div
       className={cn(
-        'rounded-lg px-3 py-2.5 min-w-0',
+        'rounded-lg px-2.5 py-2 min-w-0',
         emphasize ? 'bg-muted/60' : 'bg-transparent',
       )}
     >
-      <p className="text-[11px] text-muted-foreground truncate">{label}</p>
+      <p className="text-[11px] text-foreground/65 truncate">{label}</p>
       <p
         className={cn(
-          'text-lg sm:text-xl font-semibold tabular-nums tracking-tight mt-0.5 truncate',
-          tone === 'good' && 'text-emerald-700 dark:text-emerald-400',
-          tone === 'bad' && 'text-rose-700 dark:text-rose-400',
+          'text-base sm:text-lg font-semibold tabular-nums tracking-tight mt-0.5 truncate',
+          tone === 'good' && 'text-emerald-700 dark:text-emerald-300',
+          tone === 'bad' && 'text-rose-700 dark:text-rose-300',
         )}
       >
         {value}
       </p>
-      {hint && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{hint}</p>}
+      {hint && <p className="text-[10px] text-foreground/55 mt-0.5 truncate">{hint}</p>}
     </div>
   )
 }
@@ -232,12 +272,20 @@ function AssumptionChip({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 hover:bg-muted px-2.5 py-1 text-[11px] transition-colors"
+      className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 hover:bg-muted px-2 py-0.5 text-[10px] sm:text-[11px] transition-colors"
     >
-      <span className="text-muted-foreground">{label}</span>
+      <span className="text-foreground/65">{label}</span>
       <span className="font-medium text-foreground tabular-nums">{value}</span>
     </button>
   )
+}
+
+function toneClass(n: number, invert = false) {
+  const good = invert ? n < 0 : n >= 0
+  if (n === 0) return ''
+  return good
+    ? 'text-emerald-700 dark:text-emerald-300'
+    : 'text-rose-700 dark:text-rose-300'
 }
 
 export default function ReportsOverviewPage() {
@@ -253,8 +301,8 @@ export default function ReportsOverviewPage() {
   const [year, setYear] = useState(currentYear)
   const [prefs, setPrefs] = useState<OverviewPrefs>(() => loadOverviewPrefs())
   const [assumptionsOpen, setAssumptionsOpen] = useState(false)
-  const [plIncomeOpen, setPlIncomeOpen] = useState(true)
-  const [plExpenseOpen, setPlExpenseOpen] = useState(false)
+  const [plIncomeOpen, setPlIncomeOpen] = useState(false)
+  const [plLivingOpen, setPlLivingOpen] = useState(false)
 
   useEffect(() => {
     persistPrefs(prefs)
@@ -317,6 +365,18 @@ export default function ReportsOverviewPage() {
       }),
   })
 
+  // Monthly Mo spine — reuse income-expenses (no new API)
+  const ieQuery = useQuery<ReportResponse>({
+    queryKey: ['income-expenses-mo', year, activeAccountIds],
+    queryFn: () =>
+      reports.incomeExpenses(
+        year === currentYear ? 12 : 24,
+        'monthly',
+        accountIds,
+        year === currentYear ? 'ytd' : undefined,
+      ),
+  })
+
   const currency =
     bsQuery.data?.currency ?? plQuery.data?.currency ?? fcQuery.data?.currency ?? userCurrency
 
@@ -334,17 +394,18 @@ export default function ReportsOverviewPage() {
       ),
     [plQuery.data],
   )
-  const projIncome = useMemo(
-    () => (plQuery.data?.projection_lines ?? []).filter((l) => l.section === 'income'),
-    [plQuery.data],
+  const ytdLivingLines = useMemo(
+    () => ytdExpense.filter((l) => classifyExpense(l.label) === 'living'),
+    [ytdExpense],
   )
-  const projExpense = useMemo(
-    () =>
-      (plQuery.data?.projection_lines ?? []).filter(
-        (l) => l.section === 'expense' || l.section === 'tax',
-      ),
-    [plQuery.data],
-  )
+
+  const monthCols = useMemo(() => {
+    const trend = ieQuery.data?.trend ?? []
+    return trend.filter((dp) => {
+      const m = dp.date.match(/^(\d{4})/)
+      return m ? Number(m[1]) === year : dp.date.includes(String(year))
+    })
+  }, [ieQuery.data, year])
 
   const growthPct = Math.max(prefs.income_growth_pct, prefs.expense_growth_pct)
   const insuranceSv = useMemo(
@@ -366,6 +427,13 @@ export default function ReportsOverviewPage() {
     if (assets <= 0) return null
     return (debt / assets) * 100
   }, [bsQuery.data])
+
+  const ytdPremiums = useMemo(() => sumByClass(plQuery.data?.ytd_lines ?? [], 'premiums'), [plQuery.data])
+  const ytdInterest = useMemo(() => sumByClass(plQuery.data?.ytd_lines ?? [], 'interest'), [plQuery.data])
+  const ytdLiving = useMemo(() => sumByClass(plQuery.data?.ytd_lines ?? [], 'living'), [plQuery.data])
+  const fyPremiums = useMemo(() => sumByClass(plQuery.data?.projection_lines ?? [], 'premiums'), [plQuery.data])
+  const fyInterest = useMemo(() => sumByClass(plQuery.data?.projection_lines ?? [], 'interest'), [plQuery.data])
+  const fyLiving = useMemo(() => sumByClass(plQuery.data?.projection_lines ?? [], 'living'), [plQuery.data])
 
   const assumptionChips: { key: string; label: string; value: string }[] = [
     { key: 'as_of', label: t('reportsOverview.chipAsOf'), value: asOf },
@@ -392,16 +460,15 @@ export default function ReportsOverviewPage() {
     {
       key: 'sv_path',
       label: t('reportsOverview.chipSvPath'),
-      value: prefs.sv_path,
+      value: shortSvPath(prefs.sv_path),
     },
     {
       key: 'rate_reset',
       label: t('reportsOverview.chipRateReset'),
-      value: prefs.rate_reset,
+      value: shortRateReset(prefs.rate_reset),
     },
   ]
 
-  // Merge assumption notes from APIs for the popover list
   const assumptionNotes: BalanceSheetAssumption[] = useMemo(() => {
     const seen = new Set<string>()
     const out: BalanceSheetAssumption[] = []
@@ -419,21 +486,33 @@ export default function ReportsOverviewPage() {
     return out
   }, [bsQuery.data, plQuery.data, fcQuery.data])
 
+  const fmt = (n: number) => mask(formatCurrency(n, currency, locale))
+  const spineItems = [
+    t('reportsOverview.spineMo'),
+    t('reportsOverview.spineYtd'),
+    t('reportsOverview.spineFy'),
+    t('reportsOverview.spine5y'),
+  ]
+
+  const fySurplus = prefs.include_tax
+    ? (plQuery.data?.totals.projected_net_after_tax ?? 0)
+    : (plQuery.data?.totals.projected_net ?? 0)
+
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-16">
+    <div className="max-w-6xl mx-auto px-3 sm:px-6 pb-16">
       <PageHeader
         section={t('reportsOverview.section')}
         title={t('reportsOverview.title')}
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground whitespace-nowrap">
+            <div className="flex items-center gap-1.5">
+              <Label className="text-[11px] text-foreground/65 whitespace-nowrap">
                 {t('reportsOverview.asOf')}
               </Label>
               <DatePickerInput value={asOf} onChange={setAsOf} />
             </div>
-            <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground whitespace-nowrap">
+            <div className="flex items-center gap-1.5">
+              <Label className="text-[11px] text-foreground/65 whitespace-nowrap">
                 {t('reportsOverview.year')}
               </Label>
               <Input
@@ -453,14 +532,9 @@ export default function ReportsOverviewPage() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="end" className="w-80 max-h-[70vh] overflow-y-auto space-y-3">
-                <div>
-                  <h3 className="text-sm font-semibold">{t('reportsOverview.assumptions')}</h3>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Shared with Balance sheet, P&amp;L, and Forecast.
-                  </p>
-                </div>
+                <h3 className="text-sm font-semibold">{t('reportsOverview.assumptions')}</h3>
                 <div className="space-y-2">
-                  <Label className="text-xs">Insurance value</Label>
+                  <Label className="text-xs">{t('reportsOverview.chipInsuranceBasis')}</Label>
                   <Select
                     value={prefs.insurance_value_basis}
                     onValueChange={(v) =>
@@ -473,13 +547,13 @@ export default function ReportsOverviewPage() {
                     <SelectContent>
                       <SelectItem value="recorded">Recorded</SelectItem>
                       <SelectItem value="sad">SAD</SelectItem>
-                      <SelectItem value="sv">SV (illustrative)</SelectItem>
+                      <SelectItem value="sv">SV</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-xs">Income growth %</Label>
+                    <Label className="text-xs">{t('reportsOverview.chipGrowth')} %</Label>
                     <Input
                       type="number"
                       value={prefs.income_growth_pct}
@@ -487,25 +561,13 @@ export default function ReportsOverviewPage() {
                         setPrefs((p) => ({
                           ...p,
                           income_growth_pct: Number(e.target.value) || 0,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Expense growth %</Label>
-                    <Input
-                      type="number"
-                      value={prefs.expense_growth_pct}
-                      onChange={(e) =>
-                        setPrefs((p) => ({
-                          ...p,
                           expense_growth_pct: Number(e.target.value) || 0,
                         }))
                       }
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Inflation %</Label>
+                    <Label className="text-xs">{t('reportsOverview.chipInflation')} %</Label>
                     <Input
                       type="number"
                       value={prefs.inflation_pct}
@@ -518,7 +580,7 @@ export default function ReportsOverviewPage() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Horizon (yrs)</Label>
+                    <Label className="text-xs">Horizon</Label>
                     <Input
                       type="number"
                       min={1}
@@ -532,19 +594,19 @@ export default function ReportsOverviewPage() {
                       }
                     />
                   </div>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <Label className="text-xs">Include tax</Label>
-                  <Switch
-                    checked={prefs.include_tax}
-                    onCheckedChange={(checked) =>
-                      setPrefs((p) => ({ ...p, include_tax: checked }))
-                    }
-                  />
+                  <div className="space-y-1 flex items-end justify-between gap-2 pb-1">
+                    <Label className="text-xs">Tax</Label>
+                    <Switch
+                      checked={prefs.include_tax}
+                      onCheckedChange={(checked) =>
+                        setPrefs((p) => ({ ...p, include_tax: checked }))
+                      }
+                    />
+                  </div>
                 </div>
                 {prefs.include_tax && (
                   <div className="space-y-1">
-                    <Label className="text-xs">Tax rate %</Label>
+                    <Label className="text-xs">Tax %</Label>
                     <Input
                       type="number"
                       value={prefs.effective_tax_rate}
@@ -558,7 +620,7 @@ export default function ReportsOverviewPage() {
                   </div>
                 )}
                 <div className="space-y-1">
-                  <Label className="text-xs">SV path</Label>
+                  <Label className="text-xs">{t('reportsOverview.chipSvPath')}</Label>
                   <Select
                     value={prefs.sv_path}
                     onValueChange={(v) =>
@@ -572,20 +634,18 @@ export default function ReportsOverviewPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="illus_table">Illustration table</SelectItem>
-                      <SelectItem value="hold_flat">Hold flat</SelectItem>
-                      <SelectItem value="live">Live (fallback)</SelectItem>
+                      <SelectItem value="illus_table">illus</SelectItem>
+                      <SelectItem value="hold_flat">flat</SelectItem>
+                      <SelectItem value="live">live</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 {assumptionNotes.length > 0 && (
-                  <div className="rounded-lg bg-muted/50 p-3 space-y-2">
+                  <div className="rounded-lg bg-muted/50 p-2.5 space-y-1.5">
                     {assumptionNotes.map((a) => (
-                      <div key={a.key} className="text-xs">
-                        <div className="font-medium">
-                          {a.label}:{' '}
-                          <span className="font-normal text-muted-foreground">{a.value}</span>
-                        </div>
+                      <div key={a.key} className="text-[11px]">
+                        <span className="font-medium">{a.label}</span>
+                        <span className="text-foreground/65"> · {a.value}</span>
                       </div>
                     ))}
                   </div>
@@ -596,10 +656,8 @@ export default function ReportsOverviewPage() {
         }
       />
 
-      <p className="text-sm text-muted-foreground -mt-2 mb-4">{t('reportsOverview.subtitle')}</p>
-
-      {/* Assumption chips */}
-      <div className="flex flex-wrap gap-2 mb-5">
+      {/* Assumption chips — short labels only */}
+      <div className="flex flex-wrap gap-1.5 mb-4 -mt-1">
         {assumptionChips.map((c) => (
           <AssumptionChip
             key={c.key}
@@ -610,7 +668,7 @@ export default function ReportsOverviewPage() {
         ))}
         <Link
           to="/reports/charts"
-          className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-0.5 text-[10px] sm:text-[11px] text-foreground/65 hover:text-foreground"
         >
           <BarChart3 className="size-3" />
           {t('reportsOverview.chartsLink')}
@@ -618,51 +676,41 @@ export default function ReportsOverviewPage() {
       </div>
 
       {loading && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 rounded-lg" />
+              <Skeleton key={i} className="h-14 rounded-lg" />
             ))}
           </div>
-          <Skeleton className="h-48 w-full rounded-xl" />
-          <Skeleton className="h-64 w-full rounded-xl" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-56 w-full rounded-xl" />
         </div>
       )}
 
       {errored && (
-        <div className="rounded-xl border border-border bg-card p-8 text-center">
+        <div className="rounded-xl border border-border bg-card p-6 text-center">
           <p className="font-medium">{t('reportsOverview.loadError')}</p>
-          <p className="text-sm text-muted-foreground mt-1">{t('reportsOverview.loadErrorHint')}</p>
         </div>
       )}
 
       {!loading && !errored && (
         <>
-          {/* KPI strip — glossary: Net worth · As-of net worth · Savings rate · Debt-to-assets · Insurance SV */}
-          <div className="rounded-xl border border-border bg-card p-3 sm:p-4 mb-8">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="rounded-xl border border-border bg-card p-2.5 sm:p-3 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
               <KpiCard
                 label={t('reportsOverview.kpiNetWorth')}
-                value={mask(
-                  formatCurrency(bsQuery.data?.totals.net_worth ?? 0, currency, locale),
-                )}
+                value={fmt(bsQuery.data?.totals.net_worth ?? 0)}
                 tone={(bsQuery.data?.totals.net_worth ?? 0) >= 0 ? 'good' : 'bad'}
                 emphasize
               />
               <KpiCard
                 label={t('reportsOverview.kpiAsOfNetWorth')}
-                value={mask(
-                  formatCurrency(bsQuery.data?.totals.net_worth ?? 0, currency, locale),
-                )}
+                value={fmt(bsQuery.data?.totals.net_worth ?? 0)}
                 hint={asOf}
               />
               <KpiCard
                 label={t('reportsOverview.kpiSavingsRate')}
-                value={
-                  savingsRate == null
-                    ? '—'
-                    : `${savingsRate >= 0 ? '' : ''}${savingsRate.toFixed(1)}%`
-                }
+                value={savingsRate == null ? '—' : `${savingsRate.toFixed(1)}%`}
                 tone={savingsRate == null ? 'neutral' : savingsRate >= 0 ? 'good' : 'bad'}
                 emphasize
               />
@@ -670,16 +718,12 @@ export default function ReportsOverviewPage() {
                 label={t('reportsOverview.kpiDebtToAssets')}
                 value={debtToAssets == null ? '—' : `${debtToAssets.toFixed(1)}%`}
                 tone={
-                  debtToAssets == null
-                    ? 'neutral'
-                    : debtToAssets > 50
-                      ? 'bad'
-                      : 'neutral'
+                  debtToAssets == null ? 'neutral' : debtToAssets > 50 ? 'bad' : 'neutral'
                 }
               />
               <KpiCard
                 label={t('reportsOverview.kpiInsuranceSv')}
-                value={mask(formatCurrency(insuranceSv, currency, locale))}
+                value={fmt(insuranceSv)}
                 hint={
                   prefs.insurance_value_basis === 'sv'
                     ? t('reportsOverview.kpiInsuranceSvIllus')
@@ -691,186 +735,242 @@ export default function ReportsOverviewPage() {
             </div>
           </div>
 
-          {/* P&L */}
-          <section className="mb-10">
+          {/* P&L — Mo → YTD → FY → 5Y */}
+          <section className="mb-8">
             <SectionHead
               title={t('reportsOverview.plTitle')}
               href="/reports/profit-loss"
               linkLabel={t('reportsOverview.plOpen')}
               icon={LineChart}
             />
+            <SpineLegend items={spineItems} />
             {plQuery.isError ? (
-              <p className="text-sm text-muted-foreground">{t('reportsOverview.loadError')}</p>
+              <p className="text-sm text-foreground/70">{t('reportsOverview.loadError')}</p>
             ) : plQuery.data ? (
-              <div className="rounded-xl border border-border overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
-                      <th className="text-left font-medium py-2 px-3">{year}</th>
-                      <th className="text-right font-medium py-2 px-3 whitespace-nowrap">
-                        {t('reportsOverview.plYtd')}
-                      </th>
-                      <th className="text-right font-medium py-2 px-3 whitespace-nowrap hidden sm:table-cell">
-                        {t('reportsOverview.plFy')}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* Income row with expand */}
-                    <tr className="border-b border-border/60 bg-muted/20">
-                      <td className="py-2 px-3">
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 text-sm font-semibold"
-                          onClick={() => setPlIncomeOpen((v) => !v)}
-                        >
-                          {plIncomeOpen ? (
-                            <ChevronDown className="size-3.5" />
-                          ) : (
-                            <ChevronRight className="size-3.5" />
-                          )}
-                          {t('reportsOverview.plIncome')}
-                        </button>
-                      </td>
-                      <td className="py-2 px-3 text-right font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-                        {mask(formatCurrency(plQuery.data.totals.ytd_income, currency, locale))}
-                      </td>
-                      <td className="py-2 px-3 text-right font-semibold tabular-nums text-emerald-700 dark:text-emerald-400 hidden sm:table-cell">
-                        {mask(
-                          formatCurrency(plQuery.data.totals.projected_income, currency, locale),
+              <TimeSpineTable>
+                <thead>
+                  <tr>
+                    <SpineTh stickyLabel align="left">
+                      {year}
+                    </SpineTh>
+                    {monthCols.map((dp) => (
+                      <SpineTh key={dp.date}>{monthLabel(dp.date, locale)}</SpineTh>
+                    ))}
+                    <SpineTh>{t('reportsOverview.plYtd')}</SpineTh>
+                    <SpineTh>{t('reportsOverview.plFy')}</SpineTh>
+                    {(fcQuery.data?.years ?? []).map((y) => (
+                      <SpineTh key={`fy-${y.calendar_year}`}>{y.calendar_year}</SpineTh>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Income */}
+                  <tr>
+                    <SpineTd stickyLabel align="left" className="font-semibold">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1"
+                        onClick={() => setPlIncomeOpen((v) => !v)}
+                      >
+                        {plIncomeOpen ? (
+                          <ChevronDown className="size-3" />
+                        ) : (
+                          <ChevronRight className="size-3" />
                         )}
-                      </td>
-                    </tr>
-                    {plIncomeOpen &&
-                      ytdIncome.map((line, idx) => (
-                        <tr key={`yi-${line.key}`} className="border-b border-border/40">
-                          <td className="py-1.5 pl-8 pr-3 text-xs text-muted-foreground">
-                            {line.label}
-                          </td>
-                          <td className="py-1.5 px-3 text-right text-xs tabular-nums">
-                            {mask(formatCurrency(line.value, currency, locale))}
-                          </td>
-                          <td className="py-1.5 px-3 text-right text-xs tabular-nums hidden sm:table-cell text-muted-foreground">
-                            {projIncome[idx]
-                              ? mask(formatCurrency(projIncome[idx].value, currency, locale))
-                              : '—'}
-                          </td>
-                        </tr>
-                      ))}
+                        {t('reportsOverview.plIncome')}
+                      </button>
+                    </SpineTd>
+                    {monthCols.map((dp) => (
+                      <SpineTd key={dp.date} className={toneClass(dp.breakdowns.income ?? 0)}>
+                        {fmt(dp.breakdowns.income ?? 0)}
+                      </SpineTd>
+                    ))}
+                    <SpineTd className={cn('font-semibold', toneClass(plQuery.data.totals.ytd_income))}>
+                      {fmt(plQuery.data.totals.ytd_income)}
+                    </SpineTd>
+                    <SpineTd className={cn('font-semibold', toneClass(plQuery.data.totals.projected_income))}>
+                      {fmt(plQuery.data.totals.projected_income)}
+                    </SpineTd>
+                    {(fcQuery.data?.years ?? []).map((y) => (
+                      <SpineTd key={`inc-${y.calendar_year}`} className={toneClass(y.income)}>
+                        {fmt(y.income)}
+                      </SpineTd>
+                    ))}
+                  </tr>
+                  {plIncomeOpen &&
+                    ytdIncome.map((line) => (
+                      <tr key={line.key}>
+                        <SpineTd stickyLabel align="left" muted className="pl-5">
+                          {line.label}
+                        </SpineTd>
+                        {monthCols.map((dp) => (
+                          <SpineTd key={dp.date} muted>
+                            —
+                          </SpineTd>
+                        ))}
+                        <SpineTd muted>{fmt(line.value)}</SpineTd>
+                        <SpineTd muted>
+                          {(() => {
+                            const p = (plQuery.data?.projection_lines ?? []).find(
+                              (x) => x.group === line.group && x.section === 'income',
+                            )
+                            return p ? fmt(p.value) : '—'
+                          })()}
+                        </SpineTd>
+                        {(fcQuery.data?.years ?? []).map((y) => (
+                          <SpineTd key={`inci-${y.calendar_year}`} muted>
+                            —
+                          </SpineTd>
+                        ))}
+                      </tr>
+                    ))}
 
-                    <tr className="border-b border-border/60 bg-muted/20">
-                      <td className="py-2 px-3">
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 text-sm font-semibold"
-                          onClick={() => setPlExpenseOpen((v) => !v)}
-                        >
-                          {plExpenseOpen ? (
-                            <ChevronDown className="size-3.5" />
-                          ) : (
-                            <ChevronRight className="size-3.5" />
-                          )}
-                          {t('reportsOverview.plLiving')}
-                        </button>
-                      </td>
-                      <td className="py-2 px-3 text-right font-semibold tabular-nums text-rose-700 dark:text-rose-400">
-                        {mask(formatCurrency(plQuery.data.totals.ytd_expenses, currency, locale))}
-                      </td>
-                      <td className="py-2 px-3 text-right font-semibold tabular-nums text-rose-700 dark:text-rose-400 hidden sm:table-cell">
-                        {mask(
-                          formatCurrency(plQuery.data.totals.projected_expenses, currency, locale),
+                  {/* Living */}
+                  <tr>
+                    <SpineTd stickyLabel align="left" className="font-semibold">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1"
+                        onClick={() => setPlLivingOpen((v) => !v)}
+                      >
+                        {plLivingOpen ? (
+                          <ChevronDown className="size-3" />
+                        ) : (
+                          <ChevronRight className="size-3" />
                         )}
-                      </td>
-                    </tr>
-                    {plExpenseOpen &&
-                      ytdExpense.map((line, idx) => (
-                        <tr key={`ye-${line.key}`} className="border-b border-border/40">
-                          <td className="py-1.5 pl-8 pr-3 text-xs text-muted-foreground">
-                            {line.label}
-                          </td>
-                          <td className="py-1.5 px-3 text-right text-xs tabular-nums">
-                            {mask(formatCurrency(line.value, currency, locale))}
-                          </td>
-                          <td className="py-1.5 px-3 text-right text-xs tabular-nums hidden sm:table-cell text-muted-foreground">
-                            {projExpense[idx]
-                              ? mask(formatCurrency(projExpense[idx].value, currency, locale))
-                              : '—'}
-                          </td>
-                        </tr>
-                      ))}
+                        {t('reportsOverview.plLiving')}
+                      </button>
+                    </SpineTd>
+                    {monthCols.map((dp) => (
+                      <SpineTd
+                        key={dp.date}
+                        className={toneClass(dp.breakdowns.expenses ?? 0, true)}
+                      >
+                        {fmt(dp.breakdowns.expenses ?? 0)}
+                      </SpineTd>
+                    ))}
+                    <SpineTd className={cn('font-semibold', toneClass(ytdLiving, true))}>
+                      {fmt(ytdLiving)}
+                    </SpineTd>
+                    <SpineTd className={cn('font-semibold', toneClass(fyLiving, true))}>
+                      {fmt(fyLiving)}
+                    </SpineTd>
+                    {(fcQuery.data?.years ?? []).map((y) => (
+                      <SpineTd
+                        key={`liv-${y.calendar_year}`}
+                        className={toneClass(y.expenses, true)}
+                      >
+                        {fmt(y.expenses)}
+                      </SpineTd>
+                    ))}
+                  </tr>
+                  {plLivingOpen &&
+                    ytdLivingLines.map((line) => (
+                      <tr key={line.key}>
+                        <SpineTd stickyLabel align="left" muted className="pl-5">
+                          {line.label}
+                        </SpineTd>
+                        {monthCols.map((dp) => (
+                          <SpineTd key={dp.date} muted>
+                            —
+                          </SpineTd>
+                        ))}
+                        <SpineTd muted>{fmt(line.value)}</SpineTd>
+                        <SpineTd muted>
+                          {(() => {
+                            const p = (plQuery.data?.projection_lines ?? []).find(
+                              (x) => x.group === line.group && x.section !== 'income',
+                            )
+                            return p ? fmt(p.value) : '—'
+                          })()}
+                        </SpineTd>
+                        {(fcQuery.data?.years ?? []).map((y) => (
+                          <SpineTd key={`livi-${y.calendar_year}`} muted>
+                            —
+                          </SpineTd>
+                        ))}
+                      </tr>
+                    ))}
 
-                    <tr className="bg-muted/30 border-b border-border/60">
-                      <td className="py-2.5 px-3 text-sm font-semibold">
-                        {t('reportsOverview.plCashSurplus')}
-                      </td>
-                      <td
-                        className={cn(
-                          'py-2.5 px-3 text-right font-semibold tabular-nums',
-                          plQuery.data.totals.ytd_net >= 0
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : 'text-rose-700 dark:text-rose-400',
-                        )}
+                  {/* Premiums */}
+                  <tr>
+                    <SpineTd stickyLabel align="left" className="font-semibold">
+                      {t('reportsOverview.plPremiums')}
+                    </SpineTd>
+                    {monthCols.map((dp) => (
+                      <SpineTd key={dp.date} muted>
+                        —
+                      </SpineTd>
+                    ))}
+                    <SpineTd className={toneClass(ytdPremiums, true)}>{fmt(ytdPremiums)}</SpineTd>
+                    <SpineTd className={toneClass(fyPremiums, true)}>{fmt(fyPremiums)}</SpineTd>
+                    {(fcQuery.data?.years ?? []).map((y) => (
+                      <SpineTd
+                        key={`prem-${y.calendar_year}`}
+                        className={toneClass(y.premium, true)}
                       >
-                        {mask(formatCurrency(plQuery.data.totals.ytd_net, currency, locale))}
-                      </td>
-                      <td
-                        className={cn(
-                          'py-2.5 px-3 text-right font-semibold tabular-nums hidden sm:table-cell',
-                          plQuery.data.totals.projected_net >= 0
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : 'text-rose-700 dark:text-rose-400',
-                        )}
+                        {fmt(y.premium)}
+                      </SpineTd>
+                    ))}
+                  </tr>
+
+                  {/* Interest */}
+                  <tr>
+                    <SpineTd stickyLabel align="left" className="font-semibold">
+                      {t('reportsOverview.plInterest')}
+                    </SpineTd>
+                    {monthCols.map((dp) => (
+                      <SpineTd key={dp.date} muted>
+                        —
+                      </SpineTd>
+                    ))}
+                    <SpineTd className={toneClass(ytdInterest, true)}>{fmt(ytdInterest)}</SpineTd>
+                    <SpineTd className={toneClass(fyInterest, true)}>{fmt(fyInterest)}</SpineTd>
+                    {(fcQuery.data?.years ?? []).map((y) => (
+                      <SpineTd
+                        key={`int-${y.calendar_year}`}
+                        className={toneClass(y.loan_interest, true)}
                       >
-                        {mask(
-                          formatCurrency(plQuery.data.totals.projected_net, currency, locale),
-                        )}
-                      </td>
-                    </tr>
-                    <tr className="bg-card">
-                      <td className="py-2.5 px-3 text-sm font-semibold">
-                        {t('reportsOverview.plNetAfterDebt')}
-                      </td>
-                      <td
-                        className={cn(
-                          'py-2.5 px-3 text-right font-semibold tabular-nums',
-                          (prefs.include_tax
-                            ? plQuery.data.totals.ytd_net
-                            : plQuery.data.totals.ytd_net) >= 0
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : 'text-rose-700 dark:text-rose-400',
-                        )}
+                        {fmt(y.loan_interest)}
+                      </SpineTd>
+                    ))}
+                  </tr>
+
+                  {/* Surplus */}
+                  <tr className="bg-muted/25">
+                    <SpineTd stickyLabel align="left" className="font-semibold bg-muted/25">
+                      {t('reportsOverview.plCashSurplus')}
+                    </SpineTd>
+                    {monthCols.map((dp) => {
+                      const net = (dp.breakdowns.income ?? 0) - (dp.breakdowns.expenses ?? 0)
+                      return (
+                        <SpineTd key={dp.date} className={cn('font-semibold', toneClass(net))}>
+                          {fmt(net)}
+                        </SpineTd>
+                      )
+                    })}
+                    <SpineTd className={cn('font-semibold', toneClass(plQuery.data.totals.ytd_net))}>
+                      {fmt(plQuery.data.totals.ytd_net)}
+                    </SpineTd>
+                    <SpineTd className={cn('font-semibold', toneClass(fySurplus))}>
+                      {fmt(fySurplus)}
+                    </SpineTd>
+                    {(fcQuery.data?.years ?? []).map((y) => (
+                      <SpineTd
+                        key={`sur-${y.calendar_year}`}
+                        className={cn('font-semibold', toneClass(y.net_cashflow))}
                       >
-                        {mask(formatCurrency(plQuery.data.totals.ytd_net, currency, locale))}
-                      </td>
-                      <td
-                        className={cn(
-                          'py-2.5 px-3 text-right font-semibold tabular-nums hidden sm:table-cell',
-                          (prefs.include_tax
-                            ? plQuery.data.totals.projected_net_after_tax
-                            : plQuery.data.totals.projected_net) >= 0
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : 'text-rose-700 dark:text-rose-400',
-                        )}
-                      >
-                        {mask(
-                          formatCurrency(
-                            prefs.include_tax
-                              ? plQuery.data.totals.projected_net_after_tax
-                              : plQuery.data.totals.projected_net,
-                            currency,
-                            locale,
-                          ),
-                        )}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+                        {fmt(y.net_cashflow)}
+                      </SpineTd>
+                    ))}
+                  </tr>
+                </tbody>
+              </TimeSpineTable>
             ) : null}
           </section>
 
-          {/* Balance sheet T */}
-          <section className="mb-10">
+          {/* Balance sheet T — Owe | Own */}
+          <section className="mb-8">
             <SectionHead
               title={t('reportsOverview.bsTitle')}
               href="/reports/balance-sheet"
@@ -878,7 +978,7 @@ export default function ReportsOverviewPage() {
               icon={Scale}
             />
             {bsQuery.isError ? (
-              <p className="text-sm text-muted-foreground">{t('reportsOverview.loadError')}</p>
+              <p className="text-sm text-foreground/70">{t('reportsOverview.loadError')}</p>
             ) : bsQuery.data && bsQuery.data.lines.length > 0 ? (
               <BalanceSheetT
                 lines={bsQuery.data.lines}
@@ -889,11 +989,11 @@ export default function ReportsOverviewPage() {
                 compact
               />
             ) : bsQuery.data ? (
-              <p className="text-sm text-muted-foreground">{t('reportsOverview.emptyHint')}</p>
+              <p className="text-sm text-foreground/70">{t('reportsOverview.emptyHint')}</p>
             ) : null}
           </section>
 
-          {/* Forecast */}
+          {/* Forecast 5Y — continuous projection */}
           <section className="mb-6">
             <SectionHead
               title={t('reportsOverview.fcTitle')}
@@ -901,65 +1001,58 @@ export default function ReportsOverviewPage() {
               linkLabel={t('reportsOverview.fcOpen')}
               icon={CalendarRange}
             />
+            <SpineLegend items={[t('reportsOverview.spine5y')]} />
             {fcQuery.isError ? (
-              <p className="text-sm text-muted-foreground">{t('reportsOverview.loadError')}</p>
+              <p className="text-sm text-foreground/70">{t('reportsOverview.loadError')}</p>
             ) : fcQuery.data ? (
-              <div className="rounded-xl border border-border overflow-x-auto">
-                <table className="w-full text-xs sm:text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/30 text-[11px] text-muted-foreground">
-                      <th className="text-left font-medium py-2 px-3 sticky left-0 bg-muted/30">
-                        {t('reportsOverview.fcYear')}
-                      </th>
-                      {fcQuery.data.years.map((y) => (
-                        <th
-                          key={y.calendar_year}
-                          className="text-right font-medium py-2 px-3 whitespace-nowrap"
-                        >
-                          {y.calendar_year}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(
-                      [
-                        ['net_worth', t('reportsOverview.fcNetWorth')],
-                        ['cash', t('reportsOverview.fcCash')],
-                        ['investments', t('reportsOverview.fcInvestments')],
-                        ['insurance_sv', t('reportsOverview.fcInsurance')],
-                        ['loans', t('reportsOverview.fcLoans')],
-                        ['net_cashflow', t('reportsOverview.fcCashflow')],
-                      ] as const
-                    ).map(([key, label]) => (
-                      <tr key={key} className="border-b border-border/50">
-                        <td className="py-2 px-3 font-medium sticky left-0 bg-card whitespace-nowrap">
-                          {label}
-                        </td>
-                        {fcQuery.data!.years.map((y) => {
-                          const val = y[key]
-                          return (
-                            <td
-                              key={y.calendar_year}
-                              className={cn(
-                                'py-2 px-3 text-right tabular-nums whitespace-nowrap',
-                                key === 'loans' && 'text-rose-700 dark:text-rose-400',
-                                key === 'net_worth' && 'font-semibold',
-                                key === 'net_cashflow' &&
-                                  (val >= 0
-                                    ? 'text-emerald-700 dark:text-emerald-400'
-                                    : 'text-rose-700 dark:text-rose-400'),
-                              )}
-                            >
-                              {mask(formatCurrency(val, currency, locale))}
-                            </td>
-                          )
-                        })}
-                      </tr>
+              <TimeSpineTable>
+                <thead>
+                  <tr>
+                    <SpineTh stickyLabel align="left">
+                      {t('reportsOverview.fcYear')}
+                    </SpineTh>
+                    {fcQuery.data.years.map((y) => (
+                      <SpineTh key={y.calendar_year}>{y.calendar_year}</SpineTh>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(
+                    [
+                      ['net_worth', t('reportsOverview.fcNetWorth'), false],
+                      ['cash', t('reportsOverview.fcCash'), false],
+                      ['investments', t('reportsOverview.fcInvestments'), false],
+                      ['insurance_sv', t('reportsOverview.fcInsurance'), false],
+                      ['loans', t('reportsOverview.fcLoans'), true],
+                      ['net_cashflow', t('reportsOverview.fcCashflow'), false],
+                    ] as const
+                  ).map(([key, label, invert]) => (
+                    <tr key={key}>
+                      <SpineTd stickyLabel align="left" className="font-medium">
+                        {label}
+                      </SpineTd>
+                      {fcQuery.data!.years.map((y) => {
+                        const val = y[key]
+                        return (
+                          <SpineTd
+                            key={y.calendar_year}
+                            className={cn(
+                              key === 'net_worth' && 'font-semibold',
+                              key === 'loans' && toneClass(val, true),
+                              key === 'net_cashflow' && toneClass(val),
+                              key !== 'loans' && key !== 'net_cashflow' && invert
+                                ? toneClass(val, true)
+                                : undefined,
+                            )}
+                          >
+                            {fmt(val)}
+                          </SpineTd>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </TimeSpineTable>
             ) : null}
           </section>
         </>
@@ -967,4 +1060,3 @@ export default function ReportsOverviewPage() {
     </div>
   )
 }
-
