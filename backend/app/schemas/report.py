@@ -133,3 +133,42 @@ class ProfitLossResponse(BaseModel):
     projection_lines: list[ProfitLossLine]
     assumptions: list[BalanceSheetAssumption]
     gaps: list[str] = []
+
+
+class ForecastYear(BaseModel):
+    year_index: int  # 1..horizon
+    calendar_year: int
+    income: float
+    expenses: float
+    premium: float
+    loan_interest: float
+    net_cashflow: float
+    cash: float
+    investments: float
+    insurance_sv: float
+    loans: float
+    net_worth: float
+    notes: list[str] = []
+
+
+class ForecastOpening(BaseModel):
+    cash: float
+    investments: float
+    insurance_sv: float
+    loans: float
+    net_worth: float
+    base_income: float
+    base_expenses: float
+    premium_annual: float
+    loan_principal: float
+    loan_rate_pct: float
+
+
+class ForecastResponse(BaseModel):
+    currency: str
+    start_year: int
+    horizon_years: int
+    opening: ForecastOpening
+    years: list[ForecastYear]
+    assumptions: list[BalanceSheetAssumption]
+    gaps: list[str] = []

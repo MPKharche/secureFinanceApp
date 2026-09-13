@@ -15,6 +15,6 @@
 
 ## Gaps (not in G1)
 - G2 Profit & Loss — shipped (`/reports/profit-loss`)
-- G3 multi-year forecast
+- G3 multi-year forecast — shipped (`/reports/forecast`)
 - Live insurer SV quote integration
 - Dual-ledger auto-post for policy loan interest (G0 reminder mode)

@@ -8,6 +8,6 @@
 - Annual projection: remaining recurring schedules when available, else day-count run-rate
 
 ## Gaps (not in G2)
-- G3 multi-year forecast
+- G3 multi-year forecast — shipped (`/reports/forecast`)
 - Jurisdiction-aware tax brackets
 - Per-category growth drivers

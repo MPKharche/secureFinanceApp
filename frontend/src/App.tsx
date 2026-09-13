@@ -32,6 +32,7 @@ const LoanDetailPage = lazy(() => import('@/pages/loans/LoanDetailPage'))
 const ReportsPage = lazy(() => import('@/pages/reports'))
 const BalanceSheetPage = lazy(() => import('@/pages/balance-sheet'))
 const ProfitLossPage = lazy(() => import('@/pages/profit-loss'))
+const ForecastPage = lazy(() => import('@/pages/forecast'))
 const PayeesPage = lazy(() => import('@/pages/payees'))
 const GroupsPage = lazy(() => import('@/pages/groups'))
 const GroupDetailPage = lazy(() => import('@/pages/group-detail'))
@@ -107,6 +108,8 @@ function App() {
                   <Route path="/statements/balance-sheet" element={<Navigate to="/reports/balance-sheet" replace />} />
                   <Route path="/reports/profit-loss" element={<ModuleRoute module="reports"><ProfitLossPage /></ModuleRoute>} />
                   <Route path="/statements/profit-loss" element={<Navigate to="/reports/profit-loss" replace />} />
+                  <Route path="/reports/forecast" element={<ModuleRoute module="reports"><ForecastPage /></ModuleRoute>} />
+                  <Route path="/statements/forecast" element={<Navigate to="/reports/forecast" replace />} />
                   <Route path="/payees" element={<ModuleRoute module="payees"><PayeesPage /></ModuleRoute>} />
                   <Route path="/groups" element={<ModuleRoute module="split_groups"><GroupsPage /></ModuleRoute>} />
                   <Route path="/groups/:id" element={<ModuleRoute module="split_groups"><GroupDetailPage /></ModuleRoute>} />
