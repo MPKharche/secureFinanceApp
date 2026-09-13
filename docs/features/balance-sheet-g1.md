@@ -3,9 +3,10 @@
 ## What shipped
 - Route: `/reports/balance-sheet` (alias `/statements/balance-sheet`)
 - API: `GET /api/reports/balance-sheet?as_of=YYYY-MM-DD&insurance_value_basis=recorded|sad|sv`
-- UI: selectable as-of date (default today), Assets (cash + investments), Liabilities (loans), Net worth
-- G4-lite Assumptions popover: `reporting_currency`, `insurance_value_basis`, `include_policy_loan`, `as_of_fidelity`
+- UI: **T-format** — left **Liabilities** (What you owe: Loans, Credit cards), right **Assets** (What you own: Cash, Investments, Insurance value); net worth (Assets − Liabilities) bridges below the T
+- Selectable as-of date (default today); G4-lite Assumptions popover: `reporting_currency`, `insurance_value_basis`, `include_policy_loan`, `as_of_fidelity`
 - Fidelity badges: `as_of` | `reconstructed` | `≈ current`
+- Responsive: stacks Liabilities → Assets on narrow screens
 
 ## As-of logic
 - **Manual accounts**: sum posted transactions with `date <= as_of` (real as-of).
