@@ -30,6 +30,7 @@ const AssetsPage = lazy(() => import('@/pages/assets'))
 const LoansPage = lazy(() => import('@/pages/loans'))
 const LoanDetailPage = lazy(() => import('@/pages/loans/LoanDetailPage'))
 const ReportsPage = lazy(() => import('@/pages/reports'))
+const BalanceSheetPage = lazy(() => import('@/pages/balance-sheet'))
 const PayeesPage = lazy(() => import('@/pages/payees'))
 const GroupsPage = lazy(() => import('@/pages/groups'))
 const GroupDetailPage = lazy(() => import('@/pages/group-detail'))
@@ -101,6 +102,8 @@ function App() {
                   {/* Kept so links minted before the importers were merged keep working. */}
                   <Route path="/assets/import" element={<Navigate to="/import?tab=investments" replace />} />
                   <Route path="/reports" element={<ModuleRoute module="reports"><ReportsPage /></ModuleRoute>} />
+                  <Route path="/reports/balance-sheet" element={<ModuleRoute module="reports"><BalanceSheetPage /></ModuleRoute>} />
+                  <Route path="/statements/balance-sheet" element={<Navigate to="/reports/balance-sheet" replace />} />
                   <Route path="/payees" element={<ModuleRoute module="payees"><PayeesPage /></ModuleRoute>} />
                   <Route path="/groups" element={<ModuleRoute module="split_groups"><GroupsPage /></ModuleRoute>} />
                   <Route path="/groups/:id" element={<ModuleRoute module="split_groups"><GroupDetailPage /></ModuleRoute>} />

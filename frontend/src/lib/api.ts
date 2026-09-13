@@ -1295,6 +1295,24 @@ export const reports = {
     const { data } = await api.get('/reports/cash-flow', { params: { months, interval, baseline, ...(extra.params ?? {}) }, ...(extra.paramsSerializer ? { paramsSerializer: extra.paramsSerializer } : {}) })
     return data
   },
+  balanceSheet: async (
+    asOf?: string,
+    insuranceValueBasis: 'recorded' | 'sad' | 'sv' = 'recorded',
+    accountIds?: string[],
+    assetGroupIds?: string[],
+  ): Promise<import('@/types').BalanceSheetResponse> => {
+    const hasFilter = (accountIds && accountIds.length > 0) || (assetGroupIds && assetGroupIds.length > 0)
+    const { data } = await api.get('/reports/balance-sheet', {
+      params: {
+        as_of: asOf,
+        insurance_value_basis: insuranceValueBasis,
+        ...(accountIds && accountIds.length > 0 ? { account_ids: accountIds } : {}),
+        ...(assetGroupIds && assetGroupIds.length > 0 ? { asset_group_ids: assetGroupIds } : {}),
+      },
+      ...(hasFilter ? { paramsSerializer: { indexes: null as null } } : {}),
+    })
+    return data
+  },
 }
 
 // Currencies

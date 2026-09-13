@@ -25,6 +25,10 @@ from app.services.admin_service import get_credit_card_accounting_mode
 from app.services.account_service import get_account_name
 from app.services.fx_rate_service import convert
 from app.schemas.report import (
+    BalanceSheetAssumption,
+    BalanceSheetLine,
+    BalanceSheetResponse,
+    BalanceSheetTotals,
     CategoryTrendItem,
     ReportBreakdown,
     ReportCompositionItem,
@@ -1633,4 +1637,326 @@ async def get_cash_flow_report(
     return ReportResponse(
         summary=summary, trend=trend, meta=meta,
         composition=composition, category_trend=[],
+    )
+
+
+def _insurance_amounts(meta: dict | None) -> dict[str, float | None]:
+    """Extract SAD / illustrative SV from asset external_metadata when present."""
+    meta = meta or {}
+    sad = meta.get("sum_assured_on_death")
+    sv = meta.get("illus_sv_year5")
+    if sv is None:
+        year5 = (meta.get("cos_illustration") or {}).get("year_5") or {}
+        sv = year5.get("sv_approx") or year5.get("ssv")
+    try:
+        sad_f = float(sad) if sad is not None else None
+    except (TypeError, ValueError):
+        sad_f = None
+    try:
+        sv_f = float(sv) if sv is not None else None
+    except (TypeError, ValueError):
+        sv_f = None
+    return {"sad": sad_f, "sv": sv_f}
+
+
+def _is_insurance_asset(asset: Asset) -> bool:
+    meta = asset.external_metadata or {}
+    return bool(
+        meta.get("policy_number")
+        or meta.get("sum_assured_on_death")
+        or meta.get("illus_sv_year5")
+        or (meta.get("cos_illustration") or {}).get("year_5")
+    )
+
+
+async def get_balance_sheet(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+    as_of: date | None = None,
+    *,
+    insurance_value_basis: str = "recorded",
+    account_ids: Optional[list[uuid.UUID]] = None,
+    asset_group_ids: Optional[list[uuid.UUID]] = None,
+) -> BalanceSheetResponse:
+    """Point-in-time balance sheet: assets, liabilities, net worth.
+
+    Prefer reconstructed as-of balances from transaction / asset-value history.
+    Connected-account history is reconstructed from the provider snapshot and
+    labeled accordingly. Insurance holdings can optionally revalue using SAD or
+    illustrative SV from asset metadata (G4-lite).
+    """
+    if asset_group_ids is not None and account_ids is None:
+        account_ids = []
+
+    today = date.today()
+    cutoff = as_of or today
+    if cutoff > today:
+        cutoff = today
+
+    basis = (insurance_value_basis or "recorded").lower()
+    if basis not in {"recorded", "sad", "sv"}:
+        basis = "recorded"
+
+    user = await session.get(User, user_id)
+    primary_currency = user.primary_currency if user else get_settings().default_currency
+
+    accounts = await _get_open_accounts(session, workspace_id, account_ids)
+    lines: list[BalanceSheetLine] = []
+    cash_total = 0.0
+    invest_acct_total = 0.0
+    loans_total = 0.0
+    other_liab_total = 0.0
+    gaps: list[str] = []
+
+    for account in accounts:
+        bal = await _account_balance_at(session, account, cutoff)
+        converted, _ = await convert(
+            session, Decimal(str(abs(bal))), account.currency, primary_currency, cutoff
+        )
+        converted_val = round(float(converted), 2)
+        name = get_account_name(account)
+        is_liability = is_liability_account_type(account.type) or bal < 0
+
+        if account.connection_id and cutoff < today:
+            fidelity = "reconstructed"
+            fidelity_note = (
+                "Connected account: reconstructed from provider balance minus "
+                "post-cutoff activity (as-of ≈ reconstructed)."
+            )
+        elif account.connection_id and cutoff >= today:
+            fidelity = "as_of"
+            fidelity_note = "Provider current balance (as-of = today)."
+        else:
+            fidelity = "as_of"
+            fidelity_note = "Manual account: summed posted transactions through as-of date."
+
+        if is_liability:
+            if converted_val <= 0:
+                continue
+            if account.type == "loan":
+                group = "loans"
+                loans_total += converted_val
+                href = f"/loans/{account.id}"
+            else:
+                group = "other_liabilities"
+                other_liab_total += converted_val
+                href = f"/accounts/{account.id}"
+            lines.append(BalanceSheetLine(
+                key=str(account.id),
+                label=name,
+                value=converted_val,
+                currency=primary_currency,
+                group=group,
+                section="liabilities",
+                fidelity=fidelity,
+                fidelity_note=fidelity_note,
+                account_type=account.type,
+                href=href,
+            ))
+        else:
+            if converted_val <= 0:
+                continue
+            if account.type == "investment":
+                group = "investments"
+                invest_acct_total += converted_val
+            else:
+                group = "cash_accounts"
+                cash_total += converted_val
+            lines.append(BalanceSheetLine(
+                key=str(account.id),
+                label=name,
+                value=converted_val,
+                currency=primary_currency,
+                group=group,
+                section="assets",
+                fidelity=fidelity,
+                fidelity_note=fidelity_note,
+                account_type=account.type,
+                href=f"/accounts/{account.id}",
+            ))
+
+    filtered = account_ids is not None
+    asset_stmt = select(Asset).where(
+        Asset.workspace_id == workspace_id,
+        Asset.is_archived == False,
+        Asset.sell_date.is_(None),
+    )
+    if filtered:
+        asset_stmt = asset_stmt.where(Asset.group_id.in_(asset_group_ids or []))
+    asset_result = await session.execute(asset_stmt)
+    assets_total = 0.0
+
+    for asset in asset_result.scalars().all():
+        val_result = await session.execute(
+            select(AssetValue.amount, AssetValue.date)
+            .where(AssetValue.asset_id == asset.id, AssetValue.date <= cutoff)
+            .order_by(desc(AssetValue.date), desc(AssetValue.id))
+            .limit(1)
+        )
+        row = val_result.first()
+        recorded_amount = 0.0
+        value_date = None
+        if row is not None:
+            recorded_amount = float(row[0])
+            value_date = row[1]
+        elif asset.purchase_price is not None and (
+            asset.purchase_date is None or asset.purchase_date <= cutoff
+        ):
+            recorded_amount = float(asset.purchase_price)
+            value_date = asset.purchase_date
+
+        amount = recorded_amount
+        fidelity = "as_of"
+        fidelity_note = None
+        line_meta: dict | None = None
+
+        if _is_insurance_asset(asset):
+            amounts = _insurance_amounts(asset.external_metadata)
+            line_meta = {
+                "insurance": True,
+                "policy_number": (asset.external_metadata or {}).get("policy_number"),
+                "sad": amounts["sad"],
+                "sv_illustrative": amounts["sv"],
+                "recorded": recorded_amount,
+                "value_basis_applied": basis,
+            }
+            if basis == "sad" and amounts["sad"] is not None:
+                amount = amounts["sad"]
+                fidelity_note = (
+                    "Insurance valued at Sum Assured on Death (SAD) from policy metadata."
+                )
+            elif basis == "sv" and amounts["sv"] is not None:
+                amount = amounts["sv"]
+                fidelity = "approx_current"
+                fidelity_note = (
+                    "Insurance valued at illustrative surrender value (CoS/benefit "
+                    "illustration — NOT a live ICICI quote)."
+                )
+            else:
+                fidelity_note = (
+                    "Insurance using recorded asset value as-of date"
+                    + (f" ({value_date.isoformat()})" if value_date else "")
+                    + ". Toggle Assumptions → insurance_value_basis for SAD/SV."
+                )
+                if basis in {"sad", "sv"}:
+                    gaps.append(
+                        f"{asset.name}: requested {basis.upper()} unavailable in metadata; "
+                        "fell back to recorded value."
+                    )
+        else:
+            if value_date is None and recorded_amount > 0:
+                fidelity = "approx_current"
+                fidelity_note = "No dated valuation; using purchase price / current recorded value."
+            elif value_date is not None and value_date < cutoff:
+                fidelity_note = (
+                    f"Latest valuation on {value_date.isoformat()} "
+                    f"(carried forward to as-of {cutoff.isoformat()})."
+                )
+            else:
+                fidelity_note = "Asset value as-of selected date."
+
+        if amount <= 0:
+            continue
+
+        converted, _ = await convert(
+            session, Decimal(str(amount)), asset.currency, primary_currency, cutoff
+        )
+        converted_val = round(float(converted), 2)
+        assets_total += converted_val
+        lines.append(BalanceSheetLine(
+            key=str(asset.id),
+            label=asset.name,
+            value=converted_val,
+            currency=primary_currency,
+            group="investments",
+            section="assets",
+            fidelity=fidelity,
+            fidelity_note=fidelity_note,
+            account_type=asset.type,
+            href="/investments",
+            meta=line_meta,
+        ))
+
+    investments_total = round(invest_acct_total + assets_total, 2)
+    assets_sum = round(cash_total + investments_total, 2)
+    liabilities_sum = round(loans_total + other_liab_total, 2)
+    net_worth = round(assets_sum - liabilities_sum, 2)
+
+    assumptions = [
+        BalanceSheetAssumption(
+            key="reporting_currency",
+            label="Reporting currency",
+            value=primary_currency,
+            description="All lines converted to the workspace primary currency at as-of FX.",
+            options=None,
+        ),
+        BalanceSheetAssumption(
+            key="insurance_value_basis",
+            label="Insurance value basis",
+            value=basis,
+            description=(
+                "How insurance/policy assets are valued on the balance sheet. "
+                "recorded = ledger AssetValue; sad = Sum Assured on Death; "
+                "sv = illustrative surrender value from CoS (not live quote)."
+            ),
+            options=["recorded", "sad", "sv"],
+        ),
+        BalanceSheetAssumption(
+            key="include_policy_loan",
+            label="Include policy loan as liability",
+            value="true",
+            description="Policy loans appear under Liabilities when the linked loan account is open.",
+            options=["true"],
+        ),
+        BalanceSheetAssumption(
+            key="as_of_fidelity",
+            label="As-of fidelity",
+            value="prefer_real",
+            description=(
+                "Manual accounts and asset values use real as-of reconstruction. "
+                "Connected accounts use provider snapshot reconstruction for past dates."
+            ),
+            options=None,
+        ),
+    ]
+
+    gaps.extend([
+        "G2 Profit & Loss statement not built yet.",
+        "G3 multi-year forecast not built yet.",
+        "Live insurer SV quote not integrated — SV option uses CoS illustration only.",
+        "Credit-card pending charges follow posted/provider rules used by net-worth reports.",
+    ])
+
+    # Stable presentation: assets then liabilities, larger first within group
+    section_order = {"assets": 0, "liabilities": 1}
+    group_order = {
+        "cash_accounts": 0,
+        "investments": 1,
+        "loans": 0,
+        "other_liabilities": 1,
+    }
+    lines.sort(
+        key=lambda ln: (
+            section_order.get(ln.section, 9),
+            group_order.get(ln.group, 9),
+            -ln.value,
+            ln.label.lower(),
+        )
+    )
+
+    return BalanceSheetResponse(
+        as_of=cutoff.isoformat(),
+        currency=primary_currency,
+        totals=BalanceSheetTotals(
+            assets=assets_sum,
+            liabilities=liabilities_sum,
+            net_worth=net_worth,
+            cash_accounts=round(cash_total, 2),
+            investments=investments_total,
+            loans=round(loans_total + other_liab_total, 2),
+        ),
+        lines=lines,
+        assumptions=assumptions,
+        gaps=gaps,
     )

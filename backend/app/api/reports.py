@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
 from app.core.workspace_context import WorkspaceContext, current_workspace
-from app.schemas.report import ReportResponse
+from app.schemas.report import BalanceSheetResponse, ReportResponse
 from app.services import report_service
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
@@ -57,4 +57,37 @@ async def get_cash_flow(
     return await report_service.get_cash_flow_report(
         session, ctx.workspace.id, ctx.user_id, months, interval, ctx.user.primary_currency,
         baseline=baseline, account_ids=account_ids,
+    )
+
+
+@router.get("/balance-sheet", response_model=BalanceSheetResponse)
+async def get_balance_sheet(
+    as_of: Optional[str] = Query(None, description="ISO date YYYY-MM-DD; default today"),
+    insurance_value_basis: str = Query(
+        "recorded",
+        pattern="^(recorded|sad|sv)$",
+        description="Insurance valuation: recorded AssetValue, SAD, or illustrative SV",
+    ),
+    account_ids: Optional[list[uuid.UUID]] = Query(None),
+    asset_group_ids: Optional[list[uuid.UUID]] = Query(None),
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    from datetime import date as date_cls
+
+    cutoff = None
+    if as_of:
+        try:
+            cutoff = date_cls.fromisoformat(as_of)
+        except ValueError:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=422, detail="as_of must be YYYY-MM-DD")
+    return await report_service.get_balance_sheet(
+        session,
+        ctx.workspace.id,
+        ctx.user_id,
+        cutoff,
+        insurance_value_basis=insurance_value_basis,
+        account_ids=account_ids,
+        asset_group_ids=asset_group_ids,
     )
