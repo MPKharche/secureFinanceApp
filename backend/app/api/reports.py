@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
 from app.core.workspace_context import WorkspaceContext, current_workspace
-from app.schemas.report import BalanceSheetResponse, ReportResponse
+from app.schemas.report import BalanceSheetResponse, ProfitLossResponse, ReportResponse
 from app.services import report_service
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
@@ -90,4 +90,28 @@ async def get_balance_sheet(
         insurance_value_basis=insurance_value_basis,
         account_ids=account_ids,
         asset_group_ids=asset_group_ids,
+    )
+
+
+@router.get("/profit-loss", response_model=ProfitLossResponse)
+async def get_profit_loss(
+    year: Optional[int] = Query(None, ge=2000, le=2100, description="Calendar year; default current"),
+    income_growth_pct: float = Query(0.0, ge=-100, le=500, description="G4-lite annual income growth %"),
+    expense_growth_pct: float = Query(0.0, ge=-100, le=500, description="G4-lite annual expense growth %"),
+    include_tax: bool = Query(False, description="Apply simple effective tax on projected net"),
+    effective_tax_rate: float = Query(0.0, ge=0, le=100, description="Effective tax rate % when include_tax"),
+    account_ids: Optional[list[uuid.UUID]] = Query(None),
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    return await report_service.get_profit_loss(
+        session,
+        ctx.workspace.id,
+        ctx.user_id,
+        year=year,
+        income_growth_pct=income_growth_pct,
+        expense_growth_pct=expense_growth_pct,
+        include_tax=include_tax,
+        effective_tax_rate=effective_tax_rate,
+        account_ids=account_ids,
     )

@@ -129,7 +129,8 @@
     "agents": "Agents",
     "aiAgents": "AI-agents",
     "loans": "Loans",
-    "balanceSheet": "Balans"
+    "balanceSheet": "Balans",
+    "profitLoss": "Winst & verlies"
   },
   "invoices": {
     "title": "Facturen",
@@ -2049,5 +2050,34 @@
     "gapsTitle": "Documented gaps",
     "loadError": "Could not load balance sheet",
     "loadErrorHint": "Check your connection and try again."
+  },
+  "profitLoss": {
+    "section": "Overzichten",
+    "title": "Winst & verlies",
+    "year": "Year",
+    "thisYear": "This year",
+    "ytdNet": "YTD net income",
+    "ytdRange": "{{start}} → {{end}}",
+    "method": "Projection: {{method}}",
+    "projectedNet": "Projected net (after tax)",
+    "projectedTax": "Projected tax",
+    "ytdSection": "Year to date",
+    "projectionSection": "Annual projection",
+    "income": "Income",
+    "expenses": "Expenses",
+    "projectedIncome": "Projected income",
+    "projectedExpenses": "Projected expenses & tax",
+    "assumptions": "Aannames",
+    "assumptionsTitle": "Key assumptions",
+    "assumptionsHint": "G4-lite drivers for this statement. Preferences persist in this browser.",
+    "incomeGrowth": "Income growth %",
+    "expenseGrowth": "Expense growth %",
+    "includeTax": "Include tax estimate",
+    "taxRate": "Effective tax rate %",
+    "emptyIncome": "No income in this period",
+    "emptyExpenses": "No expenses in this period",
+    "gapsTitle": "Known gaps",
+    "loadError": "Laden mislukt",
+    "loadErrorHint": "Could not load the profit & loss statement. Try again shortly."
   }
 }

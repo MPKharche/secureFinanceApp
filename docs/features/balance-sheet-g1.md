@@ -14,7 +14,7 @@
 - **Insurance (Pru etc.)**: optional override via `insurance_value_basis` using metadata SAD / illustrative SV.
 
 ## Gaps (not in G1)
-- G2 Profit & Loss
+- G2 Profit & Loss — shipped (`/reports/profit-loss`)
 - G3 multi-year forecast
 - Live insurer SV quote integration
 - Dual-ledger auto-post for policy loan interest (G0 reminder mode)

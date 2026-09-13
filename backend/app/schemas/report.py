@@ -96,3 +96,40 @@ class BalanceSheetResponse(BaseModel):
     lines: list[BalanceSheetLine]
     assumptions: list[BalanceSheetAssumption]
     gaps: list[str] = []
+
+
+class ProfitLossLine(BaseModel):
+    key: str
+    label: str
+    value: float
+    currency: str
+    section: str  # income | expense | tax
+    group: str  # category key or rollup
+    source: str  # ytd_actual | schedule | run_rate | assumption
+    href: str | None = None
+
+
+class ProfitLossTotals(BaseModel):
+    ytd_income: float
+    ytd_expenses: float
+    ytd_net: float
+    projected_income: float
+    projected_expenses: float
+    projected_net: float
+    projected_tax: float
+    projected_net_after_tax: float
+
+
+class ProfitLossResponse(BaseModel):
+    year: int
+    ytd_start: str
+    ytd_end: str
+    currency: str
+    days_elapsed: int
+    days_in_year: int
+    projection_method: str  # schedules | run_rate
+    totals: ProfitLossTotals
+    ytd_lines: list[ProfitLossLine]
+    projection_lines: list[ProfitLossLine]
+    assumptions: list[BalanceSheetAssumption]
+    gaps: list[str] = []
