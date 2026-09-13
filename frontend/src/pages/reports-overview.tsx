@@ -43,7 +43,6 @@ import type {
   BalanceSheetAssumption,
   BalanceSheetResponse,
   ForecastResponse,
-  ProfitLossLine,
   ProfitLossResponse,
 } from '@/types'
 import { cn } from '@/lib/utils'
