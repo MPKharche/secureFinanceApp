@@ -174,14 +174,14 @@ export function GlobalChatPanel({ open, onOpenChange }: Props) {
             {t('agents.globalChat.title', 'Chat')}
           </DialogPrimitive.Title>
 
-          <header className="flex items-center justify-between gap-2 px-3 py-2 border-b shrink-0">
+          <header className="flex items-center justify-between gap-2 px-2 sm:px-3 py-1.5 border-b shrink-0">
             <div className="flex items-center gap-1 min-w-0 flex-1">
               {view === 'history' ? (
                 <>
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="-ml-1 px-1.5"
+                    className="-ml-1 min-h-[44px] min-w-[44px] px-1.5"
                     onClick={() => setView('chat')}
                     aria-label="Back to chat"
                   >
@@ -254,6 +254,7 @@ export function GlobalChatPanel({ open, onOpenChange }: Props) {
                   <Button
                     size="sm"
                     variant="ghost"
+                    className="min-h-[44px] min-w-[44px]"
                     onClick={() => {
                       setView('history')
                       qc.invalidateQueries({ queryKey: ['global-chat-conversations', activeAgent.id] })
@@ -266,6 +267,7 @@ export function GlobalChatPanel({ open, onOpenChange }: Props) {
                   <Button
                     size="sm"
                     variant="ghost"
+                    className="min-h-[44px] min-w-[44px]"
                     onClick={startNewConversation}
                     aria-label={t('agents.newConversation', 'New conversation')}
                     title={t('agents.newConversation', 'New conversation')}
@@ -281,6 +283,7 @@ export function GlobalChatPanel({ open, onOpenChange }: Props) {
                 asChild
                 size="sm"
                 variant="ghost"
+                className="min-h-[44px] min-w-[44px]"
                 aria-label={t('agents.globalChat.openSettings', 'Agent settings')}
                 title={t('agents.globalChat.openSettings', 'Agent settings')}
               >
@@ -289,7 +292,7 @@ export function GlobalChatPanel({ open, onOpenChange }: Props) {
                 </Link>
               </Button>
               <DialogPrimitive.Close asChild>
-                <Button size="sm" variant="ghost" aria-label="Close">
+                <Button size="sm" variant="ghost" className="min-h-[44px] min-w-[44px]" aria-label="Close">
                   <X className="h-4 w-4" />
                 </Button>
               </DialogPrimitive.Close>

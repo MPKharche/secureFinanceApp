@@ -4,6 +4,11 @@ import { useQuery } from '@tanstack/react-query'
 import { CalendarRange, Settings2, TrendingUp } from 'lucide-react'
 import { reports } from '@/lib/api'
 import { formatCurrency } from '@/lib/format'
+import {
+  FrozenScrollTable,
+  FrozenTd,
+  FrozenTh,
+} from '@/components/ui/frozen-scroll-table'
 import { PageHeader } from '@/components/page-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
@@ -353,57 +358,55 @@ export default function ForecastPage() {
             <CalendarRange className="size-4" />
             {t('forecast.tableTitle')}
           </h3>
-          <div className="rounded-xl border border-border bg-card overflow-x-auto mb-6">
-            <table className="w-full text-sm">
+          <FrozenScrollTable className="rounded-xl mb-6">
               <thead>
-                <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="px-3 py-2.5 font-medium">{t('forecast.colYear')}</th>
-                  <th className="px-3 py-2.5 font-medium text-right">{t('forecast.colIncome')}</th>
-                  <th className="px-3 py-2.5 font-medium text-right">{t('forecast.colExpenses')}</th>
-                  <th className="px-3 py-2.5 font-medium text-right">{t('forecast.colPremium')}</th>
-                  <th className="px-3 py-2.5 font-medium text-right">{t('forecast.colInterest')}</th>
-                  <th className="px-3 py-2.5 font-medium text-right">{t('forecast.colCash')}</th>
-                  <th className="px-3 py-2.5 font-medium text-right">{t('forecast.colSv')}</th>
-                  <th className="px-3 py-2.5 font-medium text-right">{t('forecast.colLoans')}</th>
-                  <th className="px-3 py-2.5 font-medium text-right">{t('forecast.colNw')}</th>
+                <tr>
+                  <FrozenTh stickyLabel className="text-xs text-muted-foreground">{t('forecast.colYear')}</FrozenTh>
+                  <FrozenTh align="right" className="text-xs text-muted-foreground">{t('forecast.colIncome')}</FrozenTh>
+                  <FrozenTh align="right" className="text-xs text-muted-foreground">{t('forecast.colExpenses')}</FrozenTh>
+                  <FrozenTh align="right" className="text-xs text-muted-foreground">{t('forecast.colPremium')}</FrozenTh>
+                  <FrozenTh align="right" className="text-xs text-muted-foreground">{t('forecast.colInterest')}</FrozenTh>
+                  <FrozenTh align="right" className="text-xs text-muted-foreground">{t('forecast.colCash')}</FrozenTh>
+                  <FrozenTh align="right" className="text-xs text-muted-foreground">{t('forecast.colSv')}</FrozenTh>
+                  <FrozenTh align="right" className="text-xs text-muted-foreground">{t('forecast.colLoans')}</FrozenTh>
+                  <FrozenTh align="right" className="text-xs text-muted-foreground">{t('forecast.colNw')}</FrozenTh>
                 </tr>
               </thead>
               <tbody>
                 {data.years.map((y) => (
-                  <tr key={y.year_index} className="border-b border-border/60 last:border-0">
-                    <td className="px-3 py-2.5 font-medium whitespace-nowrap">
+                  <tr key={y.year_index}>
+                    <FrozenTd stickyLabel className="font-medium">
                       Y{y.year_index}
                       <span className="text-muted-foreground font-normal"> · {y.calendar_year}</span>
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+                    </FrozenTd>
+                    <FrozenTd align="right" className="text-emerald-600 dark:text-emerald-400">
                       {mask(formatCurrency(y.income, currency, locale))}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-400">
+                    </FrozenTd>
+                    <FrozenTd align="right" className="text-rose-600 dark:text-rose-400">
                       {mask(formatCurrency(y.expenses, currency, locale))}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">
+                    </FrozenTd>
+                    <FrozenTd align="right">
                       {mask(formatCurrency(y.premium, currency, locale))}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">
+                    </FrozenTd>
+                    <FrozenTd align="right">
                       {mask(formatCurrency(y.loan_interest, currency, locale))}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">
+                    </FrozenTd>
+                    <FrozenTd align="right">
                       {mask(formatCurrency(y.cash, currency, locale))}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">
+                    </FrozenTd>
+                    <FrozenTd align="right">
                       {mask(formatCurrency(y.insurance_sv, currency, locale))}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">
+                    </FrozenTd>
+                    <FrozenTd align="right">
                       {mask(formatCurrency(y.loans, currency, locale))}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums font-semibold">
+                    </FrozenTd>
+                    <FrozenTd align="right" className="font-semibold">
                       {mask(formatCurrency(y.net_worth, currency, locale))}
-                    </td>
+                    </FrozenTd>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+          </FrozenScrollTable>
 
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <TrendingUp className="size-4" />

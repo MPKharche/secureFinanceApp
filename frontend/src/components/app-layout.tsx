@@ -200,29 +200,29 @@ export function AppLayout() {
   return (
     <div className="min-h-screen bg-background">
       {/* Mobile header */}
-      <header className="sticky top-0 z-40 flex h-14 items-center gap-3 bg-sidebar border-b border-sidebar-border px-4 lg:hidden">
+      <header className="sticky top-0 z-40 flex h-14 items-center gap-1 bg-sidebar border-b border-sidebar-border px-2 sm:px-3 lg:hidden overflow-x-hidden">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="text-sidebar-muted hover:text-sidebar-foreground transition-colors"
+          className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sidebar-muted hover:text-sidebar-foreground transition-colors rounded-md"
           aria-label="Toggle menu"
         >
           <Menu size={20} />
         </button>
         <Link
           to="/"
-          className="flex items-center gap-2 -mx-1 px-1 py-1 rounded-md hover:bg-sidebar-accent transition-colors"
+          className="flex items-center gap-2 min-h-[44px] px-1 py-1 rounded-md hover:bg-sidebar-accent transition-colors min-w-0"
           aria-label={t('app.name')}
           title={t('nav.dashboard')}
         >
           <ShellLogo size={22} className="text-primary shrink-0" />
-          <span className="font-bold text-sidebar-foreground">
+          <span className="font-bold text-sidebar-foreground truncate max-w-[7.5rem] xs:max-w-none">
             {t('app.name')}
           </span>
         </Link>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-0.5 shrink-0">
           <button
             onClick={() => setPaletteOpen(true)}
-            className="text-sidebar-muted hover:text-sidebar-foreground transition-colors p-1"
+            className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sidebar-muted hover:text-sidebar-foreground transition-colors rounded-md"
             title={t('cmdk.triggerAria')}
             aria-label={t('cmdk.triggerAria')}
           >
@@ -230,14 +230,15 @@ export function AppLayout() {
           </button>
           <button
             onClick={togglePrivacyMode}
-            className="text-sidebar-muted hover:text-sidebar-foreground transition-colors p-1"
+            className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sidebar-muted hover:text-sidebar-foreground transition-colors rounded-md"
             title={privacyMode ? t('privacy.show') : t('privacy.hide')}
+            aria-label={privacyMode ? t('privacy.show') : t('privacy.hide')}
           >
             {privacyMode ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
           <button
             onClick={toggleTheme}
-            className="text-sidebar-muted hover:text-sidebar-foreground transition-colors p-1"
+            className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sidebar-muted hover:text-sidebar-foreground transition-colors rounded-md"
             title={isDark ? t('settings.themeLight') : t('settings.themeDark')}
             aria-label={
               isDark ? t('settings.themeLight') : t('settings.themeDark')
@@ -251,7 +252,7 @@ export function AppLayout() {
           {chatAvailable && (
             <button
               onClick={() => setChatOpen(true)}
-              className="text-sidebar-muted hover:text-sidebar-foreground transition-colors p-1"
+              className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sidebar-muted hover:text-sidebar-foreground transition-colors rounded-md"
               title={`${t('agents.globalChat.title', 'Chat')} (${isMac ? '⌘J' : 'Ctrl+J'})`}
               aria-label={t('agents.globalChat.openHint', 'Open chat (⌘J)')}
             >
@@ -348,7 +349,7 @@ export function AppLayout() {
               type="button"
               onClick={() => setPaletteOpen(true)}
               className={cn(
-                'group flex w-full items-center gap-2 rounded-lg border border-sidebar-border/80 bg-sidebar-accent/40 px-3 py-2',
+                'group flex w-full items-center gap-2 rounded-lg border border-sidebar-border/80 bg-sidebar-accent/40 px-3 py-2.5 min-h-[44px]',
                 'text-[12.5px] text-sidebar-muted transition-all',
                 'hover:bg-sidebar-accent hover:text-sidebar-foreground hover:border-sidebar-border',
               )}
@@ -397,7 +398,7 @@ export function AppLayout() {
                   data-tour={`nav-${item.key}`}
                   onClick={() => setSidebarOpen(false)}
                   className={cn(
-                    'flex items-center gap-3 text-[13px] font-medium transition-all rounded-lg px-3 py-2',
+                    'flex items-center gap-3 text-[13px] font-medium transition-all rounded-lg px-3 py-2.5 min-h-[44px]',
                     isActive
                       ? 'bg-primary/[0.08] text-primary border-l-[3px] border-primary pl-[9px]'
                       : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground',
@@ -452,7 +453,7 @@ export function AppLayout() {
                         key={acc.id}
                         to={`/accounts/${acc.id}`}
                         onClick={() => setSidebarOpen(false)}
-                        className="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all"
+                        className="flex items-center justify-between px-3 py-2.5 min-h-[44px] rounded-lg text-xs text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all"
                       >
                         <div className="truncate min-w-0">
                           <span className="block truncate font-medium">{getAccountName(acc)}</span>
@@ -521,7 +522,7 @@ export function AppLayout() {
 
         {/* Main content */}
         <main className="flex-1 min-h-screen overflow-x-hidden lg:ml-60">
-          <div className="p-6 max-w-7xl mx-auto">
+          <div className="px-3 py-4 sm:p-6 max-w-7xl mx-auto w-full min-w-0">
             {/* Active-collection filter (issue #105): sticky bar above the
                 content so the scope is visible right where the data is. */}
             <CollectionSelector variant="header" />
@@ -590,8 +591,8 @@ function UserMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0" aria-label={t('common.userMenu')}>
-          <Avatar className="h-8 w-8">
+        <Button variant="ghost" className="relative h-11 w-11 min-h-[44px] min-w-[44px] rounded-full p-0" aria-label={t('common.userMenu')}>
+          <Avatar className="h-9 w-9">
             <AvatarFallback
               className={
                 dark
