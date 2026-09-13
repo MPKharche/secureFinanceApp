@@ -30,6 +30,7 @@ const AssetsPage = lazy(() => import('@/pages/assets'))
 const LoansPage = lazy(() => import('@/pages/loans'))
 const LoanDetailPage = lazy(() => import('@/pages/loans/LoanDetailPage'))
 const ReportsPage = lazy(() => import('@/pages/reports'))
+const ReportsOverviewPage = lazy(() => import('@/pages/reports-overview'))
 const BalanceSheetPage = lazy(() => import('@/pages/balance-sheet'))
 const ProfitLossPage = lazy(() => import('@/pages/profit-loss'))
 const ForecastPage = lazy(() => import('@/pages/forecast'))
@@ -103,7 +104,9 @@ function App() {
                   <Route path="/assets" element={<Navigate to="/investments" replace />} />
                   {/* Kept so links minted before the importers were merged keep working. */}
                   <Route path="/assets/import" element={<Navigate to="/import?tab=investments" replace />} />
-                  <Route path="/reports" element={<ModuleRoute module="reports"><ReportsPage /></ModuleRoute>} />
+                  <Route path="/reports" element={<ModuleRoute module="reports"><ReportsOverviewPage /></ModuleRoute>} />
+                  <Route path="/reports/overview" element={<Navigate to="/reports" replace />} />
+                  <Route path="/reports/charts" element={<ModuleRoute module="reports"><ReportsPage /></ModuleRoute>} />
                   <Route path="/reports/balance-sheet" element={<ModuleRoute module="reports"><BalanceSheetPage /></ModuleRoute>} />
                   <Route path="/statements/balance-sheet" element={<Navigate to="/reports/balance-sheet" replace />} />
                   <Route path="/reports/profit-loss" element={<ModuleRoute module="reports"><ProfitLossPage /></ModuleRoute>} />
