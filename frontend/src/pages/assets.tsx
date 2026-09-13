@@ -902,7 +902,7 @@ export default function AssetsPage() {
   // columns stay aligned (and usable on narrow screens).
   function renderHoldingsTable(rows: Asset[]) {
     return (
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-x-auto">
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
         <div className="min-w-[720px]">
           {renderHoldingsHeader()}
           {rows.map(renderHoldingRow)}

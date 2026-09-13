@@ -1,5 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { formatCurrency } from '@/lib/format'
+import {
+  FrozenScrollTable,
+  FrozenTd,
+  FrozenTh,
+} from '@/components/ui/frozen-scroll-table'
 
 interface Entry {
   id: string
@@ -41,33 +46,39 @@ export function LoanScheduleTable({
   if (error) return <div className="py-8 text-center text-destructive">Failed to load schedule</div>
   if (!data?.length) return <div className="py-8 text-center text-muted-foreground">No schedule entries</div>
   return (
-    <div className="overflow-x-auto rounded-md border">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50">
-          <tr className="text-left">
-            <th className="p-2">#</th>
-            <th className="p-2">Due</th>
-            <th className="p-2">Principal</th>
-            <th className="p-2">Interest</th>
-            <th className="p-2">EMI</th>
-            <th className="p-2">Balance</th>
-            <th className="p-2">Status</th>
+    <FrozenScrollTable maxHeight="70vh" className="rounded-md">
+      <thead>
+        <tr>
+          <FrozenTh stickyLabel>#</FrozenTh>
+          <FrozenTh>Due</FrozenTh>
+          <FrozenTh align="right">Principal</FrozenTh>
+          <FrozenTh align="right">Interest</FrozenTh>
+          <FrozenTh align="right">EMI</FrozenTh>
+          <FrozenTh align="right">Balance</FrozenTh>
+          <FrozenTh>Status</FrozenTh>
+        </tr>
+      </thead>
+      <tbody>
+        {data.map((e) => (
+          <tr key={e.id}>
+            <FrozenTd stickyLabel>{e.emi_number}</FrozenTd>
+            <FrozenTd>{e.due_date}</FrozenTd>
+            <FrozenTd align="right">
+              {formatCurrency(Number(e.principal_component), currency, locale)}
+            </FrozenTd>
+            <FrozenTd align="right">
+              {formatCurrency(Number(e.interest_component), currency, locale)}
+            </FrozenTd>
+            <FrozenTd align="right">
+              {formatCurrency(Number(e.emi_amount), currency, locale)}
+            </FrozenTd>
+            <FrozenTd align="right">
+              {formatCurrency(Number(e.closing_balance), currency, locale)}
+            </FrozenTd>
+            <FrozenTd className="capitalize">{e.payment_status}</FrozenTd>
           </tr>
-        </thead>
-        <tbody>
-          {data.map((e) => (
-            <tr key={e.id} className="border-t">
-              <td className="p-2">{e.emi_number}</td>
-              <td className="p-2">{e.due_date}</td>
-              <td className="p-2">{formatCurrency(Number(e.principal_component), currency, locale)}</td>
-              <td className="p-2">{formatCurrency(Number(e.interest_component), currency, locale)}</td>
-              <td className="p-2">{formatCurrency(Number(e.emi_amount), currency, locale)}</td>
-              <td className="p-2">{formatCurrency(Number(e.closing_balance), currency, locale)}</td>
-              <td className="p-2 capitalize">{e.payment_status}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </FrozenScrollTable>
   )
 }

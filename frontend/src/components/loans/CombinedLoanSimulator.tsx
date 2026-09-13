@@ -8,6 +8,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { formatCurrency } from '@/lib/format'
+import {
+  FrozenScrollTable,
+  FrozenTd,
+  FrozenTh,
+} from '@/components/ui/frozen-scroll-table'
 import { localDateString } from '@/lib/date-utils'
 import { accounts as accountsApi } from '@/lib/api'
 
@@ -446,34 +451,32 @@ export function CombinedLoanSimulator({
                 </Card>
               </div>
 
-              <div className="overflow-auto max-h-64 border rounded-lg">
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-muted/80">
-                    <tr className="text-left">
-                      <th className="p-2">#</th>
-                      <th className="p-2">Due</th>
-                      <th className="p-2">Interest</th>
-                      <th className="p-2">Principal</th>
-                      <th className="p-2">Extra</th>
-                      <th className="p-2">Closing</th>
-                      <th className="p-2">Events</th>
+              <FrozenScrollTable maxHeight="16rem" className="text-xs">
+                  <thead>
+                    <tr>
+                      <FrozenTh stickyLabel className="text-xs">#</FrozenTh>
+                      <FrozenTh className="text-xs">Due</FrozenTh>
+                      <FrozenTh align="right" className="text-xs">Interest</FrozenTh>
+                      <FrozenTh align="right" className="text-xs">Principal</FrozenTh>
+                      <FrozenTh align="right" className="text-xs">Extra</FrozenTh>
+                      <FrozenTh align="right" className="text-xs">Closing</FrozenTh>
+                      <FrozenTh className="text-xs">Events</FrozenTh>
                     </tr>
                   </thead>
                   <tbody>
                     {result.timeline.slice(0, 60).map((row) => (
-                      <tr key={row.emi_number} className="border-t">
-                        <td className="p-2">{row.emi_number}</td>
-                        <td className="p-2">{row.due_date}</td>
-                        <td className="p-2">{formatCurrency(row.interest, currency, locale)}</td>
-                        <td className="p-2">{formatCurrency(row.principal, currency, locale)}</td>
-                        <td className="p-2">{formatCurrency(row.extra_principal, currency, locale)}</td>
-                        <td className="p-2">{formatCurrency(row.closing_balance, currency, locale)}</td>
-                        <td className="p-2 text-muted-foreground">{row.events.join(', ')}</td>
+                      <tr key={row.emi_number}>
+                        <FrozenTd stickyLabel className="text-xs">{row.emi_number}</FrozenTd>
+                        <FrozenTd className="text-xs">{row.due_date}</FrozenTd>
+                        <FrozenTd align="right" className="text-xs">{formatCurrency(row.interest, currency, locale)}</FrozenTd>
+                        <FrozenTd align="right" className="text-xs">{formatCurrency(row.principal, currency, locale)}</FrozenTd>
+                        <FrozenTd align="right" className="text-xs">{formatCurrency(row.extra_principal, currency, locale)}</FrozenTd>
+                        <FrozenTd align="right" className="text-xs">{formatCurrency(row.closing_balance, currency, locale)}</FrozenTd>
+                        <FrozenTd className="text-xs text-muted-foreground">{row.events.join(', ')}</FrozenTd>
                       </tr>
                     ))}
                   </tbody>
-                </table>
-              </div>
+              </FrozenScrollTable>
             </div>
           )}
         </CardContent>
