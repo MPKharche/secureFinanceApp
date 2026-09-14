@@ -1,7 +1,7 @@
 {
   "loan_id": "2586addb-6f3a-4693-b1bd-675ac08694e0",
   "name": "ICICI Commercial",
-  "display_name": "ICICI NRP \u00b7 7.75% float \u00b7 EMI \u20b91,21,543 \u00b7 tenor left 130 | Godrej Emerald Waters U114 Chinchwad (NOT Nexus) | TBPUN\u20265113 | Co-app Prerna | Rate 9\u21928.5\u21928\u21927.75 | Accrued\u2248\u20b918.4k@13-Sep | Stack NRP EMI+Pru before surplus",
+  "display_name": "ICICI NRP \u00b7 7.75% \u00b7 EMI \u20b91,21,543 \u00b7 tenor 130 | KM:disbursal_phases=5;pre_emi/partial\u2192full@May-26;rate_path=9\u21928.5\u21928\u21927.75;proj=cash_hist\u2192current_EMI | Godrej U114 | TBPUN\u20265113 | OS\u20b91.07Cr@13-Sep",
   "external_id": "TBPUN00006895113",
   "masked_number": "5113",
   "balance": "10669593.00",
@@ -9,22 +9,102 @@
   "interest_rate": "7.7500",
   "tenure_months": 163,
   "disbursed_on": "2023-11-28",
-  "schedule_version": 2,
+  "schedule_version": 4,
   "schedule_total": 163,
   "paid": 33,
   "pending": 130,
-  "marked_this_run": 11,
+  "paid_emi_sum": "2980606.00",
+  "paid_principal_sum": "1076907.00",
+  "paid_interest_sum": "1903699.00",
+  "early_emi_amounts": [
+    "107509.00",
+    "29198.00",
+    "59086.00",
+    "88889.00"
+  ],
+  "first_full_emi_date": "2026-05-05",
+  "first_full_emi_number": 29,
+  "disbursal_count": 5,
+  "pre_emi": {
+    "date": "2023-12-05",
+    "amount": "3599.00"
+  },
+  "km_assumptions": {
+    "disbursal_phases": [
+      {
+        "date": "2023-11-30",
+        "amount": "2878713.00"
+      },
+      {
+        "date": "2024-05-21",
+        "amount": "2918813.00"
+      },
+      {
+        "date": "2024-07-15",
+        "amount": "2889913.00"
+      },
+      {
+        "date": "2025-03-24",
+        "amount": "1767435.00"
+      },
+      {
+        "date": "2026-05-04",
+        "amount": "1291626.00"
+      }
+    ],
+    "pre_emi": {
+      "date": "2023-12-05",
+      "amount": "3599.00"
+    },
+    "partial_emi_until": "2026-05-05",
+    "full_emi": "121543.00",
+    "first_full_emi_date": "2026-05-05",
+    "rate_path": [
+      {
+        "eff": "2023-11-28",
+        "rate": "9.00"
+      },
+      {
+        "eff": "2024-02-01",
+        "rate": "9.00"
+      },
+      {
+        "eff": "2025-05-01",
+        "rate": "8.50"
+      },
+      {
+        "eff": "2025-08-01",
+        "rate": "8.00"
+      },
+      {
+        "eff": "2026-02-01",
+        "rate": "7.75"
+      }
+    ],
+    "projections": "actual_cash_history_to_asof_then_current_EMI_forward",
+    "do_not_flatten": true,
+    "statement_as_of": "2026-09-13",
+    "os_principal": "10669593.00",
+    "paid": 33,
+    "pending": 130
+  },
   "regenerated_future": 130,
   "future_instalments_sum": "15800571.01",
   "accrued_interest_note": "18375.00",
   "recurring_id": "75e260ee-bfdc-48ce-8537-cd81f0f16a81",
   "recurring_description": "ICICI NRP EMI \u2014 Godrej Emerald Waters U114 (TBPUN\u20265113)",
   "recurring_amount": "121543.00",
+  "recurring_start": "2026-09-05",
+  "recurring_next": "2026-10-05",
   "recurring_created": false,
   "savings_id": "fccfbc47-1ac7-4e5b-a9be-3a0607f923f4",
   "savings_external_id": "003901608757",
   "pru_untouched": true,
   "money_loan_url": "https://money.planetfinance.cloud/loans/2586addb-6f3a-4693-b1bd-675ac08694e0",
   "as_of": "2026-09-13",
-  "seeded_at": "2026-09-13T20:52:04.824649+00:00"
+  "seeded_at": "2026-09-14T02:24:00.177934+00:00",
+  "change_vs_old": {
+    "old": "flattened full EMI \u20b9121543 from sanction; 33 paid as full EMI",
+    "new": "5 disbursals; Pre-EMI+partial\u2192full; first full EMI 2026-05-05; paid EMI sum \u20b929,80,606; paid/pending still 33/130; OS \u20b910669593.00"
+  }
 }
