@@ -99,7 +99,7 @@ function newEvent(partial?: Partial<SimEvent>): SimEvent {
 function Sparkline({
   values,
   baseline,
-  color = '#10b981',
+  color = 'hsl(var(--chart-2, 160 84% 39%))',
 }: {
   values: number[]
   baseline?: number[]
@@ -123,7 +123,7 @@ function Sparkline({
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-20">
       {baseline && baseline.length > 1 && (
-        <path d={path(baseline)} fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="4 3" />
+        <path d={path(baseline)} fill="none" stroke="#64748b" strokeWidth="1.5" strokeDasharray="4 3" />
       )}
       <path d={path(values)} fill="none" stroke={color} strokeWidth="2" />
     </svg>
@@ -153,8 +153,8 @@ function StackedArea({
   const bottomLeft = `0,${h}`
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-24">
-      <polygon points={`${top} ${bottomRight} ${bottomLeft}`} fill="#f59e0b33" stroke="#f59e0b" strokeWidth="1" />
-      <polygon points={`${mid} ${bottomRight} ${bottomLeft}`} fill="#10b98155" stroke="#10b981" strokeWidth="1" />
+      <polygon points={`${top} ${bottomRight} ${bottomLeft}`} fill="#d9770633" stroke="#b45309" strokeWidth="1" />
+      <polygon points={`${mid} ${bottomRight} ${bottomLeft}`} fill="#05966955" stroke="#047857" strokeWidth="1" />
     </svg>
   )
 }
@@ -322,7 +322,7 @@ export function CombinedLoanSimulator({
         <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Calculator className="h-5 w-5" />
-            Combined scenario ground
+            Combined plan
           </CardTitle>
           <div className="flex items-center gap-2">
             <select
@@ -334,14 +334,13 @@ export function CombinedLoanSimulator({
               <option value="reduce_emi">Strategy: reduce EMI</option>
             </select>
             <Button onClick={() => runSim.mutate()} disabled={runSim.isPending}>
-              {runSim.isPending ? 'Running…' : 'Run combined sim'}
+              {runSim.isPending ? 'Running…' : 'Run plan'}
             </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Stack one-time prepays, recurring extras, rate changes, and EMI holidays on one timeline.
-            KPIs compare against a no-event baseline.
+            Stack prepays, extras, rate moves, and EMI pauses on one timeline. Compared to doing nothing.
           </p>
 
           <div className="space-y-3">
@@ -554,7 +553,7 @@ function Kpi({ label, value, accent }: { label: string; value: string; accent?: 
   return (
     <div className="rounded-lg border p-3">
       <div className="text-[11px] text-muted-foreground">{label}</div>
-      <div className={`text-lg font-semibold tabular-nums ${accent ? 'text-emerald-600' : ''}`}>{value}</div>
+      <div className={`text-lg font-semibold tabular-nums ${accent ? 'text-emerald-700 dark:text-emerald-300' : 'text-foreground'}`}>{value}</div>
     </div>
   )
 }

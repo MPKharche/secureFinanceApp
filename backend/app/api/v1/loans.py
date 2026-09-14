@@ -799,12 +799,26 @@ async def simulate_early_payment(
     account_id = uuid.UUID(simulation_data["account_id"])
     prepayment_amount = Decimal(str(simulation_data["prepayment_amount"]))
     prepayment_date = dt_date.fromisoformat(simulation_data.get("prepayment_date", date.today().isoformat()))
+    penalty_rate = (
+        Decimal(str(simulation_data["penalty_rate"]))
+        if simulation_data.get("penalty_rate") is not None
+        else None
+    )
+    penalty_basis = simulation_data.get("penalty_basis")
+    alt_return_pct = (
+        Decimal(str(simulation_data["alt_return_pct"]))
+        if simulation_data.get("alt_return_pct") is not None
+        else None
+    )
 
     result = await loan_simulation_service.simulate_early_payment(
         session=db,
         account_id=account_id,
         prepayment_amount=prepayment_amount,
         prepayment_date=prepayment_date,
+        penalty_rate=penalty_rate,
+        penalty_basis=penalty_basis,
+        alt_return_pct=alt_return_pct,
     )
 
     return result
@@ -818,15 +832,24 @@ async def simulate_preclosure(
 ):
     """Simulate loan pre-closure and calculate payoff amount."""
     from app.services import loan_simulation_service
+    from decimal import Decimal
     from datetime import date as dt_date
 
     account_id = uuid.UUID(simulation_data["account_id"])
     closure_date = dt_date.fromisoformat(simulation_data.get("closure_date", date.today().isoformat()))
+    penalty_rate = (
+        Decimal(str(simulation_data["penalty_rate"]))
+        if simulation_data.get("penalty_rate") is not None
+        else None
+    )
+    penalty_basis = simulation_data.get("penalty_basis")
 
     result = await loan_simulation_service.simulate_preclosure(
         session=db,
         account_id=account_id,
         closure_date=closure_date,
+        penalty_rate=penalty_rate,
+        penalty_basis=penalty_basis,
     )
 
     return result
@@ -838,7 +861,7 @@ async def simulate_interest_rate_change(
     db: AsyncSession = Depends(get_async_session),
     workspace: WorkspaceContext = Depends(current_workspace),
 ):
-    """Simulate impact of interest rate change."""
+    """Simulate rate change — keep EMI (cut tenure) AND keep tenure (change EMI)."""
     from app.services import loan_simulation_service
     from decimal import Decimal
     from datetime import date as dt_date
@@ -846,14 +869,37 @@ async def simulate_interest_rate_change(
     account_id = uuid.UUID(simulation_data["account_id"])
     new_interest_rate = Decimal(str(simulation_data["new_interest_rate"]))
     effective_from_date = dt_date.fromisoformat(simulation_data.get("effective_from_date", date.today().isoformat()))
+    include_ladder = simulation_data.get("include_ladder", True)
+    ladder_steps = simulation_data.get("ladder_steps")
 
     result = await loan_simulation_service.simulate_interest_rate_change(
         session=db,
         account_id=account_id,
         new_interest_rate=new_interest_rate,
         effective_from_date=effective_from_date,
+        include_ladder=bool(include_ladder),
+        ladder_steps=ladder_steps,
     )
 
+    return result
+
+
+@router.post("/simulations/rate-ladder")
+async def simulate_rate_ladder(
+    simulation_data: dict,
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_workspace),
+):
+    """Ready-reference table: stepped ±0.25 / ±0.5 / ±1.0 rate impacts."""
+    from app.services import loan_simulation_service
+
+    account_id = uuid.UUID(simulation_data["account_id"])
+    steps = simulation_data.get("steps")
+    result = await loan_simulation_service.simulate_rate_ladder(
+        session=db,
+        account_id=account_id,
+        steps=steps,
+    )
     return result
 
 
