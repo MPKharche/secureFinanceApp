@@ -140,3 +140,24 @@ def test_total_interest_positive():
     emi = calculate_emi(principal, rate, months)
     interest = total_interest_at(principal, rate, months, emi)
     assert interest > 0
+
+
+def test_invest_elsewhere_prefers_prepay_when_edge_positive():
+    cmp = invest_elsewhere_compare(
+        Decimal("100000"),
+        Decimal("80000"),
+        60,
+        Decimal("7"),
+        Decimal("2000"),
+    )
+    assert cmp["prepay_net_benefit"] == 78000.0
+    assert "alt_earnings" in cmp
+    assert isinstance(cmp["prefer_prepay"], bool)
+
+
+def test_invest_elsewhere_zero_horizon():
+    cmp = invest_elsewhere_compare(
+        Decimal("10000"), Decimal("5000"), 0, Decimal("7"), Decimal("0")
+    )
+    assert cmp["alt_earnings"] == 0.0
+    assert cmp["prepay_net_benefit"] == 5000.0

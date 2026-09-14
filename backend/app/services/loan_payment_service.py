@@ -10,7 +10,12 @@ from app.models.account import Account
 from app.models.loan_schedule import LoanAmortizationSchedule
 from app.models.loan_prepayment import LoanPrepayment
 from app.models.transaction import Transaction
+from app.services.credit_card_service import apply_effective_date
 from app.services.loan_schedule_service import calculate_emi, regenerate_schedule
+from app.services.loan_simulation_service import (
+    calc_penalty,
+    default_penalty_assumption,
+)
 
 
 async def auto_link_transactions(
@@ -283,8 +288,16 @@ async def record_prepayment(
     prepayment_date: date,
     method: str,
     transaction_id: Optional[uuid.UUID] = None,
+    user_id: Optional[uuid.UUID] = None,
+    penalty_rate: Optional[Decimal] = None,
+    penalty_basis: Optional[str] = None,
 ) -> LoanPrepayment:
-    """Record a prepayment and regenerate schedule."""
+    """Record a prepayment and regenerate schedule.
+
+    When penalty_rate > 0, books a real ledger Transaction for the fee
+    (NRP/commercial default 2% of outstanding; retail HL often 0%).
+    Does not invent EMI for Pru / interest-only — schedule regen only.
+    """
     # Fetch account
     result = await session.execute(select(Account).where(Account.id == account_id))
     account = result.scalar_one()
@@ -308,6 +321,8 @@ async def record_prepayment(
 
     # Calculate new principal
     current_outstanding = next_entry.opening_balance if next_entry else account.balance
+    if current_outstanding is None:
+        current_outstanding = Decimal("0")
     new_principal = current_outstanding - prepayment_amount
 
     old_version = account.current_schedule_version
@@ -348,6 +363,55 @@ async def record_prepayment(
         remaining_before = account.tenure_months - (from_emi_number - 1)
         account.tenure_months = account.tenure_months - (remaining_before - new_tenure)
 
+    # Resolve penalty chip (NRP U114 → 2% of OS; retail HL can be 0%)
+    defaults = default_penalty_assumption(account)
+    resolved_rate = (
+        penalty_rate
+        if penalty_rate is not None
+        else Decimal(str(defaults["penalty_rate"]))
+    )
+    resolved_basis = penalty_basis or defaults["penalty_basis"]
+    penalty_amount = calc_penalty(
+        resolved_rate, resolved_basis, current_outstanding, prepayment_amount
+    )
+
+    penalty_tx_id: Optional[uuid.UUID] = None
+    if penalty_amount > 0 and user_id is not None:
+        basis_label = (
+            "of outstanding" if resolved_basis == "outstanding" else "of prepay amount"
+        )
+        loan_label = account.display_name or account.name or "Loan"
+        penalty_tx = Transaction(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            workspace_id=account.workspace_id,
+            account_id=account_id,
+            description=f"Prepayment penalty · {float(resolved_rate):g}% {basis_label}",
+            amount=penalty_amount,
+            currency=account.currency or "USD",
+            date=prepayment_date,
+            type="debit",
+            status="posted",
+            source="manual",
+            notes=(
+                f"Loan prepayment fee on {loan_label}. "
+                f"Basis={resolved_basis}; rate={resolved_rate}; "
+                f"prepay={prepayment_amount}; OS={current_outstanding}. "
+                "Does not change principal — fee only."
+            ),
+            raw_data={
+                "kind": "loan_prepayment_penalty",
+                "penalty_rate": float(resolved_rate),
+                "penalty_basis": resolved_basis,
+                "prepayment_amount": float(prepayment_amount),
+                "outstanding": float(current_outstanding),
+            },
+        )
+        apply_effective_date(penalty_tx, account)
+        session.add(penalty_tx)
+        await session.flush()
+        penalty_tx_id = penalty_tx.id
+
     # Create prepayment record
     prepayment = LoanPrepayment(
         id=uuid.uuid4(),
@@ -361,10 +425,14 @@ async def record_prepayment(
         schedule_version_after=account.current_schedule_version,
         tenure_change_months=tenure_change,
         emi_change_amount=emi_change,
+        penalty_amount=penalty_amount if penalty_amount > 0 else None,
+        penalty_rate=resolved_rate if penalty_amount > 0 else None,
+        penalty_basis=resolved_basis if penalty_amount > 0 else None,
+        penalty_transaction_id=penalty_tx_id,
     )
     session.add(prepayment)
 
-    # Update account totals
+    # Update account totals (principal only — penalty is fee, not OS)
     account.total_prepayments += prepayment_amount
     account.balance = new_principal
 

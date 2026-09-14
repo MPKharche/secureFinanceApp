@@ -21,6 +21,12 @@ class CombinedSimulationRequest(BaseModel):
     events: list[CombinedSimEvent] = Field(default_factory=list)
     strategy: str = Field("reduce_tenure", pattern="^(reduce_tenure|reduce_emi)$")
     as_of_date: Optional[date] = None
+    # Parity with Sims tab invest-elsewhere compare
+    alt_return_pct: Optional[Decimal] = Field(None, ge=0)
+    penalty_rate: Optional[Decimal] = Field(None, ge=0)
+    penalty_basis: Optional[str] = Field(
+        None, pattern="^(outstanding|prepayment_amount)$"
+    )
 
 
 class CommitmentCreate(BaseModel):

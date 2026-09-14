@@ -39,6 +39,7 @@ def test_loan_schedule_entry_read_serialization():
 def test_prepayment_create_validation():
     """Test PrepaymentCreate validates required fields."""
     data = {
+        "account_id": uuid.uuid4(),
         "prepayment_amount": Decimal("50000.00"),
         "prepayment_date": date(2026, 12, 15),
         "recalculation_method": "reduce_emi",
@@ -70,3 +71,17 @@ def test_prepayment_simulation_structure():
     simulation = PrepaymentSimulation(**data)
     assert simulation.reduce_emi_option.new_emi_amount == Decimal("9500.00")
     assert simulation.reduce_tenure_option.months_saved == 5
+
+
+def test_prepayment_create_accepts_penalty_chips():
+    data = {
+        "account_id": uuid.uuid4(),
+        "prepayment_amount": Decimal("50000.00"),
+        "prepayment_date": date(2026, 12, 15),
+        "recalculation_method": "reduce_tenure",
+        "penalty_rate": Decimal("2"),
+        "penalty_basis": "outstanding",
+    }
+    prepayment = PrepaymentCreate(**data)
+    assert prepayment.penalty_rate == Decimal("2")
+    assert prepayment.penalty_basis == "outstanding"

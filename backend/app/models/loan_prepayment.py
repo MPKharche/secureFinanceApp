@@ -36,9 +36,21 @@ class LoanPrepayment(Base):
     schedule_version_after: Mapped[int] = mapped_column(Integer)
     tenure_change_months: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     emi_change_amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(precision=15, scale=2), nullable=True)
+    # Fee booked to ledger when apply includes a non-zero penalty chip
+    penalty_amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(precision=15, scale=2), nullable=True)
+    penalty_rate: Mapped[Optional[Decimal]] = mapped_column(Numeric(precision=8, scale=4), nullable=True)
+    penalty_basis: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    penalty_transaction_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transactions.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
     account: Mapped["Account"] = relationship(back_populates="loan_prepayments")
-    transaction: Mapped[Optional["Transaction"]] = relationship()
+    transaction: Mapped[Optional["Transaction"]] = relationship(
+        foreign_keys=[transaction_id],
+    )
+    penalty_transaction: Mapped[Optional["Transaction"]] = relationship(
+        foreign_keys=[penalty_transaction_id],
+    )

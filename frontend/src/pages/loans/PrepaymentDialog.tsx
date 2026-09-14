@@ -6,6 +6,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { localDateString } from '@/lib/date-utils'
+import { toast } from 'sonner'
 
 interface Props {
   accountId: string
@@ -58,6 +59,16 @@ export function PrepaymentDialog({
         }),
       })
       if (!response.ok) throw new Error(await response.text())
+      const data = await response.json()
+      if (data.penalty_amount && data.penalty_amount > 0) {
+        const basis =
+          data.penalty_basis === 'outstanding' ? 'of outstanding' : 'of prepay'
+        toast.success(
+          `Prepay applied · penalty booked as ledger fee (${data.penalty_rate}% ${basis})`,
+        )
+      } else {
+        toast.success('Prepay applied')
+      }
       onOpenChange(false)
       onSuccess?.()
     } catch (e: any) {
