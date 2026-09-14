@@ -47,3 +47,74 @@ export function getAccountLabel(account: {
   const mask = formatAccountMask(account)
   return mask ? `${name} ${mask}` : name
 }
+
+/**
+ * Borrower-facing loan title: strip KM/meta chips, rate/EMI/OS noise.
+ * Numbers live in hero chips — title stays a short product name.
+ */
+export function clientLoanTitle(
+  raw: string | null | undefined,
+  fallback = 'Loan',
+): string {
+  if (!raw?.trim()) return fallback
+
+  const parts = raw
+    .split('|')
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  const kept: string[] = []
+  for (const p of parts) {
+    const low = p.toLowerCase()
+    if (/^km:/.test(low) || /\bkm:/.test(low)) continue
+    if (/do_not_flatten|no_flatten/.test(low)) continue
+    if (/^foreclose/.test(low)) continue
+    if (/^os[\s₹rs]/i.test(p)) continue
+    if (/^tbpun/i.test(p.replace(/\s/g, ''))) continue
+    kept.push(p)
+  }
+
+  // Name lives before an em-dash annotation (e.g. "— NO EMI …")
+  let primary = (kept[0] || fallback).split(/\s*[—]\s*/)[0].trim()
+
+  const tokens = primary.split(/\s*[·•]\s*/).map((x) => x.trim()).filter(Boolean)
+  const clean: string[] = []
+  for (const tok of tokens) {
+    if (/^\d+(?:\.\d+)?%$/.test(tok)) break
+    if (/^EMI\b/i.test(tok)) break
+    if (/^tenor\b/i.test(tok)) break
+    if (/^NO EMI\b/i.test(tok)) break
+    if (/^half-yr/i.test(tok)) break
+    if (/^O\/S\b/i.test(tok)) break
+    if (/^prin\b/i.test(tok)) break
+    if (/^OS\b/i.test(tok)) break
+    if (/\([^)]*paid/i.test(tok)) break
+    clean.push(tok)
+  }
+
+  let title = clean.join(' · ') || fallback
+
+  const place = kept[1]
+  if (
+    place &&
+    place.length <= 36 &&
+    !/[;:=]/.test(place) &&
+    !/km:|flatten|foreclose/i.test(place) &&
+    !title.includes(place)
+  ) {
+    title = `${title} · ${place}`
+  }
+
+  return title || fallback
+}
+
+/** Format next due for hero chips; empty → em dash. */
+export function formatLoanNextDue(
+  nextDue: string | null | undefined,
+  locale = 'en-IN',
+): string {
+  if (!nextDue) return '—'
+  const d = new Date(`${nextDue}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return nextDue
+  return d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })
+}

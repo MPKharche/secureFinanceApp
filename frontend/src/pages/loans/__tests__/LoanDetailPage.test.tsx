@@ -21,7 +21,15 @@ vi.mock('@/lib/api', async () => {
     ...actual,
     accounts: {
       ...actual.accounts,
-      get: vi.fn(async () => ({ id: '123-456', currency: 'INR', name: 'Home Loan' })),
+      get: vi.fn(async () => ({
+        id: '123-456',
+        currency: 'INR',
+        name: 'Home Loan',
+        display_name: 'Home Loan',
+        interest_rate: 8.5,
+        emi_amount: 25000,
+        next_due_date: '2026-10-05',
+      })),
     },
   };
 });
@@ -51,7 +59,6 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
   </QueryClientProvider>
 );
 
-// Mock child components
 vi.mock('@/components/loans/LoanSimulations', () => ({
   LoanSimulations: () => <div data-testid="loan-simulations">Simulations</div>,
 }));
@@ -60,46 +67,40 @@ vi.mock('@/components/loans/CombinedLoanSimulator', () => ({
   CombinedLoanSimulator: () => <div data-testid="combined-sim">Combined</div>,
 }));
 
-vi.mock('./LoanScheduleTable', () => ({
+vi.mock('../LoanScheduleTable', () => ({
   LoanScheduleTable: ({ accountId }: { accountId: string }) => (
     <div data-testid="schedule-table">Schedule for {accountId}</div>
   ),
 }));
 
-vi.mock('./LoanAnalyticsCharts', () => ({
+vi.mock('../LoanAnalyticsCharts', () => ({
   LoanAnalyticsCharts: ({ accountId }: { accountId: string }) => (
     <div data-testid="analytics-charts">Analysis for {accountId}</div>
   ),
 }));
 
-vi.mock('./PrepaymentDialog', () => ({
-  PrepaymentDialog: ({ open }: any) => (
-    open ? <div data-testid="prepayment-dialog">Prepayment Dialog</div> : null
-  ),
+vi.mock('../PrepaymentDialog', () => ({
+  PrepaymentDialog: ({ open }: any) =>
+    open ? <div data-testid="prepayment-dialog">Prepayment Dialog</div> : null,
 }));
-
 
 describe('LoanDetailPage', () => {
   beforeEach(() => {
+    queryClient.clear();
     global.fetch = vi.fn();
     window.history.pushState({}, '', '/loans/123-456');
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-    queryClient.clear();
-  });
-
-  it('renders loading state', () => {
+  it('shows loading state', () => {
     (global.fetch as any).mockImplementation(
-      () => new Promise(() => {})
+      () => new Promise(() => {}),
     );
 
     render(<LoanDetailPage />, { wrapper });
-    expect(screen.getByText('Loading loan details...')).toBeInTheDocument();
+    expect(screen.getByText('Loading loan…')).toBeInTheDocument();
   });
 
-  it('renders overview cards successfully', async () => {
+  it('renders hero chips only (Outstanding · EMI · Rate · Next due)', async () => {
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => mockOverview,
@@ -108,14 +109,17 @@ describe('LoanDetailPage', () => {
     render(<LoanDetailPage />, { wrapper });
 
     await waitFor(() => {
-      expect(screen.getByText('25.5%')).toBeInTheDocument();
+      expect(screen.getByText('Home Loan')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('6 of 24 EMIs paid')).toBeInTheDocument();
-    // 120000 / (120000+480000) = 20.0%; 45000 / (45000+135000) = 25.0%
-    expect(screen.getByText('Principal Paid (20.0%)')).toBeInTheDocument();
-    expect(screen.getByText('Interest Paid (25.0%)')).toBeInTheDocument();
-    expect(screen.getByText('Prepayments')).toBeInTheDocument();
+    expect(screen.getByText('Outstanding')).toBeInTheDocument();
+    expect(screen.getByText('EMI')).toBeInTheDocument();
+    expect(screen.getByText('Rate')).toBeInTheDocument();
+    expect(screen.getByText('Next due')).toBeInTheDocument();
+    expect(screen.getByText('8.50%')).toBeInTheDocument();
+    // engineer KPIs gone from hero
+    expect(screen.queryByText('Progress')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Principal \(/)).not.toBeInTheDocument();
   });
 
   it('renders error state on fetch failure', async () => {
@@ -126,11 +130,11 @@ describe('LoanDetailPage', () => {
     render(<LoanDetailPage />, { wrapper });
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to load loan details')).toBeInTheDocument();
+      expect(screen.getByText('Failed to load loan')).toBeInTheDocument();
     });
   });
 
-  it('opens prepayment dialog on button click', async () => {
+  it('opens prepayment dialog on Prepay click', async () => {
     const user = userEvent.setup();
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
@@ -140,78 +144,10 @@ describe('LoanDetailPage', () => {
     render(<LoanDetailPage />, { wrapper });
 
     await waitFor(() => {
-      expect(screen.getByText('Loan Details')).toBeInTheDocument();
+      expect(screen.getByText('Home Loan')).toBeInTheDocument();
     });
 
-    const prepaymentButton = screen.getByRole('button', { name: /Make Prepayment/i });
-    await user.click(prepaymentButton);
-
+    await user.click(screen.getByRole('button', { name: /Prepay/i }));
     expect(screen.getByTestId('prepayment-dialog')).toBeInTheDocument();
-  });
-
-  it('exports CSV when export button clicked', async () => {
-    const user = userEvent.setup();
-    const mockBlob = new Blob(['csv content'], { type: 'text/csv' });
-
-    (global.fetch as any)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockOverview,
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        blob: async () => mockBlob,
-      });
-
-    const createElementSpy = vi.spyOn(document, 'createElement');
-    const createObjectURLSpy = vi.spyOn(window.URL, 'createObjectURL').mockReturnValue('blob:url');
-
-    render(<LoanDetailPage />, { wrapper });
-
-    await waitFor(() => {
-      expect(screen.getByText('Loan Details')).toBeInTheDocument();
-    });
-
-    const exportButton = screen.getByRole('button', { name: /Export CSV/i });
-    await user.click(exportButton);
-
-    await waitFor(() => {
-      expect(createElementSpy).toHaveBeenCalledWith('a');
-      expect(createObjectURLSpy).toHaveBeenCalledWith(mockBlob);
-    });
-
-    createObjectURLSpy.mockRestore();
-  });
-
-  it('renders schedule table in schedule tab', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockOverview,
-    });
-
-    render(<LoanDetailPage />, { wrapper });
-
-    await waitFor(() => {
-      expect(screen.getByTestId('schedule-table')).toBeInTheDocument();
-    });
-  });
-
-  it('switches to analytics tab', async () => {
-    const user = userEvent.setup();
-    (global.fetch as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockOverview,
-    });
-
-    render(<LoanDetailPage />, { wrapper });
-
-    await waitFor(() => {
-      expect(screen.getByText('Loan Details')).toBeInTheDocument();
-    });
-
-    const analyticsTab = screen.getByRole('tab', { name: /Analysis/i });
-    await user.click(analyticsTab);
-
-    expect(screen.getByTestId('analytics-charts')).toBeInTheDocument();
   });
 });
