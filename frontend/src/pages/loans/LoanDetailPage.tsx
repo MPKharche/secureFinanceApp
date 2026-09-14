@@ -14,7 +14,7 @@ import { PrepaymentDialog } from './PrepaymentDialog';
 import { LoanAnalyticsCharts } from './LoanAnalyticsCharts';
 import { LoanSimulations } from '@/components/loans/LoanSimulations';
 import { CombinedLoanSimulator } from '@/components/loans/CombinedLoanSimulator';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 interface LoanOverview {
   progress_percent: number;
@@ -41,9 +41,25 @@ function completionPercent(paid: number, remaining: number, fromApi?: number): n
   return (safePaid / total) * 100;
 }
 
+function detectNrpOrCommercial(account: {
+  name?: string;
+  display_name?: string | null;
+  notes?: string | null;
+  loan_kind?: string | null;
+} | undefined): boolean {
+  if (!account) return false;
+  const blob = `${account.display_name || ''} ${account.name || ''} ${account.notes || ''} ${account.loan_kind || ''}`.toLowerCase();
+  return ['nrp', 'commercial', 'tbpun', 'unit 114', 'u114', 'godrej emerald'].some((m) =>
+    blob.includes(m),
+  );
+}
+
 async function fetchLoanOverview(accountId: string): Promise<LoanOverview> {
   const response = await fetch(`/api/v1/loans/${accountId}/overview`, {
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'X-Workspace-Id': localStorage.getItem('workspace_id') || '' },
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('token')}`,
+      'X-Workspace-Id': localStorage.getItem('workspace_id') || '',
+    },
   });
   if (!response.ok) throw new Error('Failed to fetch loan overview');
   return response.json();
@@ -51,7 +67,10 @@ async function fetchLoanOverview(accountId: string): Promise<LoanOverview> {
 
 async function exportScheduleCSV(accountId: string) {
   const response = await fetch(`/api/v1/loans/${accountId}/schedule/export`, {
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'X-Workspace-Id': localStorage.getItem('workspace_id') || '' },
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('token')}`,
+      'X-Workspace-Id': localStorage.getItem('workspace_id') || '',
+    },
   });
   if (!response.ok) throw new Error('Failed to export schedule');
 
@@ -86,11 +105,14 @@ export function LoanDetailPage() {
   });
 
   const currency = account?.currency ?? userCurrency;
+  const isNrp = useMemo(() => detectNrpOrCommercial(account), [account]);
+  const currentRate = Number(account?.interest_rate ?? 0);
+  const currentEmi = Number(account?.emi_amount ?? 0);
 
   if (isLoading) {
     return (
       <div className="container mx-auto py-8">
-        <div className="flex justify-center">Loading loan details...</div>
+        <div className="flex justify-center text-muted-foreground">Loading loan details...</div>
       </div>
     );
   }
@@ -113,128 +135,177 @@ export function LoanDetailPage() {
     }
   };
 
+  const principalPaid = parseFloat(overview.principal_paid);
+  const principalRemaining = parseFloat(overview.principal_remaining);
+  const interestPaid = parseFloat(overview.interest_paid);
+  const interestRemaining = Math.max(parseFloat(overview.interest_remaining) || 0, 0);
+
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Loan Details</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => refetch()}>
-            <RefreshCw className="h-4 w-4 mr-2" />
+    <div className="container mx-auto py-6 sm:py-8 space-y-5 px-3 sm:px-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            {account?.display_name || account?.name || 'Loan'}
+          </h1>
+          {currentRate > 0 && (
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+              {currentRate.toFixed(2)}%
+              {currentEmi > 0 && (
+                <>
+                  {' '}
+                  · EMI {formatCurrency(currentEmi, currency, locale)}
+                </>
+              )}
+              {currentEmi <= 0 && <> · No EMI</>}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="h-4 w-4 mr-1.5" />
             Refresh
           </Button>
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
+          <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-1.5" />
+            Export
           </Button>
-          <Button onClick={() => setPrepaymentDialogOpen(true)}>
-            <DollarSign className="h-4 w-4 mr-2" />
-            Make Prepayment
+          <Button size="sm" onClick={() => setPrepaymentDialogOpen(true)}>
+            <DollarSign className="h-4 w-4 mr-1.5" />
+            Prepay
           </Button>
         </div>
       </div>
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Progress</CardTitle>
+      {/* Overview — high-contrast KPI strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+        <Card className="border-border bg-card">
+          <CardHeader className="pb-1 pt-3 px-3 sm:px-4">
+            <CardTitle className="text-[11px] sm:text-xs font-medium text-muted-foreground">
+              Progress
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{overview.progress_percent.toFixed(1)}%</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {overview.emis_paid} of {overview.emis_paid + overview.emis_remaining} EMIs paid
+          <CardContent className="px-3 sm:px-4 pb-3">
+            <div className="text-xl sm:text-2xl font-bold tabular-nums text-foreground">
+              {overview.progress_percent.toFixed(1)}%
+            </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+              {overview.emis_paid} of {overview.emis_paid + overview.emis_remaining} EMIs
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Principal Paid ({completionPercent(
-                parseFloat(overview.principal_paid),
-                parseFloat(overview.principal_remaining),
+        <Card className="border-border bg-card">
+          <CardHeader className="pb-1 pt-3 px-3 sm:px-4">
+            <CardTitle className="text-[11px] sm:text-xs font-medium text-muted-foreground">
+              Principal (
+              {completionPercent(
+                principalPaid,
+                principalRemaining,
                 overview.principal_progress_percent,
-              ).toFixed(1)}%)
+              ).toFixed(1)}
+              %)
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(parseFloat(overview.principal_paid), currency, locale)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Remaining: {formatCurrency(parseFloat(overview.principal_remaining), currency, locale)}
+          <CardContent className="px-3 sm:px-4 pb-3">
+            <div className="text-xl sm:text-2xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
+              {formatCurrency(principalPaid, currency, locale)}
+            </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+              Left {formatCurrency(principalRemaining, currency, locale)}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Interest Paid ({completionPercent(
-                parseFloat(overview.interest_paid),
-                parseFloat(overview.interest_remaining),
+        <Card className="border-border bg-card">
+          <CardHeader className="pb-1 pt-3 px-3 sm:px-4">
+            <CardTitle className="text-[11px] sm:text-xs font-medium text-muted-foreground">
+              Interest (
+              {completionPercent(
+                interestPaid,
+                interestRemaining,
                 overview.interest_progress_percent,
-              ).toFixed(1)}%)
+              ).toFixed(1)}
+              %)
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(parseFloat(overview.interest_paid), currency, locale)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Remaining: {formatCurrency(Math.max(parseFloat(overview.interest_remaining) || 0, 0), currency, locale)}
+          <CardContent className="px-3 sm:px-4 pb-3">
+            <div className="text-xl sm:text-2xl font-bold tabular-nums text-foreground">
+              {formatCurrency(interestPaid, currency, locale)}
+            </div>
+            <p className="text-[10px] sm:text-xs text-rose-700/80 dark:text-rose-300/80 mt-0.5">
+              Left {formatCurrency(interestRemaining, currency, locale)}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Prepayments</CardTitle>
+        <Card className="border-border bg-card">
+          <CardHeader className="pb-1 pt-3 px-3 sm:px-4">
+            <CardTitle className="text-[11px] sm:text-xs font-medium text-muted-foreground">
+              Prepayments
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(parseFloat(overview.total_prepayments), currency, locale)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Total prepaid</p>
+          <CardContent className="px-3 sm:px-4 pb-3">
+            <div className="text-xl sm:text-2xl font-bold tabular-nums text-sky-700 dark:text-sky-300">
+              {formatCurrency(parseFloat(overview.total_prepayments), currency, locale)}
+            </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Total prepaid</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabs */}
       <Tabs defaultValue="schedule" className="w-full">
-        <TabsList>
-          <TabsTrigger value="schedule">Schedule</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="simulations">Simulations</TabsTrigger>
-          <TabsTrigger value="combined">Combined plan</TabsTrigger>
+        <TabsList className="h-auto flex flex-wrap w-full sm:w-auto gap-0.5">
+          <TabsTrigger value="schedule" className="text-xs sm:text-sm">
+            Schedule
+          </TabsTrigger>
+          <TabsTrigger value="analysis" className="text-xs sm:text-sm">
+            Analysis
+          </TabsTrigger>
+          <TabsTrigger value="simulations" className="text-xs sm:text-sm">
+            Simulations
+          </TabsTrigger>
+          <TabsTrigger value="combined" className="text-xs sm:text-sm">
+            Combined plan
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="schedule" className="mt-4">
           <LoanScheduleTable accountId={accountId!} currency={currency} locale={locale} />
         </TabsContent>
 
-        <TabsContent value="analytics" className="mt-4">
+        <TabsContent value="analysis" className="mt-4">
           <LoanAnalyticsCharts accountId={accountId!} currency={currency} locale={locale} />
         </TabsContent>
 
         <TabsContent value="simulations" className="mt-4">
           <LoanSimulations
             accountId={accountId!}
-            currentEmi={parseFloat(overview.principal_paid) + parseFloat(overview.interest_paid)}
-            outstandingBalance={parseFloat(overview.principal_remaining)}
-            currentRate={0}
+            currentEmi={currentEmi}
+            outstandingBalance={principalRemaining}
+            currentRate={currentRate}
             remainingMonths={overview.emis_remaining}
             currency={currency}
             locale={locale}
+            isNrpOrCommercial={isNrp}
           />
         </TabsContent>
 
         <TabsContent value="combined" className="mt-4">
-          <CombinedLoanSimulator accountId={accountId!} currency={currency} locale={locale} />
+          <CombinedLoanSimulator
+            accountId={accountId!}
+            currentRate={currentRate}
+            currency={currency}
+            locale={locale}
+          />
         </TabsContent>
       </Tabs>
 
-      {/* Prepayment Dialog */}
       <PrepaymentDialog
         accountId={accountId!}
         open={prepaymentDialogOpen}
         onOpenChange={setPrepaymentDialogOpen}
         onSuccess={() => refetch()}
+        isNrpOrCommercial={isNrp}
       />
     </div>
   );

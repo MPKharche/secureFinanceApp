@@ -68,7 +68,7 @@ vi.mock('./LoanScheduleTable', () => ({
 
 vi.mock('./LoanAnalyticsCharts', () => ({
   LoanAnalyticsCharts: ({ accountId }: { accountId: string }) => (
-    <div data-testid="analytics-charts">Analytics for {accountId}</div>
+    <div data-testid="analytics-charts">Analysis for {accountId}</div>
   ),
 }));
 
@@ -209,7 +209,7 @@ describe('LoanDetailPage', () => {
       expect(screen.getByText('Loan Details')).toBeInTheDocument();
     });
 
-    const analyticsTab = screen.getByRole('tab', { name: /Analytics/i });
+    const analyticsTab = screen.getByRole('tab', { name: /Analysis/i });
     await user.click(analyticsTab);
 
     expect(screen.getByTestId('analytics-charts')).toBeInTheDocument();
