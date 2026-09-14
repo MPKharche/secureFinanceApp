@@ -417,8 +417,11 @@ async def generate_interest_only_schedule(
     if version is None:
         version = (account.current_schedule_version or 0) + 1
     account.current_schedule_version = version
-    # Half-yearly interest charge is the contractual "EMI" for interest-only.
-    account.emi_amount = interest_amount
+    # Policy / interest-only loans have no contractual EMI — repayment is
+    # voluntary (foreclosure vs SV). Leave emi_amount unset so list/overview
+    # do not invent a monthly EMI. Period interest lives on schedule rows and
+    # optional recurring reminders.
+    account.emi_amount = None
 
     entries: list[LoanAmortizationSchedule] = []
     for i in range(1, periods + 1):
