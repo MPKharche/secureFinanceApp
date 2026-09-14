@@ -93,7 +93,7 @@ function HeroChip({
           : 'text-foreground';
   return (
     <div className="rounded-lg border border-border bg-card px-3 py-2.5 sm:px-4 sm:py-3 min-w-0">
-      <div className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      <div className="text-[10px] sm:text-[11px] font-medium text-muted-foreground">
         {label}
       </div>
       <div
@@ -126,6 +126,29 @@ export function LoanDetailPage() {
     queryKey: ['accounts', accountId],
     queryFn: () => accounts.get(accountId!),
     enabled: !!accountId,
+  });
+
+  const { data: nextDueFromSchedule } = useQuery({
+    queryKey: ['loan-next-due', accountId],
+    queryFn: async () => {
+      const response = await fetch(`/api/v1/loans/${accountId}/schedule`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'X-Workspace-Id': localStorage.getItem('workspace_id') || '',
+        },
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      const rows: Array<{ due_date?: string; status?: string; payment_status?: string }> =
+        Array.isArray(data) ? data : data.items || data.schedule || [];
+      const next = rows.find((r) => {
+        const st = (r.status || r.payment_status || '').toLowerCase();
+        return st !== 'paid' && st !== 'completed' && !!r.due_date;
+      });
+      return next?.due_date ?? null;
+    },
+    enabled: !!accountId,
+    staleTime: 60_000,
   });
 
   const currency = account?.currency ?? userCurrency;
@@ -165,7 +188,9 @@ export function LoanDetailPage() {
     currentEmi > 0 ? formatCurrency(currentEmi, currency, locale) : 'No EMI';
   const rateLabel = currentRate > 0 ? `${currentRate.toFixed(2)}%` : '—';
   const nextDueLabel = formatLoanNextDue(
-    (account as { next_due_date?: string | null } | undefined)?.next_due_date,
+    (account as { next_due_date?: string | null } | undefined)?.next_due_date ||
+      nextDueFromSchedule ||
+      null,
     locale,
   );
 
