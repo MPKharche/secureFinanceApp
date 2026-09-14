@@ -217,7 +217,7 @@ function Signed({
 
 export function LoanSimulations({
   accountId,
-  currentEmi,
+  currentEmi: _currentEmi,
   outstandingBalance: _outstandingBalance,
   currentRate,
   remainingMonths: _remainingMonths,
@@ -225,6 +225,7 @@ export function LoanSimulations({
   locale = 'en-US',
   isNrpOrCommercial = false,
 }: LoanSimulationsProps) {
+  void _currentEmi
   void _outstandingBalance
   void _remainingMonths
 
