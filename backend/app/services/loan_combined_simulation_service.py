@@ -15,6 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.account import Account
 from app.models.loan_schedule import LoanAmortizationSchedule
 from app.services.loan_schedule_service import calculate_emi
+from app.services.loan_simulation_service import (
+    calc_penalty,
+    default_penalty_assumption,
+    invest_elsewhere_compare,
+)
 
 TWO = Decimal("0.01")
 
@@ -328,6 +333,9 @@ async def simulate_combined(
     events: list[dict],
     strategy: str = "reduce_tenure",
     as_of_date: Optional[date] = None,
+    alt_return_pct: Optional[Decimal] = None,
+    penalty_rate: Optional[Decimal] = None,
+    penalty_basis: Optional[str] = None,
 ) -> dict:
     as_of = as_of_date or date.today()
     account, principal, rate, emi, start_anchor, emi_day = await _loan_starting_point(
@@ -359,6 +367,37 @@ async def simulate_combined(
     months_saved = base_sum["months"] - scen_sum["months"]
     interest_saved = _q(Decimal(str(base_sum["total_interest"])) - Decimal(str(scen_sum["total_interest"])))
 
+    # Total cash deployed as extras in the plan (for invest-elsewhere parity)
+    total_extra = sum((s.extra_principal for s in scenario), Decimal("0.00"))
+    total_extra = _q(total_extra)
+
+    penalty_defaults = default_penalty_assumption(account)
+    resolved_rate = (
+        penalty_rate
+        if penalty_rate is not None
+        else Decimal(str(penalty_defaults["penalty_rate"]))
+    )
+    resolved_basis = penalty_basis or penalty_defaults["penalty_basis"]
+    # Combined: fee estimated on total extras vs starting OS (chip basis)
+    penalty = calc_penalty(resolved_rate, resolved_basis, principal, total_extra)
+
+    alt = alt_return_pct if alt_return_pct is not None else Decimal("7")
+    horizon = max(int(base_sum["months"] or 0), 1)
+    invest = invest_elsewhere_compare(
+        total_extra if total_extra > 0 else Decimal("0"),
+        interest_saved,
+        horizon,
+        alt,
+        penalty,
+    )
+    invest["total_extra_deployed"] = float(total_extra)
+    invest["penalty"] = {
+        "rate": float(resolved_rate),
+        "basis": resolved_basis,
+        "amount": float(penalty),
+        "defaults": penalty_defaults,
+    }
+
     return {
         "account_id": str(account_id),
         "as_of": as_of.isoformat(),
@@ -379,7 +418,9 @@ async def simulate_combined(
             "baseline_payoff_date": base_sum["payoff_date"],
             "scenario_months": scen_sum["months"],
             "baseline_months": base_sum["months"],
+            "total_extra_deployed": float(total_extra),
         },
+        "invest_elsewhere": invest,
         "timeline": steps_to_timeline(scenario),
         "curves": steps_to_curves(scenario),
         "baseline_curves": steps_to_curves(baseline),

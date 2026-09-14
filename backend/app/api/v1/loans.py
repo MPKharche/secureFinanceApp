@@ -222,9 +222,9 @@ async def simulate_prepayment(
 async def record_prepayment(
     prepayment_data: PrepaymentCreate,
     db: AsyncSession = Depends(get_async_session),
-    workspace: WorkspaceContext = Depends(current_workspace),
+    workspace: WorkspaceContext = Depends(current_writable_workspace),
 ):
-    """Record a prepayment and regenerate schedule."""
+    """Record a prepayment, regenerate schedule, and book penalty fee to ledger."""
     await _require_loan_account(db, prepayment_data.account_id, workspace.id)
     try:
         prepayment = await loan_payment_service.record_prepayment(
@@ -234,6 +234,9 @@ async def record_prepayment(
             prepayment_date=prepayment_data.prepayment_date,
             method=prepayment_data.recalculation_method,
             transaction_id=prepayment_data.transaction_id,
+            user_id=workspace.user_id,
+            penalty_rate=prepayment_data.penalty_rate,
+            penalty_basis=prepayment_data.penalty_basis,
         )
     except Exception as exc:
         raise HTTPException(status_code=404, detail=str(exc) or "Account not found") from exc
@@ -930,6 +933,9 @@ async def simulate_combined_scenarios(
             events=[e.model_dump(mode="json") for e in body.events],
             strategy=body.strategy,
             as_of_date=body.as_of_date,
+            alt_return_pct=body.alt_return_pct,
+            penalty_rate=body.penalty_rate,
+            penalty_basis=body.penalty_basis,
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

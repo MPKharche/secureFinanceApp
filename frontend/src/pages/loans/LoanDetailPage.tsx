@@ -296,6 +296,7 @@ export function LoanDetailPage() {
             currentRate={currentRate}
             currency={currency}
             locale={locale}
+            isNrpOrCommercial={isNrp}
           />
         </TabsContent>
       </Tabs>

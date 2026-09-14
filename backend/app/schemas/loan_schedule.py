@@ -90,6 +90,11 @@ class PrepaymentCreate(BaseModel):
     recalculation_method: str = Field(..., pattern="^(reduce_emi|reduce_tenure)$")
     transaction_id: Optional[uuid.UUID] = None
     create_transaction: bool = False
+    # G4 chips — book as ledger fee when > 0 (NRP U114 default 2% of OS)
+    penalty_rate: Optional[Decimal] = Field(None, ge=0)
+    penalty_basis: Optional[str] = Field(
+        None, pattern="^(outstanding|prepayment_amount)$"
+    )
 
 
 class PrepaymentRead(BaseModel):
@@ -104,6 +109,10 @@ class PrepaymentRead(BaseModel):
     schedule_version_after: int
     tenure_change_months: Optional[int]
     emi_change_amount: Optional[float]
+    penalty_amount: Optional[float] = None
+    penalty_rate: Optional[float] = None
+    penalty_basis: Optional[str] = None
+    penalty_transaction_id: Optional[uuid.UUID] = None
     created_at: date | datetime
 
     model_config = ConfigDict(from_attributes=True)

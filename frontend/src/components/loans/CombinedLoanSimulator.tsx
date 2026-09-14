@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Calculator, GitCommitHorizontal, Plus, Trash2 } from 'lucide-react'
+import { Calculator, GitCommitHorizontal, Plus, Settings2, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { formatCurrency } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import {
   FrozenScrollTable,
   FrozenTd,
@@ -15,6 +16,7 @@ import {
 } from '@/components/ui/frozen-scroll-table'
 import { localDateString } from '@/lib/date-utils'
 import { accounts as accountsApi } from '@/lib/api'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 type EventType = 'one_time_prepayment' | 'recurring_prepayment' | 'rate_change' | 'emi_holiday'
 
@@ -40,6 +42,21 @@ interface CombinedResult {
     baseline_payoff_date: string | null
     scenario_months: number
     baseline_months: number
+    total_extra_deployed?: number
+  }
+  invest_elsewhere?: {
+    alt_return_pct: number
+    horizon_months: number
+    alt_earnings: number
+    prepay_net_benefit: number
+    prefer_prepay: boolean
+    edge?: number
+    total_extra_deployed?: number
+    penalty?: {
+      rate: number
+      basis: string
+      amount: number
+    }
   }
   timeline: Array<{
     due_date: string
@@ -159,11 +176,67 @@ function StackedArea({
   )
 }
 
+type PenaltyBasis = 'outstanding' | 'prepayment_amount'
+
+function AssumptionChip({
+  label,
+  value,
+  onClick,
+}: {
+  label: string
+  value: string
+  onClick?: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/60 hover:bg-muted px-2 py-0.5 text-[10px] sm:text-[11px] transition-colors text-foreground"
+    >
+      <span className="text-foreground/70">{label}</span>
+      <span className="font-medium tabular-nums">{value}</span>
+    </button>
+  )
+}
+
+function moneyTone(n: number | null | undefined, invert = false) {
+  if (n == null || n === 0) return 'text-foreground'
+  const good = invert ? n < 0 : n > 0
+  return good
+    ? 'text-emerald-700 dark:text-emerald-300'
+    : 'text-rose-700 dark:text-rose-300'
+}
+
+function fmtDeltaMoney(n: number | null | undefined, currency: string, locale: string) {
+  if (n == null) return '—'
+  const abs = formatCurrency(Math.abs(n), currency, locale)
+  if (n === 0) return formatCurrency(0, currency, locale)
+  return n > 0 ? `+${abs}` : `-${abs}`
+}
+
+function Signed({
+  value,
+  currency,
+  locale,
+}: {
+  value: number | null | undefined
+  currency: string
+  locale: string
+}) {
+  return (
+    <span className={cn('tabular-nums font-medium', moneyTone(value))}>
+      {fmtDeltaMoney(value, currency, locale)}
+    </span>
+  )
+}
+
 interface Props {
   accountId: string
   currentRate?: number
   currency?: string
   locale?: string
+  /** NRP / commercial — do not force 0% penalty */
+  isNrpOrCommercial?: boolean
 }
 
 export function CombinedLoanSimulator({
@@ -171,6 +244,7 @@ export function CombinedLoanSimulator({
   currentRate = 0,
   currency = 'USD',
   locale = 'en-US',
+  isNrpOrCommercial = false,
 }: Props) {
   const qc = useQueryClient()
   const isInr = currency.toUpperCase() === 'INR'
@@ -197,6 +271,10 @@ export function CombinedLoanSimulator({
   const [strategy, setStrategy] = useState<'reduce_tenure' | 'reduce_emi'>('reduce_tenure')
   const [result, setResult] = useState<CombinedResult | null>(null)
   const [error, setError] = useState('')
+  const [assumptionsOpen, setAssumptionsOpen] = useState(false)
+  const [penaltyRate, setPenaltyRate] = useState(isNrpOrCommercial ? '2' : '0')
+  const [penaltyBasis, setPenaltyBasis] = useState<PenaltyBasis>('outstanding')
+  const [altReturn, setAltReturn] = useState('7')
   const [commitKind, setCommitKind] = useState<'one_time_prepayment' | 'recurring_prepayment'>(
     'recurring_prepayment',
   )
@@ -228,6 +306,9 @@ export function CombinedLoanSimulator({
       const payload = {
         account_id: accountId,
         strategy,
+        alt_return_pct: parseFloat(altReturn || '7'),
+        penalty_rate: parseFloat(penaltyRate || '0'),
+        penalty_basis: penaltyBasis,
         events: events.map((e) => {
           const base: Record<string, unknown> = { type: e.type, date: e.date, label: e.label }
           if (e.type === 'one_time_prepayment' || e.type === 'recurring_prepayment') {
@@ -340,8 +421,67 @@ export function CombinedLoanSimulator({
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Stack prepays, extras, rate moves, and EMI pauses on one timeline. Compared to doing nothing.
+            Stack prepays, extras, rate moves, and EMI pauses on one timeline. Compared to doing nothing —
+            plus invest-elsewhere parity with Sims.
           </p>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <AssumptionChip
+              label="Penalty"
+              value={`${penaltyRate || '0'}% · ${
+                penaltyBasis === 'outstanding' ? '% of outstanding' : '% of prepay amount'
+              }`}
+              onClick={() => setAssumptionsOpen(true)}
+            />
+            <AssumptionChip
+              label="Invest elsewhere"
+              value={`${altReturn || '7'}%`}
+              onClick={() => setAssumptionsOpen(true)}
+            />
+            <Popover open={assumptionsOpen} onOpenChange={setAssumptionsOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground">
+                  <Settings2 className="h-3.5 w-3.5 mr-1" />
+                  Assumptions
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 space-y-3" align="start">
+                <h3 className="text-sm font-semibold">Assumptions</h3>
+                <div className="space-y-2">
+                  <Label className="text-xs">Prepay penalty %</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={penaltyRate}
+                    onChange={(e) => setPenaltyRate(e.target.value)}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Floating retail home loans often 0%. Commercial / NRP (U114) may still charge 2% of OS.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Penalty basis</Label>
+                  <select
+                    className="w-full border border-border rounded-md h-9 px-2 bg-background text-sm"
+                    value={penaltyBasis}
+                    onChange={(e) => setPenaltyBasis(e.target.value as PenaltyBasis)}
+                  >
+                    <option value="outstanding">% of outstanding</option>
+                    <option value="prepayment_amount">% of prepay amount</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Invest-elsewhere return %</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={altReturn}
+                    onChange={(e) => setAltReturn(e.target.value)}
+                  />
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
 
           <div className="space-y-3">
             {events.map((ev) => (
@@ -424,6 +564,70 @@ export function CombinedLoanSimulator({
                 <Kpi label="Payoff" value={result.kpis.payoff_date || '—'} />
                 <Kpi label="Scenario interest" value={formatCurrency(result.kpis.total_interest, currency, locale)} />
               </div>
+
+              {result.invest_elsewhere && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Invest-elsewhere compare · cash deployed{' '}
+                    {formatCurrency(
+                      result.invest_elsewhere.total_extra_deployed ??
+                        result.kpis.total_extra_deployed ??
+                        0,
+                      currency,
+                      locale,
+                    )}
+                    {result.invest_elsewhere.penalty && result.invest_elsewhere.penalty.amount > 0
+                      ? ` · penalty ${formatCurrency(result.invest_elsewhere.penalty.amount, currency, locale)}`
+                      : ''}
+                  </p>
+                  <FrozenScrollTable className="text-sm">
+                    <thead>
+                      <tr>
+                        <FrozenTh stickyLabel className="text-xs">
+                          Use of cash
+                        </FrozenTh>
+                        <FrozenTh align="right" className="text-xs">
+                          Benefit
+                        </FrozenTh>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        className={cn(
+                          result.invest_elsewhere.prefer_prepay &&
+                            'bg-emerald-500/10 dark:bg-emerald-400/10',
+                        )}
+                      >
+                        <FrozenTd stickyLabel>Prepay plan (net)</FrozenTd>
+                        <FrozenTd align="right">
+                          <Signed
+                            value={result.invest_elsewhere.prepay_net_benefit}
+                            currency={currency}
+                            locale={locale}
+                          />
+                        </FrozenTd>
+                      </tr>
+                      <tr
+                        className={cn(
+                          !result.invest_elsewhere.prefer_prepay &&
+                            'bg-sky-500/10 dark:bg-sky-400/10',
+                        )}
+                      >
+                        <FrozenTd stickyLabel>
+                          Invest elsewhere @ {result.invest_elsewhere.alt_return_pct}%
+                        </FrozenTd>
+                        <FrozenTd align="right">
+                          <Signed
+                            value={result.invest_elsewhere.alt_earnings}
+                            currency={currency}
+                            locale={locale}
+                          />
+                        </FrozenTd>
+                      </tr>
+                    </tbody>
+                  </FrozenScrollTable>
+                </div>
+              )}
 
               <div className="grid md:grid-cols-2 gap-4">
                 <Card>
