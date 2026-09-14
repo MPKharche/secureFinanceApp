@@ -26,6 +26,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { useDisplayLocale } from '@/hooks/use-display-locale'
 import type { Account } from '@/types'
+import { clientLoanTitle } from '@/lib/account-utils'
 
 const LOAN_KINDS = ['home', 'personal', 'auto', 'education', 'gold', 'other'] as const
 
@@ -192,7 +193,7 @@ export default function LoansPage() {
                 <AccountIcon account={acc} size="md" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold truncate">{acc.display_name || acc.name}</span>
+                    <span className="font-semibold truncate">{clientLoanTitle(acc.display_name || acc.name)}</span>
                     <span className="text-[11px] text-muted-foreground shrink-0">
                       {t(`loans.kind.${acc.loan_kind || 'other'}`)}
                     </span>

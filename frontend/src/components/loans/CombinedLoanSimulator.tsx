@@ -398,89 +398,92 @@ export function CombinedLoanSimulator({
   }
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Calculator className="h-5 w-5" />
+    <div className="space-y-5">
+      <Card className="border-border">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2 pt-4">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Calculator className="h-4 w-4" />
             Combined plan
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <select
-              className="bg-card border border-border rounded-lg px-3 py-2 text-sm"
+              className="bg-card border border-border rounded-lg px-3 py-2 text-sm h-9"
               value={strategy}
               onChange={(e) => setStrategy(e.target.value as 'reduce_tenure' | 'reduce_emi')}
             >
-              <option value="reduce_tenure">Strategy: reduce tenure</option>
-              <option value="reduce_emi">Strategy: reduce EMI</option>
+              <option value="reduce_tenure">Keep EMI</option>
+              <option value="reduce_emi">Lower EMI</option>
             </select>
-            <Button onClick={() => runSim.mutate()} disabled={runSim.isPending}>
-              {runSim.isPending ? 'Running…' : 'Run plan'}
+            <Button size="sm" className="h-9" onClick={() => runSim.mutate()} disabled={runSim.isPending}>
+              {runSim.isPending ? '…' : 'Run plan'}
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Stack prepays, extras, rate moves, and EMI pauses on one timeline. Compared to doing nothing —
-            plus invest-elsewhere parity with Sims.
-          </p>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <AssumptionChip
-              label="Penalty"
-              value={`${penaltyRate || '0'}% · ${
-                penaltyBasis === 'outstanding' ? '% of outstanding' : '% of prepay amount'
-              }`}
-              onClick={() => setAssumptionsOpen(true)}
-            />
-            <AssumptionChip
-              label="Invest elsewhere"
-              value={`${altReturn || '7'}%`}
-              onClick={() => setAssumptionsOpen(true)}
-            />
-            <Popover open={assumptionsOpen} onOpenChange={setAssumptionsOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground">
-                  <Settings2 className="h-3.5 w-3.5 mr-1" />
-                  Assumptions
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 space-y-3" align="start">
-                <h3 className="text-sm font-semibold">Assumptions</h3>
-                <div className="space-y-2">
-                  <Label className="text-xs">Prepay penalty %</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={penaltyRate}
-                    onChange={(e) => setPenaltyRate(e.target.value)}
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Floating retail home loans often 0%. Commercial / NRP (U114) may still charge 2% of OS.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Penalty basis</Label>
-                  <select
-                    className="w-full border border-border rounded-md h-9 px-2 bg-background text-sm"
-                    value={penaltyBasis}
-                    onChange={(e) => setPenaltyBasis(e.target.value as PenaltyBasis)}
-                  >
-                    <option value="outstanding">% of outstanding</option>
-                    <option value="prepayment_amount">% of prepay amount</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Invest-elsewhere return %</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={altReturn}
-                    onChange={(e) => setAltReturn(e.target.value)}
-                  />
-                </div>
-              </PopoverContent>
-            </Popover>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2 justify-between">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <AssumptionChip
+                label="Penalty"
+                value={`${penaltyRate || '0'}% · ${
+                  penaltyBasis === 'outstanding' ? '% of outstanding' : '% of prepay amount'
+                }`}
+                onClick={() => setAssumptionsOpen(true)}
+              />
+              <AssumptionChip
+                label="Alt return"
+                value={`${altReturn || '7'}%`}
+                onClick={() => setAssumptionsOpen(true)}
+              />
+              <Popover open={assumptionsOpen} onOpenChange={setAssumptionsOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground">
+                    <Settings2 className="h-3.5 w-3.5 mr-1" />
+                    Edit
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 space-y-3" align="start">
+                  <h3 className="text-sm font-semibold">Assumptions</h3>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Prepay penalty %</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={penaltyRate}
+                      onChange={(e) => setPenaltyRate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Penalty basis</Label>
+                    <select
+                      className="w-full border border-border rounded-md h-9 px-2 bg-background text-sm"
+                      value={penaltyBasis}
+                      onChange={(e) => setPenaltyBasis(e.target.value as PenaltyBasis)}
+                    >
+                      <option value="outstanding">% of outstanding</option>
+                      <option value="prepayment_amount">% of prepay amount</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Invest elsewhere %</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={altReturn}
+                      onChange={(e) => setAltReturn(e.target.value)}
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer select-none hover:text-foreground">
+                How this works
+              </summary>
+              <p className="mt-1.5 max-w-md leading-relaxed">
+                Stack prepays, rate moves, and EMI pauses on one timeline. Results compare against
+                doing nothing — tables and charts below.
+              </p>
+            </details>
           </div>
 
           <div className="space-y-3">
@@ -567,19 +570,6 @@ export function CombinedLoanSimulator({
 
               {result.invest_elsewhere && (
                 <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    Invest-elsewhere compare · cash deployed{' '}
-                    {formatCurrency(
-                      result.invest_elsewhere.total_extra_deployed ??
-                        result.kpis.total_extra_deployed ??
-                        0,
-                      currency,
-                      locale,
-                    )}
-                    {result.invest_elsewhere.penalty && result.invest_elsewhere.penalty.amount > 0
-                      ? ` · penalty ${formatCurrency(result.invest_elsewhere.penalty.amount, currency, locale)}`
-                      : ''}
-                  </p>
                   <FrozenScrollTable className="text-sm">
                     <thead>
                       <tr>
@@ -636,7 +626,7 @@ export function CombinedLoanSimulator({
                   </CardHeader>
                   <CardContent>
                     <Sparkline values={result.curves.outstanding} baseline={result.baseline_curves.outstanding} />
-                    <p className="text-[11px] text-muted-foreground mt-1">Solid = scenario · dashed = baseline</p>
+                    
                   </CardContent>
                 </Card>
                 <Card>
@@ -649,7 +639,7 @@ export function CombinedLoanSimulator({
                       principal={result.curves.cumulative_principal}
                       interest={result.curves.cumulative_interest}
                     />
-                    <p className="text-[11px] text-muted-foreground mt-1">Green principal · amber interest</p>
+                    
                   </CardContent>
                 </Card>
               </div>
@@ -693,10 +683,13 @@ export function CombinedLoanSimulator({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Committing creates a budget line and a recurring/pending cash outflow on{' '}
-            {checking ? checking.name : 'your checking account'} so dashboard forecast picks it up.
-          </p>
+          <details className="text-xs text-muted-foreground">
+            <summary className="cursor-pointer select-none hover:text-foreground">How this works</summary>
+            <p className="mt-1.5 leading-relaxed">
+              Creates a budget line and cash outflow on {checking ? checking.name : 'your checking account'}
+              so forecast picks it up.
+            </p>
+          </details>
           <div className="grid md:grid-cols-4 gap-3 items-end">
             <div className="space-y-1">
               <Label>Kind</Label>

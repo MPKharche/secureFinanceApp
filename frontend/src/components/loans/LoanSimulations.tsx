@@ -383,67 +383,76 @@ export function LoanSimulations({
     penaltyBasis === 'outstanding' ? '% of outstanding' : '% of prepay amount'
 
   return (
-    <div className="space-y-5">
-      {/* G4 assumption chips */}
-      <div className="flex flex-wrap items-center gap-2">
-        <AssumptionChip
-          label="Penalty"
-          value={`${penaltyRate || '0'}% · ${basisLabel}`}
-          onClick={() => setAssumptionsOpen(true)}
-        />
-        <AssumptionChip
-          label="Invest elsewhere"
-          value={`${altReturn || '7'}%`}
-          onClick={() => setAssumptionsOpen(true)}
-        />
-        <AssumptionChip
-          label="Rate path default"
-          value="Keep EMI"
-          onClick={() => setPreferredPath('keep_emi')}
-        />
-        <Popover open={assumptionsOpen} onOpenChange={setAssumptionsOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground">
-              <Settings2 className="h-3.5 w-3.5 mr-1" />
-              Assumptions
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80 space-y-3" align="start">
-            <h3 className="text-sm font-semibold">Assumptions</h3>
-            <div className="space-y-2">
-              <Label className="text-xs">Prepay penalty %</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={penaltyRate}
-                onChange={(e) => setPenaltyRate(e.target.value)}
-              />
-              <p className="text-[11px] text-muted-foreground">
-                Floating retail home loans often 0%. Commercial / NRP may still charge — edit here.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Penalty basis</Label>
-              <select
-                className="w-full border border-border rounded-md h-9 px-2 bg-background text-sm"
-                value={penaltyBasis}
-                onChange={(e) => setPenaltyBasis(e.target.value as PenaltyBasis)}
-              >
-                <option value="outstanding">% of outstanding</option>
-                <option value="prepayment_amount">% of prepay amount</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Invest-elsewhere return %</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={altReturn}
-                onChange={(e) => setAltReturn(e.target.value)}
-              />
-            </div>
-          </PopoverContent>
-        </Popover>
+    <div className="space-y-4">
+      {/* Compact assumptions + collapsed help — not hero */}
+      <div className="flex flex-wrap items-center gap-2 justify-between">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <AssumptionChip
+            label="Penalty"
+            value={`${penaltyRate || '0'}% · ${basisLabel}`}
+            onClick={() => setAssumptionsOpen(true)}
+          />
+          <AssumptionChip
+            label="Alt return"
+            value={`${altReturn || '7'}%`}
+            onClick={() => setAssumptionsOpen(true)}
+          />
+          <Popover open={assumptionsOpen} onOpenChange={setAssumptionsOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground">
+                <Settings2 className="h-3.5 w-3.5 mr-1" />
+                Edit
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 space-y-3" align="start">
+              <h3 className="text-sm font-semibold">Assumptions</h3>
+              <div className="space-y-2">
+                <Label className="text-xs">Prepay penalty %</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={penaltyRate}
+                  onChange={(e) => setPenaltyRate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Penalty basis</Label>
+                <select
+                  className="w-full border border-border rounded-md h-9 px-2 bg-background text-sm"
+                  value={penaltyBasis}
+                  onChange={(e) => setPenaltyBasis(e.target.value as PenaltyBasis)}
+                >
+                  <option value="outstanding">% of outstanding</option>
+                  <option value="prepayment_amount">% of prepay amount</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Invest elsewhere %</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={altReturn}
+                  onChange={(e) => setAltReturn(e.target.value)}
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer select-none hover:text-foreground">
+            How this works
+          </summary>
+          <div className="mt-2 max-w-xl space-y-1.5 leading-relaxed">
+            <p>
+              Compare a rate move, a lump prepay, or a full payoff. Results are tables — keep EMI
+              (shorter tenure) vs keep tenure (lower EMI).
+            </p>
+            <p>
+              Ready-reference shows common rate steps. Highlighted row is the stronger interest
+              outcome. Penalty and invest-elsewhere % sit in Edit.
+            </p>
+          </div>
+        </details>
       </div>
 
       {error && (
@@ -456,7 +465,7 @@ export function LoanSimulations({
         <TabsList className="grid w-full grid-cols-3 h-auto">
           <TabsTrigger value="rate-change" className="text-xs sm:text-sm py-2">
             <Percent className="h-3.5 w-3.5 mr-1.5 shrink-0" />
-            Rate change
+            Rate
           </TabsTrigger>
           <TabsTrigger value="early-payment" className="text-xs sm:text-sm py-2">
             <Calculator className="h-3.5 w-3.5 mr-1.5 shrink-0" />
@@ -468,80 +477,81 @@ export function LoanSimulations({
           </TabsTrigger>
         </TabsList>
 
-        {/* -------- Rate change -------- */}
-        <TabsContent value="rate-change" className="space-y-4 mt-4">
+        {/* -------- Rate -------- */}
+        <TabsContent value="rate-change" className="space-y-3 mt-3">
           <Card className="border-border">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">If the rate moves</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="newRate">New rate %</Label>
+            <CardContent className="pt-4 space-y-3">
+              {/* One short control row */}
+              <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2">
+                <div className="space-y-1 w-full sm:w-28">
+                  <Label htmlFor="newRate" className="text-xs">
+                    New rate %
+                  </Label>
                   <Input
                     id="newRate"
                     type="number"
                     step="0.01"
                     value={newRate}
                     onChange={(e) => setNewRate(e.target.value)}
-                    placeholder={`Now ${currentRate}%`}
+                    placeholder={`${currentRate}`}
+                    className="h-9"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="rateEffectiveDate">From</Label>
+                <div className="space-y-1 w-full sm:w-40">
+                  <Label htmlFor="rateEffectiveDate" className="text-xs">
+                    From
+                  </Label>
                   <Input
                     id="rateEffectiveDate"
                     type="date"
                     value={rateEffectiveDate}
                     onChange={(e) => setRateEffectiveDate(e.target.value)}
+                    className="h-9"
                   />
                 </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={preferredPath === 'keep_emi' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setPreferredPath('keep_emi')}
-                >
-                  Keep EMI · cut tenure
-                </Button>
-                <Button
-                  variant={preferredPath === 'keep_duration' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setPreferredPath('keep_duration')}
-                >
-                  Cut EMI · keep tenure
-                </Button>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button
+                    variant={preferredPath === 'keep_emi' ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-9"
+                    onClick={() => setPreferredPath('keep_emi')}
+                  >
+                    Keep EMI
+                  </Button>
+                  <Button
+                    variant={preferredPath === 'keep_duration' ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-9"
+                    onClick={() => setPreferredPath('keep_duration')}
+                  >
+                    Keep tenure
+                  </Button>
+                </div>
                 <Button
                   onClick={() => simulateRateChange()}
                   disabled={rateChangeLoading || !newRate}
-                  className="sm:ml-auto"
+                  className="h-9 sm:ml-auto"
+                  size="sm"
                 >
-                  {rateChangeLoading ? 'Calculating…' : 'Compare both'}
+                  {rateChangeLoading ? '…' : 'Compare'}
                 </Button>
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                Banks often auto-cut EMI. Tap <span className="font-medium text-foreground">Keep EMI</span> to lock
-                the tenure cut instead.
-              </p>
 
               {rateChangeResult?.is_interest_only && (
                 <Alert>
                   <AlertDescription className="text-sm">
-                    {rateChangeResult.note ||
-                      'This loan has no EMI. Rate change does not invent one.'}
+                    {rateChangeResult.note || 'No EMI on this loan — rate change does not invent one.'}
                   </AlertDescription>
                 </Alert>
               )}
 
               {rateChangeResult && !rateChangeResult.is_interest_only && rateChangeResult.keep_emi && (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {rateChangeResult.negative_amortisation_risk && (
                     <Alert variant="destructive">
                       <AlertDescription className="text-sm">
-                        At {rateChangeResult.new_rate.toFixed(2)}%, EMI may not cover interest — tenure can
-                        stretch without end. Raise EMI or prepay principal.
+                        At {rateChangeResult.new_rate.toFixed(2)}%, EMI may not cover interest.
+                        Raise EMI or prepay.
                       </AlertDescription>
                     </Alert>
                   )}
@@ -559,7 +569,7 @@ export function LoanSimulations({
                           Δ EMI
                         </FrozenTh>
                         <FrozenTh align="right" className="text-xs">
-                          Interest impact
+                          Interest
                         </FrozenTh>
                       </tr>
                     </thead>
@@ -571,11 +581,6 @@ export function LoanSimulations({
                       >
                         <FrozenTd stickyLabel className="font-medium">
                           Keep EMI
-                          {rateChangeResult.tenure_cut_usually_wins && (
-                            <span className="ml-1.5 text-[10px] text-emerald-700 dark:text-emerald-300">
-                              usually wins
-                            </span>
-                          )}
                         </FrozenTd>
                         <FrozenTd align="right" className="tabular-nums">
                           {rateChangeResult.keep_emi.negative_amortisation
@@ -624,21 +629,6 @@ export function LoanSimulations({
                       </tr>
                     </tbody>
                   </FrozenScrollTable>
-
-                  <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                    <div>
-                      Rate{' '}
-                      <span className="text-foreground font-medium">
-                        {rateChangeResult.current_rate.toFixed(2)}% → {rateChangeResult.new_rate.toFixed(2)}%
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      EMI now{' '}
-                      <span className="text-foreground font-medium">
-                        {formatCurrency(rateChangeResult.current_emi || currentEmi, currency, locale)}
-                      </span>
-                    </div>
-                  </div>
                 </div>
               )}
             </CardContent>
@@ -646,46 +636,49 @@ export function LoanSimulations({
         </TabsContent>
 
         {/* -------- Prepay -------- */}
-        <TabsContent value="early-payment" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Lump / part prepay</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="earlyPaymentAmount">Amount</Label>
+        <TabsContent value="early-payment" className="space-y-3 mt-3">
+          <Card className="border-border">
+            <CardContent className="pt-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2">
+                <div className="space-y-1 w-full sm:w-40">
+                  <Label htmlFor="earlyPaymentAmount" className="text-xs">
+                    Amount
+                  </Label>
                   <Input
                     id="earlyPaymentAmount"
                     type="number"
                     value={earlyPaymentAmount}
                     onChange={(e) => setEarlyPaymentAmount(e.target.value)}
-                    placeholder="Prepay amount"
+                    className="h-9"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="earlyPaymentDate">Date</Label>
+                <div className="space-y-1 w-full sm:w-40">
+                  <Label htmlFor="earlyPaymentDate" className="text-xs">
+                    Date
+                  </Label>
                   <Input
                     id="earlyPaymentDate"
                     type="date"
                     value={earlyPaymentDate}
                     onChange={(e) => setEarlyPaymentDate(e.target.value)}
+                    className="h-9"
                   />
                 </div>
+                <Button
+                  onClick={simulateEarlyPayment}
+                  disabled={earlyPaymentLoading || !earlyPaymentAmount}
+                  className="h-9"
+                  size="sm"
+                >
+                  {earlyPaymentLoading ? '…' : 'Compare'}
+                </Button>
               </div>
-
-              <Button
-                onClick={simulateEarlyPayment}
-                disabled={earlyPaymentLoading || !earlyPaymentAmount}
-              >
-                {earlyPaymentLoading ? 'Calculating…' : 'Compare EMI vs tenure'}
-              </Button>
 
               {earlyPaymentResult?.is_interest_only && (
                 <Alert>
                   <AlertDescription className="text-sm">
                     {earlyPaymentResult.note ||
-                      'Interest-only loan — principal drops; no EMI reinvented.'}
+                      'No EMI on this loan — principal drops; EMI is not invented.'}
                   </AlertDescription>
                 </Alert>
               )}
@@ -708,7 +701,7 @@ export function LoanSimulations({
                           Interest saved
                         </FrozenTh>
                         <FrozenTh align="right" className="text-xs">
-                          Net (after penalty)
+                          Net
                         </FrozenTh>
                       </tr>
                     </thead>
@@ -722,11 +715,6 @@ export function LoanSimulations({
                         >
                           <FrozenTd stickyLabel className="font-medium">
                             Keep EMI
-                            {earlyPaymentResult.reduce_tenure.usually_wins && (
-                              <span className="ml-1.5 text-[10px] text-emerald-700 dark:text-emerald-300">
-                                usually wins
-                              </span>
-                            )}
                           </FrozenTd>
                           <FrozenTd align="right" className="tabular-nums">
                             {fmtDeltaMonths(-(earlyPaymentResult.reduce_tenure.months_saved || 0))}
@@ -758,12 +746,7 @@ export function LoanSimulations({
                           )}
                         >
                           <FrozenTd stickyLabel className="font-medium">
-                            Reset EMI
-                            {earlyPaymentResult.reduce_emi.bank_default_trap && (
-                              <span className="ml-1.5 text-[10px] text-amber-700 dark:text-amber-300">
-                                bank default
-                              </span>
-                            )}
+                            Lower EMI
                           </FrozenTd>
                           <FrozenTd align="right" className="tabular-nums text-muted-foreground">
                             0
@@ -796,16 +779,35 @@ export function LoanSimulations({
                   </FrozenScrollTable>
 
                   {earlyPaymentResult.penalty && earlyPaymentResult.penalty.amount > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Penalty{' '}
-                      <span className="text-foreground font-medium">
-                        {formatCurrency(earlyPaymentResult.penalty.amount, currency, locale)}
-                      </span>{' '}
-                      ({earlyPaymentResult.penalty.rate}%{' '}
-                      {earlyPaymentResult.penalty.basis === 'outstanding'
-                        ? 'of outstanding'
-                        : 'of prepay'})
-                    </p>
+                    <FrozenScrollTable className="text-sm">
+                      <thead>
+                        <tr>
+                          <FrozenTh stickyLabel className="text-xs">
+                            Fee
+                          </FrozenTh>
+                          <FrozenTh align="right" className="text-xs">
+                            Amount
+                          </FrozenTh>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <FrozenTd stickyLabel>
+                            Penalty ({earlyPaymentResult.penalty.rate}%{' '}
+                            {earlyPaymentResult.penalty.basis === 'outstanding'
+                              ? 'of outstanding'
+                              : 'of prepay'}
+                            )
+                          </FrozenTd>
+                          <FrozenTd
+                            align="right"
+                            className="tabular-nums text-rose-700 dark:text-rose-300"
+                          >
+                            {formatCurrency(earlyPaymentResult.penalty.amount, currency, locale)}
+                          </FrozenTd>
+                        </tr>
+                      </tbody>
+                    </FrozenScrollTable>
                   )}
 
                   {earlyPaymentResult.invest_elsewhere && (
@@ -863,128 +865,140 @@ export function LoanSimulations({
         </TabsContent>
 
         {/* -------- Foreclose -------- */}
-        <TabsContent value="preclosure" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Foreclose / full payoff</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-1.5 max-w-xs">
-                <Label htmlFor="closureDate">Closure date</Label>
-                <Input
-                  id="closureDate"
-                  type="date"
-                  value={closureDate}
-                  onChange={(e) => setClosureDate(e.target.value)}
-                />
+        <TabsContent value="preclosure" className="space-y-3 mt-3">
+          <Card className="border-border">
+            <CardContent className="pt-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+                <div className="space-y-1 w-full sm:w-40">
+                  <Label htmlFor="closureDate" className="text-xs">
+                    Closure date
+                  </Label>
+                  <Input
+                    id="closureDate"
+                    type="date"
+                    value={closureDate}
+                    onChange={(e) => setClosureDate(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+                <Button
+                  onClick={simulatePreclosure}
+                  disabled={preclosureLoading}
+                  className="h-9"
+                  size="sm"
+                >
+                  {preclosureLoading ? '…' : 'Show payoff'}
+                </Button>
               </div>
 
-              <Button onClick={simulatePreclosure} disabled={preclosureLoading}>
-                {preclosureLoading ? 'Calculating…' : 'Show payoff'}
-              </Button>
-
               {preclosureResult && (
-                <div className="space-y-3">
-                  <FrozenScrollTable className="text-sm">
-                    <thead>
-                      <tr>
-                        <FrozenTh stickyLabel className="text-xs">
-                          Line
-                        </FrozenTh>
-                        <FrozenTh align="right" className="text-xs">
-                          Amount
-                        </FrozenTh>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <FrozenTd stickyLabel>Outstanding</FrozenTd>
-                        <FrozenTd align="right" className="tabular-nums">
-                          {formatCurrency(preclosureResult.outstanding_principal, currency, locale)}
-                        </FrozenTd>
-                      </tr>
-                      <tr>
-                        <FrozenTd stickyLabel>Accrued interest</FrozenTd>
-                        <FrozenTd align="right" className="tabular-nums">
-                          {formatCurrency(preclosureResult.accrued_interest, currency, locale)}
-                        </FrozenTd>
-                      </tr>
-                      <tr>
-                        <FrozenTd stickyLabel>
-                          Penalty ({preclosureResult.prepayment_penalty_rate}%
-                          {preclosureResult.prepayment_penalty_basis
-                            ? ` · ${preclosureResult.prepayment_penalty_basis === 'outstanding' ? 'of OS' : 'of prepay'}`
-                            : ''}
-                          )
-                        </FrozenTd>
-                        <FrozenTd
-                          align="right"
-                          className={cn(
-                            'tabular-nums',
-                            preclosureResult.prepayment_penalty > 0
-                              ? 'text-rose-700 dark:text-rose-300'
-                              : 'text-muted-foreground',
-                          )}
-                        >
-                          {formatCurrency(preclosureResult.prepayment_penalty, currency, locale)}
-                        </FrozenTd>
-                      </tr>
-                      <tr className="bg-muted/50 font-medium">
-                        <FrozenTd stickyLabel className="bg-muted/50">
-                          Total payoff
-                        </FrozenTd>
-                        <FrozenTd align="right" className="tabular-nums">
-                          {formatCurrency(preclosureResult.total_payoff_amount, currency, locale)}
-                        </FrozenTd>
-                      </tr>
-                      <tr>
-                        <FrozenTd stickyLabel>Interest you avoid</FrozenTd>
-                        <FrozenTd align="right">
-                          <Signed
-                            value={preclosureResult.interest_saved}
-                            currency={currency}
-                            locale={locale}
-                          />
-                        </FrozenTd>
-                      </tr>
-                      <tr>
-                        <FrozenTd stickyLabel>Net after penalty</FrozenTd>
-                        <FrozenTd align="right">
-                          <Signed
-                            value={preclosureResult.net_savings}
-                            currency={currency}
-                            locale={locale}
-                          />
-                        </FrozenTd>
-                      </tr>
-                    </tbody>
-                  </FrozenScrollTable>
-                  <p className="text-xs text-muted-foreground">
-                    Paid so far {formatCurrency(preclosureResult.paid_to_date.total, currency, locale)} ·{' '}
-                    {preclosureResult.remaining_emis} EMIs left
-                  </p>
-                </div>
+                <FrozenScrollTable className="text-sm">
+                  <thead>
+                    <tr>
+                      <FrozenTh stickyLabel className="text-xs">
+                        Line
+                      </FrozenTh>
+                      <FrozenTh align="right" className="text-xs">
+                        Amount
+                      </FrozenTh>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <FrozenTd stickyLabel>Outstanding</FrozenTd>
+                      <FrozenTd align="right" className="tabular-nums">
+                        {formatCurrency(preclosureResult.outstanding_principal, currency, locale)}
+                      </FrozenTd>
+                    </tr>
+                    <tr>
+                      <FrozenTd stickyLabel>Accrued interest</FrozenTd>
+                      <FrozenTd align="right" className="tabular-nums">
+                        {formatCurrency(preclosureResult.accrued_interest, currency, locale)}
+                      </FrozenTd>
+                    </tr>
+                    <tr>
+                      <FrozenTd stickyLabel>
+                        Penalty ({preclosureResult.prepayment_penalty_rate}%
+                        {preclosureResult.prepayment_penalty_basis
+                          ? ` · ${
+                              preclosureResult.prepayment_penalty_basis === 'outstanding'
+                                ? 'of outstanding'
+                                : 'of prepay'
+                            }`
+                          : ''}
+                        )
+                      </FrozenTd>
+                      <FrozenTd
+                        align="right"
+                        className={cn(
+                          'tabular-nums',
+                          preclosureResult.prepayment_penalty > 0
+                            ? 'text-rose-700 dark:text-rose-300'
+                            : 'text-muted-foreground',
+                        )}
+                      >
+                        {formatCurrency(preclosureResult.prepayment_penalty, currency, locale)}
+                      </FrozenTd>
+                    </tr>
+                    <tr className="bg-muted/50 font-medium">
+                      <FrozenTd stickyLabel className="bg-muted/50">
+                        Total payoff
+                      </FrozenTd>
+                      <FrozenTd align="right" className="tabular-nums">
+                        {formatCurrency(preclosureResult.total_payoff_amount, currency, locale)}
+                      </FrozenTd>
+                    </tr>
+                    <tr>
+                      <FrozenTd stickyLabel>Interest avoided</FrozenTd>
+                      <FrozenTd align="right">
+                        <Signed
+                          value={preclosureResult.interest_saved}
+                          currency={currency}
+                          locale={locale}
+                        />
+                      </FrozenTd>
+                    </tr>
+                    <tr>
+                      <FrozenTd stickyLabel>Net after penalty</FrozenTd>
+                      <FrozenTd align="right">
+                        <Signed
+                          value={preclosureResult.net_savings}
+                          currency={currency}
+                          locale={locale}
+                        />
+                      </FrozenTd>
+                    </tr>
+                  </tbody>
+                </FrozenScrollTable>
               )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* -------- Ready-reference (default bottom) -------- */}
+      {/* Ready-reference — table first; help collapsed above */}
       <Card className="border-border">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Rate ready-reference</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            ±0.25% · ±0.5% · ±1% — Δ months if EMI kept · Δ EMI if tenure kept · net interest impact
-          </p>
+        <CardHeader className="pb-2 pt-4">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base">Rate ready-reference</CardTitle>
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer select-none hover:text-foreground">
+                How this works
+              </summary>
+              <p className="mt-1.5 max-w-sm leading-relaxed">
+                Tap a row to run that rate. Columns: months if EMI stays · EMI change if tenure
+                stays · net interest.
+              </p>
+            </details>
+          </div>
         </CardHeader>
         <CardContent>
           {ladderQuery.isLoading && (
-            <div className="py-6 text-center text-sm text-muted-foreground">Loading steps…</div>
+            <div className="py-6 text-center text-sm text-muted-foreground">Loading…</div>
           )}
           {ladderQuery.data?.is_interest_only && (
             <p className="text-sm text-muted-foreground py-4">
-              No EMI on this loan — ready-reference steps do not invent one.
+              No EMI on this loan — ready-reference does not invent one.
             </p>
           )}
           {!ladderQuery.data?.is_interest_only && ladderRows.length > 0 && (
@@ -992,19 +1006,19 @@ export function LoanSimulations({
               <thead>
                 <tr>
                   <FrozenTh stickyLabel className="text-xs">
-                    Rate step
+                    Step
                   </FrozenTh>
                   <FrozenTh align="right" className="text-xs">
                     New rate
                   </FrozenTh>
                   <FrozenTh align="right" className="text-xs">
-                    Δ months (keep EMI)
+                    Δ months
                   </FrozenTh>
                   <FrozenTh align="right" className="text-xs">
-                    Δ EMI (keep tenure)
+                    Δ EMI
                   </FrozenTh>
                   <FrozenTh align="right" className="text-xs">
-                    Net interest
+                    Interest
                   </FrozenTh>
                 </tr>
               </thead>
@@ -1024,7 +1038,7 @@ export function LoanSimulations({
                     </FrozenTd>
                     <FrozenTd align="right" className="tabular-nums">
                       {row.negative_amortisation ? (
-                        <span className="text-rose-700 dark:text-rose-300">∞ risk</span>
+                        <span className="text-rose-700 dark:text-rose-300">∞</span>
                       ) : (
                         fmtDeltaMonths(row.delta_months_if_emi_kept)
                       )}
