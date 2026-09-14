@@ -180,7 +180,8 @@ export default function LoansPage() {
           {loans.map((acc) => {
             const owed = outstandingOf(acc)
             const orig = Number(acc.original_principal || 0)
-            const pct = orig > 0 ? Math.min(100, Math.round(((orig - owed) / orig) * 100)) : null
+            // Clamp at 0: policy loans may carry accrued interest in balance (> principal).
+            const pct = orig > 0 ? Math.min(100, Math.max(0, Math.round(((orig - owed) / orig) * 100))) : null
             return (
               <button
                 key={acc.id}

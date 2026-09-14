@@ -324,4 +324,4 @@ async def test_generate_interest_only_half_yearly(
     assert entries[-1].closing_balance == Decimal("0.00")
     await session.refresh(account)
     assert account.current_schedule_version == 2
-    assert account.emi_amount == half_year_interest
+    assert account.emi_amount is None  # NO EMI — interest-only / voluntary repay

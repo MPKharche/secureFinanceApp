@@ -110,6 +110,13 @@ async def main() -> dict:
             cadence_months=6,
             include_principal_balloon=True,
         )
+        # Statement-faithful: NO contractual EMI — half-yearly interest only.
+        loan.emi_amount = None
+        loan.display_name = (
+            "ICICI Pru A8884526 — NO EMI · half-yr@7.96% prin · "
+            "O/S ₹1.75L@18-May-26 (₹1.60L+₹14805·paid0) | FORECLOSE>SV | "
+            "KM:no_emi;half_yr;vol;no_flatten"
+        )
 
         emi_cat = await _find_category(session, workspace_id, ["EMI / Loans", "Loans", "Interest"])
         insur_cat = await _find_category(
@@ -184,6 +191,13 @@ async def main() -> dict:
             "interest_cadence": "half_yearly",
             "interest_amount_half_yearly": float(HALF_YEAR_INTEREST),
             "principal": float(PRINCIPAL),
+            "accrued_interest_asof": 14805.0,
+            "outstanding_total_asof": 174805.0,
+            "statement_as_of": "2026-05-18",
+            "drawn_on": "2025-03-25",
+            "no_emi": True,
+            "repayment": "voluntary_or_foreclosure_vs_sv",
+            "do_not_flatten": True,
             "sv_source": "CoS benefit illustration in policy PDF — NOT live ICICI quote",
             "linked_premium_recurring_id": str(premium.id),
             "linked_interest_recurring_id": str(interest.id),
