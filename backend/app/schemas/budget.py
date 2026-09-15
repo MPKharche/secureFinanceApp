@@ -18,6 +18,20 @@ class BudgetUpdate(BaseModel):
     effective_month: Optional[_Date] = None
 
 
+class BudgetActualsResponse(BaseModel):
+    category_actuals: dict[str, dict[str, Decimal]]  # category_id -> { month -> amount }
+
+
+class CategoryAmountInput(BaseModel):
+    category_id: uuid.UUID
+    amount: Decimal
+
+
+class BudgetUpdateWithScope(BaseModel):
+    amount: Decimal
+    apply_to_future: bool = False
+
+
 class BudgetRead(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
