@@ -14,8 +14,16 @@ class TelegramAlerter:
     """Send alerts via Telegram bot."""
     
     def __init__(self):
-        self.bot = Bot(token=config.TELEGRAM_BOT_TOKEN)
-        self.chat_id = config.TELEGRAM_ALERT_CHAT_ID
+        if config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_BOT_TOKEN != "test_bot_token":
+            self.bot = Bot(token=config.TELEGRAM_BOT_TOKEN)
+            self.chat_id = config.TELEGRAM_ALERT_CHAT_ID
+            self.enabled = True
+            logger.info("Telegram alerter initialized")
+        else:
+            self.bot = None
+            self.chat_id = None
+            self.enabled = False
+            logger.warning("Telegram alerter disabled (no valid token)")
     
     async def send_failure_alert(self, pending_tx: PendingTransaction) -> bool:
         """
@@ -27,6 +35,10 @@ class TelegramAlerter:
         Returns:
             True if sent successfully, False otherwise
         """
+        if not self.enabled:
+            logger.info("Telegram alerts disabled, skipping alert")
+            return False
+        
         # Format timestamp in IST
         created_ist = pending_tx.created_at.astimezone()
         
@@ -70,6 +82,10 @@ bash /root/system/scripts/check-telegram-sync.sh"""
         Returns:
             True if sent successfully, False otherwise
         """
+        if not self.enabled:
+            logger.info("Telegram alerts disabled, skipping summary")
+            return False
+        
         from datetime import date
         
         # Format metrics

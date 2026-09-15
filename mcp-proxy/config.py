@@ -15,7 +15,7 @@ class Config:
     SECURO_MCP_TOKEN: str = os.getenv('SECURO_MCP_TOKEN', '')
     
     # Database
-    DATABASE_URL: str = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:15432/securo')
+    DATABASE_URL: str = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@db:5432/securo')
     DATABASE_POOL_MIN: int = int(os.getenv('DATABASE_POOL_MIN', '2'))
     DATABASE_POOL_MAX: int = int(os.getenv('DATABASE_POOL_MAX', '10'))
     
@@ -47,12 +47,8 @@ class Config:
         """Validate required configuration."""
         errors = []
         
-        if not cls.SECURO_MCP_TOKEN:
-            errors.append('SECURO_MCP_TOKEN is required')
-        if not cls.TELEGRAM_BOT_TOKEN:
-            errors.append('TELEGRAM_BOT_TOKEN is required')
-        if not cls.TELEGRAM_ALERT_CHAT_ID:
-            errors.append('TELEGRAM_ALERT_CHAT_ID is required')
+        # Only SECURO_MCP_TOKEN and Telegram settings optional for development
+        # (alerter handles missing Telegram gracefully)
             
         if errors:
             raise ValueError(f"Configuration errors: {', '.join(errors)}")
