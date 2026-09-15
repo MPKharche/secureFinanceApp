@@ -1,0 +1,27 @@
+[Unit]
+Description=Securo MCP Proxy Server (Sync Guardian)
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/apps/secureFinanceApp/mcp-proxy
+Environment=PATH=/root/apps/secureFinanceApp/mcp-proxy/venv/bin:/usr/local/bin:/usr/bin
+EnvironmentFile=/root/apps/secureFinanceApp/mcp-proxy/.env
+ExecStart=/root/apps/secureFinanceApp/mcp-proxy/venv/bin/python server.py
+Restart=always
+RestartSec=10
+TimeoutStopSec=30
+
+# Resource limits
+MemoryMax=256M
+CPUQuota=50%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
