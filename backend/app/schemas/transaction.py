@@ -177,6 +177,11 @@ class TransactionRead(TransactionBase):
     # is_self member at request time. Helps the UI show who paid
     # instead of a generic "shared" badge.
     parent_owner_name: Optional[str] = None
+    # Loan payment linkage (reverse navigation)
+    linked_loan_schedule_entry_id: Optional[uuid.UUID] = None
+    loan_account_id: Optional[uuid.UUID] = None
+    loan_account_name: Optional[str] = None
+    emi_number: Optional[int] = None
     is_ignored: bool = False
 
     @model_validator(mode="after")

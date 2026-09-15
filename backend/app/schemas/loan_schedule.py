@@ -23,6 +23,8 @@ class LoanScheduleEntryRead(BaseModel):
     actual_payment_date: Optional[date] = None
     actual_amount_paid: Optional[float] = None
     linked_transaction_id: Optional[uuid.UUID] = None
+    linked_transaction_ids: Optional[str] = None  # Comma-separated UUIDs for multiple transactions
+    principal_percentage: Optional[float] = None  # % of EMI that is principal
     notes: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

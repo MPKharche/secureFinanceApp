@@ -299,16 +299,31 @@ async def manual_link_transaction(
     db: AsyncSession = Depends(get_async_session),
     workspace: WorkspaceContext = Depends(current_workspace),
 ):
-    """Manually link a transaction to a schedule entry."""
-    transaction_id = uuid.UUID(link_data["transaction_id"])
+    """Manually link transaction(s) to a schedule entry."""
+    # Support both single transaction_id and multiple transaction_ids
+    transaction_ids_str = link_data.get("transaction_ids")
+    single_transaction_id = link_data.get("transaction_id")
+    
+    if transaction_ids_str:
+        # Multiple transactions (comma-separated)
+        tx_ids = transaction_ids_str
+    elif single_transaction_id:
+        # Single transaction (backward compatibility)
+        tx_ids = str(single_transaction_id)
+    else:
+        raise HTTPException(status_code=400, detail="Either transaction_id or transaction_ids required")
+    
+    # Determine payment status based on amount
+    # For now, mark as paid if any transaction is linked
+    payment_status = "paid"
     
     try:
         entry, _affected = await loan_schedule_service.update_schedule_entry(
             session=db,
             entry_id=entry_id,
             updates={
-                "linked_transaction_id": transaction_id,
-                "payment_status": "paid",
+                "linked_transaction_ids": tx_ids,
+                "payment_status": payment_status,
             },
         )
     except Exception:

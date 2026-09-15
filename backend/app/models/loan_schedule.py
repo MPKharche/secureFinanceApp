@@ -43,6 +43,9 @@ class LoanAmortizationSchedule(Base):
     linked_transaction_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("transactions.id", ondelete="SET NULL"), nullable=True
     )
+    linked_transaction_ids: Mapped[Optional[str]] = mapped_column(
+        String(500), nullable=True
+    )  # Comma-separated UUIDs for multiple transactions
     notes: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

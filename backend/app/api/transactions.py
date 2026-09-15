@@ -20,8 +20,58 @@ from app.schemas.transaction_calendar import TransactionCalendarResponse
 from app.services import transaction_service
 from app.services.admin_service import get_credit_card_accounting_mode
 from app.services.transaction_calendar_service import get_transaction_calendar
+from sqlalchemy import select, or_
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
+
+
+async def _enrich_with_loan_linkage(session: AsyncSession, transactions: list[TransactionRead]) -> list[TransactionRead]:
+    """Enrich transactions with loan payment linkage info (reverse navigation)."""
+    from app.models.loan_schedule import LoanAmortizationSchedule
+    from app.models.account import Account
+    
+    if not transactions:
+        return transactions
+    
+    # Build a map of transaction_id -> [schedule_entries]
+    tx_ids = [str(tx.id) for tx in transactions]
+    
+    # Query schedule entries where linked_transaction_ids contains any of our tx_ids
+    # This is a LIKE query since we're storing comma-separated UUIDs
+    conditions = [LoanAmortizationSchedule.linked_transaction_ids.like(f'%{tx_id}%') for tx_id in tx_ids]
+    
+    result = await session.execute(
+        select(LoanAmortizationSchedule, Account.name, Account.display_name)
+        .join(Account, LoanAmortizationSchedule.account_id == Account.id)
+        .where(or_(*conditions))
+    )
+    
+    # Build lookup map
+    tx_to_schedule = {}
+    for entry, account_name, display_name in result:
+        if entry.linked_transaction_ids:
+            linked_ids = entry.linked_transaction_ids.split(',')
+            for linked_id in linked_ids:
+                linked_id = linked_id.strip()
+                if linked_id in tx_ids:
+                    tx_to_schedule[linked_id] = {
+                        'entry_id': entry.id,
+                        'account_id': entry.account_id,
+                        'account_name': display_name or account_name,
+                        'emi_number': entry.emi_number,
+                    }
+    
+    # Enrich transactions
+    for tx in transactions:
+        tx_id_str = str(tx.id)
+        if tx_id_str in tx_to_schedule:
+            linkage = tx_to_schedule[tx_id_str]
+            tx.linked_loan_schedule_entry_id = linkage['entry_id']
+            tx.loan_account_id = linkage['account_id']
+            tx.loan_account_name = linkage['account_name']
+            tx.emi_number = linkage['emi_number']
+    
+    return transactions
 
 
 def _tag_fx_fallback(tx: TransactionRead, primary_currency: str) -> TransactionRead:
@@ -131,6 +181,10 @@ async def list_transactions(
     )
     primary_currency = ctx.user.primary_currency
     items = [_tag_fx_fallback(TransactionRead.model_validate(tx, from_attributes=True), primary_currency) for tx in transactions]
+    
+    # Enrich with loan linkage info (reverse navigation)
+    items = await _enrich_with_loan_linkage(session, items)
+    
     summary_out = (
         TransactionsSummary(**summary, currency=primary_currency)
         if summary is not None

@@ -1117,6 +1117,21 @@ export default function TransactionsPage() {
                 <span title={t('transactions.transferTooltip')}><HelpCircle className="h-3 w-3 text-blue-400" /></span>
               </span>
             )}
+            {(tx as any).linked_loan_schedule_entry_id && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigate(`/loans/${(tx as any).loan_account_id}?highlight_emi=${(tx as any).emi_number}`)
+                }}
+                className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900 px-1.5 py-0.5 rounded-full hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors cursor-pointer"
+                title={`Loan payment for ${(tx as any).loan_account_name}`}
+              >
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+                Loan • EMI {(tx as any).emi_number}
+              </button>
+            )}
             {tx.is_ignored && 
               (
               <span className="ml-2 inline-flex items-center gap-1 text-xs text-gray-600 font-normal bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5">

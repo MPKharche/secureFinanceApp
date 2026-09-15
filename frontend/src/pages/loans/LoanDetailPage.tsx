@@ -14,8 +14,10 @@ import { PrepaymentDialog } from './PrepaymentDialog';
 import { LoanAnalyticsCharts } from './LoanAnalyticsCharts';
 import { LoanSimulations } from '@/components/loans/LoanSimulations';
 import { CombinedLoanSimulator } from '@/components/loans/CombinedLoanSimulator';
-import { useMemo, useState } from 'react';
+import { LoanReviewQueue } from '@/components/loans/LoanReviewQueue';
+import { useMemo, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface LoanOverview {
   progress_percent: number;
@@ -157,6 +159,45 @@ export function LoanDetailPage() {
   const currentEmi = Number(account?.emi_amount ?? 0);
   const title = clientLoanTitle(account?.display_name || account?.name, 'Loan');
 
+  // Auto-link transactions on mount
+  const { data: autoLinkResult } = useQuery({
+    queryKey: ['loan-auto-link', accountId],
+    queryFn: async () => {
+      const response = await fetch(`/api/v1/loans/schedule/auto-link`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'X-Workspace-Id': localStorage.getItem('workspace_id') || '',
+        },
+        body: JSON.stringify({
+          account_id: accountId,
+          date_tolerance_days: 3,
+          amount_tolerance_percent: 2.0,
+        }),
+      })
+      if (!response.ok) return null
+      return response.json()
+    },
+    enabled: !!accountId,
+    staleTime: Infinity, // Run once per session
+  })
+
+  // Show toast when auto-link completes
+  useEffect(() => {
+    if (autoLinkResult) {
+      const linkedCount = autoLinkResult.linked_count || autoLinkResult.auto_linked_count || 0
+      const reviewCount = autoLinkResult.requires_review_count || 0
+      
+      if (linkedCount > 0) {
+        toast.success(`Auto-linked ${linkedCount} payment${linkedCount > 1 ? 's' : ''}`)
+      }
+      if (reviewCount > 0) {
+        toast.info(`${reviewCount} payment${reviewCount > 1 ? 's' : ''} need review`)
+      }
+    }
+  }, [autoLinkResult])
+
   if (isLoading) {
     return (
       <div className="container mx-auto py-8">
@@ -233,6 +274,9 @@ export function LoanDetailPage() {
           <TabsTrigger value="schedule" className="text-xs sm:text-sm">
             Schedule
           </TabsTrigger>
+          <TabsTrigger value="review" className="text-xs sm:text-sm">
+            Review Queue
+          </TabsTrigger>
           <TabsTrigger value="analysis" className="text-xs sm:text-sm">
             Analysis
           </TabsTrigger>
@@ -246,6 +290,10 @@ export function LoanDetailPage() {
 
         <TabsContent value="schedule" className="mt-4">
           <LoanScheduleTable accountId={accountId!} currency={currency} locale={locale} />
+        </TabsContent>
+
+        <TabsContent value="review" className="mt-4">
+          <LoanReviewQueue accountId={accountId!} currency={currency} locale={locale} />
         </TabsContent>
 
         <TabsContent value="analysis" className="mt-4">

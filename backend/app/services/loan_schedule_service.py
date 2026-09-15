@@ -11,6 +11,24 @@ from app.models.account import Account
 from app.models.loan_schedule import LoanAmortizationSchedule
 
 
+def _enrich_schedule_entries(entries: list[LoanAmortizationSchedule]) -> list[LoanAmortizationSchedule]:
+    """Add computed fields like principal_percentage and linked_transaction_ids."""
+    for entry in entries:
+        # Calculate principal percentage
+        if entry.emi_amount and entry.emi_amount > 0:
+            entry.principal_percentage = round(
+                (float(entry.principal_component) / float(entry.emi_amount)) * 100, 1
+            )
+        else:
+            entry.principal_percentage = 0.0
+        
+        # Migrate single linked_transaction_id to comma-separated format
+        if entry.linked_transaction_id and not entry.linked_transaction_ids:
+            entry.linked_transaction_ids = str(entry.linked_transaction_id)
+    
+    return entries
+
+
 def calculate_emi(principal: Decimal, annual_rate: Decimal, tenure_months: int) -> Decimal:
     """Calculate EMI using reducing balance method.
 
@@ -150,7 +168,10 @@ async def get_schedule(
     query = query.order_by(LoanAmortizationSchedule.emi_number)
 
     result = await session.execute(query)
-    return list(result.scalars().all())
+    entries = list(result.scalars().all())
+    
+    # Enrich with computed fields
+    return _enrich_schedule_entries(entries)
 
 
 async def update_schedule_entry(

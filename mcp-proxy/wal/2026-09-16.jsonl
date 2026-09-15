@@ -1,0 +1,1 @@
+{"timestamp": "2026-09-15T20:10:18.245498", "idempotency_key": "test_key_12345_wal", "request": {"method": "propose_create_transaction", "params": {"description": "test transaction", "amount": 100.5, "category": "food"}}}
