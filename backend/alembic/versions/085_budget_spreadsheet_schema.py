@@ -1,7 +1,7 @@
 """budget_spreadsheet_schema
 
-Revision ID: 085
-Revises: 084
+Revision ID: 085_budget_spreadsheet_schema
+Revises: 084_mcp_sync_tables
 Create Date: 2026-09-16
 
 """
@@ -9,8 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = '085'
-down_revision = '084'
+revision = '085_budget_spreadsheet_schema'
+down_revision = '084_mcp_sync_tables'
 branch_labels = None
 depends_on = None
 
