@@ -211,7 +211,7 @@ export default function BudgetSpreadsheetPage() {
   
   // Update budget mutation
   const updateBudgetMutation = useMutation({
-    mutationFn: async ({ budgetId, amount, applyToFuture }: { budgetId?: string, amount: number, applyToFuture: boolean, categoryId: string, month: string }) => {
+    mutationFn: async ({ budgetId, amount, applyToFuture, categoryId, month }: { budgetId?: string, amount: number, applyToFuture: boolean, categoryId: string, month: string }) => {
       if (budgetId) {
         return budgetsApi.update(budgetId, { amount, apply_to_future: applyToFuture })
       } else {

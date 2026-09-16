@@ -98,6 +98,8 @@ export interface Category {
   is_hidden: boolean
   treat_as_transfer: boolean
   is_ignored: boolean
+  category_type: 'income' | 'expense' | 'investment'
+  enable_rollover: boolean
 }
 
 /** Active rules that assign a category, used when retiring one. */
@@ -984,6 +986,7 @@ export interface Goal {
   color: string | null
   position: number
   metadata_json: Record<string, unknown> | null
+  linked_category_ids: string[]
   created_at: string
   updated_at: string
   percentage: number
