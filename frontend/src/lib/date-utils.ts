@@ -1,7 +1,5 @@
-import { format } from 'date-fns'
-
 export function localDateString(date = new Date()) {
-  return format(date, 'yyyy-MM-dd')
+  return date.toISOString().slice(0, 10)
 }
 
 // Short weekday names for a Sunday-start calendar header. The reference week is
