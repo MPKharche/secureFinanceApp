@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { budgets as budgetsApi, categories as categoriesApi, goals as goalsApi } from '@/lib/api'
 import { PageHeader } from '@/components/page-header'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { addMonths, subMonths, startOfMonth, format } from 'date-fns'
+import { toast } from 'sonner'
 import type { Budget, Category, Goal } from '@/types'
 
 interface BudgetGridRow {
@@ -197,6 +198,56 @@ export default function BudgetSpreadsheetPage() {
     return <div className="flex items-center justify-center h-64">Loading...</div>
   }
   
+  // Generate month keys for columns
+  const monthKeys = useMemo(() => {
+    const keys: string[] = []
+    let current = startMonth
+    while (current <= endMonth) {
+      keys.push(format(current, 'yyyy-MM'))
+      current = addMonths(current, 1)
+    }
+    return keys
+  }, [startMonth, endMonth])
+  
+  // Update budget mutation
+  const updateBudgetMutation = useMutation({
+    mutationFn: async ({ budgetId, amount, applyToFuture }: { budgetId?: string, amount: number, applyToFuture: boolean, categoryId: string, month: string }) => {
+      if (budgetId) {
+        return budgetsApi.update(budgetId, { amount, apply_to_future: applyToFuture })
+      } else {
+        return budgetsApi.create({
+          category_id: categoryId,
+          amount,
+          month: month + '-01',
+          is_recurring: false
+        })
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budgets'] })
+      toast.success('Budget updated')
+    },
+    onError: () => {
+      toast.error('Failed to update budget')
+    }
+  })
+  
+  const handleCellEdit = (row: BudgetGridRow, monthKey: string, newValue: string) => {
+    if (row.type !== 'category' || !row.categoryId) return
+    
+    const amount = parseFloat(newValue)
+    if (isNaN(amount)) return
+    
+    const cellData = row.months[monthKey]
+    updateBudgetMutation.mutate({
+      budgetId: cellData.budgetId,
+      amount,
+      applyToFuture: false,
+      categoryId: row.categoryId,
+      month: monthKey
+    })
+  }
+  
   return (
     <div className="space-y-6">
       <PageHeader
@@ -208,17 +259,84 @@ export default function BudgetSpreadsheetPage() {
         Showing {format(startMonth, 'MMM yyyy')} - {format(endMonth, 'MMM yyyy')}
       </div>
       
-      {/* Placeholder for TrendSummaryBar */}
-      <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center text-muted-foreground">
-        Trend Summary Bar (coming in next tasks)
+      {/* Simple table-based grid */}
+      <div className="overflow-x-auto border rounded-lg">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 sticky top-0">
+            <tr>
+              <th className="px-4 py-2 text-left font-semibold border-r sticky left-0 bg-muted/50 z-10">Category</th>
+              {monthKeys.map(month => (
+                <th key={month} className="px-4 py-2 text-center font-semibold border-r min-w-[120px]">
+                  {format(new Date(month + '-01'), 'MMM yyyy')}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(row => {
+              if (row.type === 'section-header') {
+                return (
+                  <tr key={row.id} className="bg-primary/10">
+                    <td colSpan={monthKeys.length + 1} className="px-4 py-2 font-bold">
+                      {row.categoryName}
+                    </td>
+                  </tr>
+                )
+              }
+              
+              if (row.type === 'subtotal' || row.type === 'total') {
+                return (
+                  <tr key={row.id} className="bg-muted font-semibold border-t-2">
+                    <td className="px-4 py-2 sticky left-0 bg-muted z-10">{row.categoryName}</td>
+                    {monthKeys.map(month => (
+                      <td key={month} className="px-4 py-2 text-right border-r">
+                        {row.months[month]?.budget?.toFixed(2) ?? '-'}
+                      </td>
+                    ))}
+                  </tr>
+                )
+              }
+              
+              return (
+                <tr key={row.id} className="border-b hover:bg-muted/30">
+                  <td className="px-4 py-2 sticky left-0 bg-background z-10 border-r">
+                    <div className="flex items-center gap-2">
+                      <span className="w-4 h-4 rounded" style={{ backgroundColor: row.categoryColor }}></span>
+                      {row.categoryName}
+                    </div>
+                  </td>
+                  {monthKeys.map(month => {
+                    const cellData = row.months[month]
+                    const isPast = new Date(month + '-01') < startOfMonth(new Date())
+                    const displayValue = isPast ? cellData?.actual : cellData?.budget
+                    
+                    return (
+                      <td key={month} className="px-4 py-2 text-right border-r">
+                        {cellData?.isEditable ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            defaultValue={displayValue ?? ''}
+                            onBlur={(e) => handleCellEdit(row, month, e.target.value)}
+                            className="w-full text-right border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        ) : (
+                          <span className={isPast && cellData?.actual ? 'text-muted-foreground' : ''}>
+                            {displayValue?.toFixed(2) ?? '-'}
+                          </span>
+                        )}
+                      </td>
+                    )
+                  })}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
       </div>
       
-      {/* Placeholder for BudgetDataGrid */}
-      <div className="border-2 border-dashed border-muted rounded-lg p-8">
-        <p className="text-muted-foreground">Budget Data Grid (coming in next tasks)</p>
-        <p className="text-sm text-muted-foreground mt-2">
-          {rows.length} rows loaded, data structure ready for react-data-grid
-        </p>
+      <div className="text-xs text-muted-foreground">
+        {rows.length} categories loaded. Click on future month cells to edit budgets.
       </div>
     </div>
   )
