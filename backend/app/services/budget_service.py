@@ -467,3 +467,125 @@ async def get_budget_vs_actual(
         ))
 
     return sorted(comparisons, key=lambda x: float(x.actual_amount), reverse=True)
+
+
+async def get_budgets_multi_month(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    start_month: date,
+    end_month: date,
+) -> list[Budget]:
+    """
+    Fetch all effective budgets for each month in range.
+    Uses existing resolution logic: month-specific override > most recent recurring.
+    """
+    all_budgets = []
+    current = start_month.replace(day=1)
+    
+    while current <= end_month:
+        month_budgets = await get_budgets(session, workspace_id, current)
+        all_budgets.extend(month_budgets)
+        
+        # Move to next month
+        if current.month == 12:
+            current = current.replace(year=current.year + 1, month=1)
+        else:
+            current = current.replace(month=current.month + 1)
+    
+    # Deduplicate by (category_id, month) — keep most specific entry
+    unique_budgets = {}
+    for b in all_budgets:
+        key = (str(b.category_id), b.month.strftime('%Y-%m'))
+        if key not in unique_budgets or not b.is_recurring:
+            unique_budgets[key] = b
+    
+    return list(unique_budgets.values())
+
+
+async def get_actuals_multi_month(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+    start_month: date,
+    end_month: date,
+) -> dict[str, dict[str, Decimal]]:
+    """
+    Returns: { "category_uuid": { "2025-09": 950.00, "2025-10": 1020.00, ... }, ... }
+    """
+    user = await session.get(User, user_id)
+    primary_currency = user.primary_currency if user else get_settings().default_currency
+    accounting_mode = await get_credit_card_accounting_mode(session)
+    report_date = reporting_date_col(accounting_mode)
+    
+    # Query all transactions in range, grouped by category and month
+    result = await session.execute(
+        select(
+            Transaction.category_id,
+            func.date_trunc('month', report_date).label('month'),
+            func.sum(_primary_amount_expr()).label('total'),
+        )
+        .where(
+            Transaction.workspace_id == workspace_id,
+            report_date >= start_month,
+            report_date < end_month,
+            Transaction.category_id.isnot(None),
+            Transaction.status == 'posted',
+            counts_as_user_pnl(),
+        )
+        .group_by(Transaction.category_id, func.date_trunc('month', report_date))
+    )
+    
+    actuals = {}
+    for row in result.all():
+        cat_id = str(row.category_id)
+        month_key = row.month.strftime('%Y-%m')
+        if cat_id not in actuals:
+            actuals[cat_id] = {}
+        actuals[cat_id][month_key] = abs(row.total or Decimal("0"))
+    
+    # Apply split adjustments per month
+    from app.services._query_filters import viewer_shared_spending_by_category
+    
+    current = start_month.replace(day=1)
+    while current < end_month:
+        # Next month boundary
+        if current.month == 12:
+            next_month = current.replace(year=current.year + 1, month=1)
+        else:
+            next_month = current.replace(month=current.month + 1)
+        
+        # Owner share offset
+        own_offset = await owner_split_offset_by_category(
+            session, user_id, current, next_month,
+            use_effective_date=accounting_mode == "accrual",
+            primary_currency=primary_currency,
+            workspace_id=workspace_id,
+        )
+        for cat_uuid, total in own_offset.items():
+            if cat_uuid is None:
+                continue
+            cat_id = str(cat_uuid)
+            month_key = current.strftime('%Y-%m')
+            if cat_id in actuals and month_key in actuals[cat_id]:
+                actuals[cat_id][month_key] -= Decimal(str(total))
+                if actuals[cat_id][month_key] <= 0:
+                    del actuals[cat_id][month_key]
+        
+        # Group share
+        shared_by_cat = await viewer_shared_spending_by_category(
+            session, user_id, current, next_month,
+            use_effective_date=accounting_mode == "accrual",
+            primary_currency=primary_currency,
+        )
+        for cat_uuid, total in shared_by_cat.items():
+            if cat_uuid is None:
+                continue
+            cat_id = str(cat_uuid)
+            month_key = current.strftime('%Y-%m')
+            if cat_id not in actuals:
+                actuals[cat_id] = {}
+            actuals[cat_id][month_key] = actuals[cat_id].get(month_key, Decimal("0")) + Decimal(str(total))
+        
+        current = next_month
+    
+    return actuals

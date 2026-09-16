@@ -1023,11 +1023,23 @@ export const budgets = {
     const { data } = await api.get('/budgets', { params: { month } })
     return data
   },
+  multiMonth: async (startMonth: string, endMonth: string): Promise<Budget[]> => {
+    const { data } = await api.get('/budgets/multi-month', {
+      params: { start_month: startMonth, end_month: endMonth }
+    })
+    return data
+  },
+  actuals: async (startMonth: string, endMonth: string): Promise<BudgetActualsResponse> => {
+    const { data } = await api.get('/budgets/actuals', {
+      params: { start_month: startMonth, end_month: endMonth }
+    })
+    return data
+  },
   create: async (budget: { category_id: string; amount: number; month: string; is_recurring?: boolean }): Promise<Budget> => {
     const { data } = await api.post('/budgets', budget)
     return data
   },
-  update: async (id: string, budget: { amount?: number }): Promise<Budget> => {
+  update: async (id: string, budget: { amount?: number; apply_to_future?: boolean }): Promise<Budget> => {
     const { data } = await api.patch(`/budgets/${id}`, budget)
     return data
   },
@@ -1037,6 +1049,60 @@ export const budgets = {
   comparison: async (month?: string): Promise<BudgetVsActual[]> => {
     const { data } = await api.get('/budgets/comparison', { params: { month } })
     return data
+  },
+  exportCsv: async (startMonth: string, endMonth: string): Promise<Blob> => {
+    const { data } = await api.get('/budgets/export', {
+      params: { start_month: startMonth, end_month: endMonth },
+      responseType: 'blob'
+    })
+    return data
+  },
+  
+  // Templates
+  listTemplates: async (): Promise<BudgetTemplate[]> => {
+    const { data } = await api.get('/budgets/templates')
+    return data
+  },
+  createTemplate: async (template: {
+    name: string
+    description?: string
+    categories: CategoryBudgetData[]
+  }): Promise<BudgetTemplate> => {
+    const { data } = await api.post('/budgets/templates', template)
+    return data
+  },
+  deleteTemplate: async (id: string): Promise<void> => {
+    await api.delete(`/budgets/templates/${id}`)
+  },
+  applyTemplate: async (input: {
+    template_id: string
+    target_months: string[]
+    is_recurring: boolean
+  }): Promise<BudgetTemplateApplyResponse> => {
+    const { data } = await api.post('/budgets/templates/apply', input)
+    return data
+  },
+  
+  // Scenarios
+  listScenarios: async (): Promise<BudgetScenario[]> => {
+    const { data } = await api.get('/budgets/scenarios')
+    return data
+  },
+  createScenario: async (scenario: {
+    name: string
+    description?: string
+    base_month: string
+    adjustments: ScenarioAdjustment[]
+  }): Promise<BudgetScenario> => {
+    const { data } = await api.post('/budgets/scenarios', scenario)
+    return data
+  },
+  previewScenario: async (id: string, months: number): Promise<BudgetScenarioPreview> => {
+    const { data } = await api.get(`/budgets/scenarios/${id}/preview`, { params: { months } })
+    return data
+  },
+  deleteScenario: async (id: string): Promise<void> => {
+    await api.delete(`/budgets/scenarios/${id}`)
   },
 }
 

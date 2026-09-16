@@ -762,6 +762,62 @@ export interface BudgetVsActual {
   is_recurring: boolean
 }
 
+export interface BudgetActualsResponse {
+  category_actuals: Record<string, Record<string, number>> // category_id -> { month -> amount }
+}
+
+export interface CategoryBudgetData {
+  category_id: string
+  amount: number
+}
+
+export interface BudgetTemplate {
+  id: string
+  user_id: string
+  workspace_id: string
+  name: string
+  description: string | null
+  template_data: {
+    categories: CategoryBudgetData[]
+  }
+  created_at: string
+  updated_at: string
+}
+
+export interface BudgetTemplateApplyResponse {
+  created_count: number
+}
+
+export interface ScenarioAdjustment {
+  category_id: string
+  adjustment_type: 'percent' | 'fixed'
+  value: number
+}
+
+export interface BudgetScenario {
+  id: string
+  user_id: string
+  workspace_id: string
+  name: string
+  description: string | null
+  base_month: string
+  adjustments: {
+    categories: ScenarioAdjustment[]
+  }
+  created_at: string
+}
+
+export interface ScenarioCategoryPreview {
+  category_id: string
+  month: string
+  base_amount: number
+  adjusted_amount: number
+}
+
+export interface BudgetScenarioPreview {
+  months: ScenarioCategoryPreview[]
+}
+
 export interface Asset {
   id: string
   user_id: string

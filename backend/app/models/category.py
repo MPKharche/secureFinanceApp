@@ -39,6 +39,10 @@ class Category(Base):
     # When set to True, transactions with this category are treated as if they don't exist
     # for income/expense calculations.
     is_ignored: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    
+    # Budget spreadsheet fields
+    category_type: Mapped[str] = mapped_column(String(20), server_default='expense', nullable=False)
+    enable_rollover: Mapped[bool] = mapped_column(Boolean, server_default='false', nullable=False)
 
     user: Mapped["User"] = relationship(back_populates="categories")
     group: Mapped[Optional["CategoryGroup"]] = relationship(back_populates="categories")
