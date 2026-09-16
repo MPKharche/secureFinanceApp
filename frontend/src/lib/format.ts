@@ -26,43 +26,40 @@ const FORMAT_LOCALE: Record<Exclude<NumberFormat, 'auto'>, string> = {
 }
 
 /**
- * Currency code → locale used when the format is "auto". Picks the separator
- * convention native to each currency (e.g. EUR → 1.000,00, USD → 1,000.00).
+ * Supported currency codes. When format is "auto", the locale is dynamically
+ * discovered from the browser's Intl data for each currency's native convention.
  */
-const CURRENCY_LOCALE: Record<string, string> = {
-  BRL: 'pt-BR',
-  USD: 'en-US',
-  EUR: 'de-DE',
-  GBP: 'en-GB',
-  JPY: 'ja-JP',
-  CAD: 'en-CA',
-  AUD: 'en-AU',
-  CHF: 'de-CH',
-  CNY: 'zh-CN',
-  ARS: 'es-AR',
-  MXN: 'es-MX',
-  CLP: 'es-CL',
-  COP: 'es-CO',
-  PEN: 'es-PE',
-  UYU: 'es-UY',
-  INR: 'en-IN',
-  SEK: 'sv-SE',
-  DKK: 'da-DK',
-  NOK: 'nb-NO',
-  PLN: 'pl-PL',
-  CZK: 'cs-CZ',
-  HUF: 'hu-HU',
-  RON: 'ro-RO',
-  CRC: 'es-CR',
-  IDR: 'id-ID',
-  DOP: 'es-DO',
-  RUB: 'ru-RU',
-  GTQ: 'es-GT',
-  PHP: 'en-PH',
-  UAH: 'uk-UA',
-  NZD: 'en-NZ',
-  VND: 'vi-VN',
-  SGD: 'en-SG',
+const SUPPORTED_CURRENCIES = new Set([
+  'BRL', 'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'ARS',
+  'MXN', 'CLP', 'COP', 'PEN', 'UYU', 'INR', 'SEK', 'DKK', 'NOK', 'PLN',
+  'CZK', 'HUF', 'RON', 'CRC', 'IDR', 'DOP', 'RUB', 'GTQ', 'PHP', 'UAH',
+  'NZD', 'VND', 'SGD',
+])
+
+/** Cache discovered locales to avoid repeated Intl lookups. */
+const localeCache = new Map<string, string>()
+
+/**
+ * Discover the native locale for a currency using Intl.NumberFormat.
+ * Returns the locale that browser would naturally use for this currency.
+ */
+function discoverCurrencyLocale(currency: string): string | null {
+  if (!SUPPORTED_CURRENCIES.has(currency)) return null
+  
+  const cached = localeCache.get(currency)
+  if (cached) return cached
+  
+  try {
+    const formatter = new Intl.NumberFormat(undefined, { 
+      style: 'currency', 
+      currency 
+    })
+    const locale = formatter.resolvedOptions().locale
+    localeCache.set(currency, locale)
+    return locale
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -80,8 +77,9 @@ export function resolveDisplayLocale(
   if (numberFormat && numberFormat !== 'auto') {
     return FORMAT_LOCALE[numberFormat]
   }
-  if (currency && CURRENCY_LOCALE[currency]) {
-    return CURRENCY_LOCALE[currency]
+  if (currency) {
+    const discovered = discoverCurrencyLocale(currency)
+    if (discovered) return discovered
   }
   return fallback
 }
