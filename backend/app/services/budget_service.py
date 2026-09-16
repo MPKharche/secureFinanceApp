@@ -518,10 +518,13 @@ async def get_actuals_multi_month(
     report_date = reporting_date_col(accounting_mode)
     
     # Query all transactions in range, grouped by category and month
+    # Create labeled expression for the truncated month to avoid GROUP BY issues with COALESCE
+    month_expr = func.date_trunc('month', report_date).label('month')
+    
     result = await session.execute(
         select(
             Transaction.category_id,
-            func.date_trunc('month', report_date).label('month'),
+            month_expr,
             func.sum(_primary_amount_expr()).label('total'),
         )
         .where(
@@ -532,7 +535,7 @@ async def get_actuals_multi_month(
             Transaction.status == 'posted',
             counts_as_user_pnl(),
         )
-        .group_by(Transaction.category_id, func.date_trunc('month', report_date))
+        .group_by(Transaction.category_id, month_expr)
     )
     
     actuals = {}
