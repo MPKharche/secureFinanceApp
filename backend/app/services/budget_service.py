@@ -32,19 +32,15 @@ def _primary_amount_expr():
     return func.coalesce(Transaction.amount_primary, Transaction.amount)
 
 
-async def _build_budget_map(
-    session: AsyncSession, workspace_id: uuid.UUID, month_start: date
-) -> dict[str, tuple[Decimal, bool]]:
-    """Build a map of category_id -> (amount, is_recurring) for the given month.
-
-    Resolution order:
-    1. Month-specific override (is_recurring=false, month=M) takes priority
-    2. Most recent recurring default (is_recurring=true, month<=M) as fallback
+def _query_recurring_budgets(
+    workspace_id: uuid.UUID,
+    month_start: date
+):
+    """Build query for effective recurring budgets up to month_start.
+    
+    Returns a SQLAlchemy query that gets the most recent recurring budget
+    per category where month <= month_start.
     """
-    budget_map: dict[str, tuple[Decimal, bool]] = {}
-
-    # Query 1: Get effective recurring defaults (most recent per category where month <= M)
-    # Use a subquery to get the max month per category for recurring budgets
     max_month_subq = (
         select(
             Budget.category_id,
@@ -59,20 +55,32 @@ async def _build_budget_map(
         .subquery()
     )
 
-    recurring_result = await session.execute(
-        select(Budget)
-        .join(
-            max_month_subq,
-            and_(
-                Budget.category_id == max_month_subq.c.category_id,
-                Budget.month == max_month_subq.c.max_month,
-            ),
-        )
-        .where(
-            Budget.workspace_id == workspace_id,
-            Budget.is_recurring == True,  # noqa: E712
-        )
+    return select(Budget).join(
+        max_month_subq,
+        and_(
+            Budget.category_id == max_month_subq.c.category_id,
+            Budget.month == max_month_subq.c.max_month,
+        ),
+    ).where(
+        Budget.workspace_id == workspace_id,
+        Budget.is_recurring == True,  # noqa: E712
     )
+
+
+async def _build_budget_map(
+    session: AsyncSession, workspace_id: uuid.UUID, month_start: date
+) -> dict[str, tuple[Decimal, bool]]:
+    """Build a map of category_id -> (amount, is_recurring) for the given month.
+
+    Resolution order:
+    1. Month-specific override (is_recurring=false, month=M) takes priority
+    2. Most recent recurring default (is_recurring=true, month<=M) as fallback
+    """
+    budget_map: dict[str, tuple[Decimal, bool]] = {}
+
+    # Query 1: Get effective recurring defaults
+    recurring_query = _query_recurring_budgets(workspace_id, month_start)
+    recurring_result = await session.execute(recurring_query)
     for b in recurring_result.scalars().all():
         budget_map[str(b.category_id)] = (b.amount, True)
 
@@ -111,35 +119,9 @@ async def get_budgets(
     overrides = list(overrides_result.scalars().all())
     override_category_ids = {str(b.category_id) for b in overrides}
 
-    # Get effective recurring defaults for this month
-    max_month_subq = (
-        select(
-            Budget.category_id,
-            func.max(Budget.month).label("max_month"),
-        )
-        .where(
-            Budget.workspace_id == workspace_id,
-            Budget.is_recurring == True,  # noqa: E712
-            Budget.month <= month_start,
-        )
-        .group_by(Budget.category_id)
-        .subquery()
-    )
-
-    recurring_result = await session.execute(
-        select(Budget)
-        .join(
-            max_month_subq,
-            and_(
-                Budget.category_id == max_month_subq.c.category_id,
-                Budget.month == max_month_subq.c.max_month,
-            ),
-        )
-        .where(
-            Budget.workspace_id == workspace_id,
-            Budget.is_recurring == True,  # noqa: E712
-        )
-    )
+    # Get effective recurring defaults using shared builder
+    recurring_query = _query_recurring_budgets(workspace_id, month_start)
+    recurring_result = await session.execute(recurring_query)
     recurring = [
         b for b in recurring_result.scalars().all()
         if str(b.category_id) not in override_category_ids
