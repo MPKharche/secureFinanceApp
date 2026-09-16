@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 
 interface Entry {
   id: string
+  account_id: string
   emi_number: number
   due_date: string
   principal_component: number
