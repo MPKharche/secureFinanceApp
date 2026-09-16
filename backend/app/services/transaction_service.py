@@ -687,6 +687,22 @@ async def create_transaction(
     user_id: uuid.UUID,
     data: TransactionCreate,
 ) -> Transaction:
+    from datetime import datetime
+    import zoneinfo
+    
+    # Auto-append timestamp to notes in IST format
+    ist_tz = zoneinfo.ZoneInfo("Asia/Kolkata")
+    ist_now = datetime.now(ist_tz)
+    timestamp_str = f"[TIME: {ist_now.strftime('%H:%M:%S IST')}]"
+    
+    # Append timestamp to notes with delimiter
+    if data.notes:
+        # Check if timestamp already exists to avoid duplicates
+        if "[TIME:" not in data.notes:
+            data.notes = f"{data.notes} {timestamp_str}"
+    else:
+        data.notes = timestamp_str
+    
     # Verify account belongs to the workspace
     account_result = await session.execute(
         select(Account)

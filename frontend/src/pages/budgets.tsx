@@ -1,9 +1,8 @@
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { budgets as budgetsApi, categories as categoriesApi, goals as goalsApi } from '@/lib/api'
 import { PageHeader } from '@/components/page-header'
-import { useAuth } from '@/contexts/auth-context'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { addMonths, subMonths, startOfMonth, format } from 'date-fns'
 import { toast } from 'sonner'
@@ -32,12 +31,11 @@ interface BudgetGridRow {
 
 export default function BudgetSpreadsheetPage() {
   const { t } = useTranslation()
-  const { user } = useAuth()
   const { canWrite } = useWorkspace()
   const queryClient = useQueryClient()
   
   // State: current center month for 12-month range
-  const [selectedMonth, setSelectedMonth] = useState<Date>(startOfMonth(new Date()))
+  const [selectedMonth] = useState<Date>(startOfMonth(new Date()))
   
   // Calculate 12-month range: -5 months to +6 months
   const startMonth = useMemo(() => subMonths(selectedMonth, 5), [selectedMonth])
@@ -64,7 +62,7 @@ export default function BudgetSpreadsheetPage() {
   
   const { data: goalsList } = useQuery({
     queryKey: ['goals'],
-    queryFn: goalsApi.list,
+    queryFn: () => goalsApi.list(),
   })
   
   const isLoading = budgetsLoading || actualsLoading || categoriesLoading
@@ -125,7 +123,7 @@ export default function BudgetSpreadsheetPage() {
         categoryIcon: cat.icon,
         categoryColor: cat.color,
         enableRollover: cat.enable_rollover,
-        linkedGoalId: goalsList?.find((g: Goal) => g.linked_category_ids?.includes(catId))?.id,
+        linkedGoalId: (goalsList || []).find((g: Goal) => g.linked_category_ids?.includes(catId))?.id,
         isRecurring: budgetMap[catId]?.[monthKeys[0]]?.isRecurring ?? false,
         months,
       }

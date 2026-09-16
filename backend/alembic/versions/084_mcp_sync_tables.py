@@ -14,11 +14,34 @@ branch_labels = None
 depends_on = None
 
 def upgrade():
-    # Read and execute SQL from migrations directory
-    import pathlib
-    sql_file = pathlib.Path(__file__).parent.parent.parent.parent / 'mcp-proxy' / 'migrations' / '001_add_sync_tables.sql'
-    with open(sql_file) as f:
-        op.execute(f.read())
+    # MCP sync tables - execute separately for asyncpg compatibility
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS hermes_checkpoints (
+            id SERIAL PRIMARY KEY,
+            key VARCHAR(255) UNIQUE NOT NULL,
+            value TEXT,
+            updated_at TIMESTAMP DEFAULT NOW()
+        )
+    """)
+    
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS mcp_call_log (
+            id SERIAL PRIMARY KEY,
+            tool_name VARCHAR(255),
+            args JSONB,
+            result JSONB,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    """)
+    
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS pending_transactions (
+            id SERIAL PRIMARY KEY,
+            transaction_data JSONB,
+            status VARCHAR(50),
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    """)
 
 def downgrade():
     op.execute('DROP TABLE IF EXISTS hermes_checkpoints CASCADE')

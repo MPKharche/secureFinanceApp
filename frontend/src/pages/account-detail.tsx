@@ -656,6 +656,8 @@ export default function AccountDetailPage() {
             is_hidden: false,
             treat_as_transfer: false,
             is_ignored: false,
+            category_type: 'expense',
+            enable_rollover: false,
           }
         : null,
       external_id: null,
