@@ -103,7 +103,7 @@ class TestReviewQueueEndpoints:
         assert len(data) == 0
 
     async def test_get_review_queue_with_items(
-        self, async_client: AsyncClient, auth_headers, async_session, test_workspace, test_user
+        self, async_client: AsyncClient, auth_headers, session, test_workspace, test_user
     ):
         """Test getting review queue with items."""
         from app.models.sms_log import SMSLog
@@ -112,21 +112,21 @@ class TestReviewQueueEndpoints:
         # Create SMS log
         sms_log = SMSLog(
             user_id=test_user.id,
-            workspace_id=test_workspace.workspace_id,
+            workspace_id=test_workspace.id,
             sender="HDFCBK",
             body="Test SMS",
             received_at=datetime.now(),
             processed=False,
             processing_status="pending",
         )
-        async_session.add(sms_log)
-        await async_session.commit()
-        await async_session.refresh(sms_log)
+        session.add(sms_log)
+        await session.commit()
+        await session.refresh(sms_log)
         
         # Add to review queue
         await add_to_review_queue(
-            db=async_session,
-            workspace_id=test_workspace.workspace_id,
+            db=session,
+            workspace_id=test_workspace.id,
             user_id=test_user.id,
             sms_log_id=sms_log.id,
             review_type="low_confidence",
@@ -147,7 +147,7 @@ class TestReviewQueueEndpoints:
         assert data[0]["sender"] == "HDFCBK"
 
     async def test_approve_review_item(
-        self, async_client: AsyncClient, auth_headers, async_session, test_workspace, test_user
+        self, async_client: AsyncClient, auth_headers, session, test_workspace, test_user
     ):
         """Test approving a review item."""
         from app.models.sms_log import SMSLog
@@ -156,20 +156,20 @@ class TestReviewQueueEndpoints:
         # Create SMS log and review item
         sms_log = SMSLog(
             user_id=test_user.id,
-            workspace_id=test_workspace.workspace_id,
+            workspace_id=test_workspace.id,
             sender="HDFCBK",
             body="Test SMS",
             received_at=datetime.now(),
             processed=False,
             processing_status="pending",
         )
-        async_session.add(sms_log)
-        await async_session.commit()
-        await async_session.refresh(sms_log)
+        session.add(sms_log)
+        await session.commit()
+        await session.refresh(sms_log)
         
         review_item = await add_to_review_queue(
-            db=async_session,
-            workspace_id=test_workspace.workspace_id,
+            db=session,
+            workspace_id=test_workspace.id,
             user_id=test_user.id,
             sms_log_id=sms_log.id,
             review_type="low_confidence",
@@ -189,7 +189,7 @@ class TestReviewQueueEndpoints:
         assert data["resolution_notes"] == "Looks good"
 
     async def test_reject_review_item(
-        self, async_client: AsyncClient, auth_headers, async_session, test_workspace, test_user
+        self, async_client: AsyncClient, auth_headers, session, test_workspace, test_user
     ):
         """Test rejecting a review item."""
         from app.models.sms_log import SMSLog
@@ -198,20 +198,20 @@ class TestReviewQueueEndpoints:
         # Create SMS log and review item
         sms_log = SMSLog(
             user_id=test_user.id,
-            workspace_id=test_workspace.workspace_id,
+            workspace_id=test_workspace.id,
             sender="HDFCBK",
             body="Test SMS",
             received_at=datetime.now(),
             processed=False,
             processing_status="pending",
         )
-        async_session.add(sms_log)
-        await async_session.commit()
-        await async_session.refresh(sms_log)
+        session.add(sms_log)
+        await session.commit()
+        await session.refresh(sms_log)
         
         review_item = await add_to_review_queue(
-            db=async_session,
-            workspace_id=test_workspace.workspace_id,
+            db=session,
+            workspace_id=test_workspace.id,
             user_id=test_user.id,
             sms_log_id=sms_log.id,
             review_type="failed_parse",

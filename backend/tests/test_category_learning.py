@@ -50,22 +50,22 @@ class TestNormalizeMerchantName:
 class TestCategoryLearning:
     """Test category learning functionality."""
 
-    async def test_get_category_new_merchant(self, async_session, test_workspace):
+    async def test_get_category_new_merchant(self, session, test_workspace):
         """Test getting category for new merchant returns None."""
         category_id = await get_category_for_merchant(
-            db=async_session,
-            workspace_id=test_workspace.workspace_id,
+            db=session,
+            workspace_id=test_workspace.id,
             merchant="Amazon",
         )
         
         assert category_id is None
 
-    async def test_learn_and_get_merchant_category(self, async_session, test_workspace, test_category):
+    async def test_learn_and_get_merchant_category(self, session, test_workspace, test_category):
         """Test learning and retrieving merchant category."""
         # Learn merchant-category mapping
         mapping = await learn_merchant_category(
-            db=async_session,
-            workspace_id=test_workspace.workspace_id,
+            db=session,
+            workspace_id=test_workspace.id,
             merchant="Amazon",
             category_id=test_category.id,
         )
@@ -76,19 +76,19 @@ class TestCategoryLearning:
         
         # Retrieve learned category
         category_id = await get_category_for_merchant(
-            db=async_session,
-            workspace_id=test_workspace.workspace_id,
+            db=session,
+            workspace_id=test_workspace.id,
             merchant="Amazon",
         )
         
         assert category_id == test_category.id
 
-    async def test_learn_updates_existing_mapping(self, async_session, test_workspace, test_category):
+    async def test_learn_updates_existing_mapping(self, session, test_workspace, test_category):
         """Test that learning updates existing mapping."""
         # Create initial mapping
         initial = await learn_merchant_category(
-            db=async_session,
-            workspace_id=test_workspace.workspace_id,
+            db=session,
+            workspace_id=test_workspace.id,
             merchant="Amazon",
             category_id=test_category.id,
         )
@@ -97,8 +97,8 @@ class TestCategoryLearning:
         
         # Learn again with same category
         updated = await learn_merchant_category(
-            db=async_session,
-            workspace_id=test_workspace.workspace_id,
+            db=session,
+            workspace_id=test_workspace.id,
             merchant="Amazon",
             category_id=test_category.id,
         )
@@ -106,20 +106,20 @@ class TestCategoryLearning:
         assert updated.id == initial.id
         assert updated.transaction_count == 2
 
-    async def test_learn_case_insensitive(self, async_session, test_workspace, test_category):
+    async def test_learn_case_insensitive(self, session, test_workspace, test_category):
         """Test that learning is case-insensitive."""
         # Learn with uppercase
         await learn_merchant_category(
-            db=async_session,
-            workspace_id=test_workspace.workspace_id,
+            db=session,
+            workspace_id=test_workspace.id,
             merchant="AMAZON",
             category_id=test_category.id,
         )
         
         # Retrieve with lowercase
         category_id = await get_category_for_merchant(
-            db=async_session,
-            workspace_id=test_workspace.workspace_id,
+            db=session,
+            workspace_id=test_workspace.id,
             merchant="amazon",
         )
         
@@ -127,19 +127,19 @@ class TestCategoryLearning:
         
         # Retrieve with mixed case
         category_id = await get_category_for_merchant(
-            db=async_session,
-            workspace_id=test_workspace.workspace_id,
+            db=session,
+            workspace_id=test_workspace.id,
             merchant="AmAzOn",
         )
         
         assert category_id == test_category.id
 
-    async def test_get_category_updates_stats(self, async_session, test_workspace, test_category):
+    async def test_get_category_updates_stats(self, session, test_workspace, test_category):
         """Test that getting category updates usage stats."""
         # Learn mapping
         mapping = await learn_merchant_category(
-            db=async_session,
-            workspace_id=test_workspace.workspace_id,
+            db=session,
+            workspace_id=test_workspace.id,
             merchant="Amazon",
             category_id=test_category.id,
         )
@@ -153,31 +153,31 @@ class TestCategoryLearning:
         
         # Get category (should update stats)
         await get_category_for_merchant(
-            db=async_session,
-            workspace_id=test_workspace.workspace_id,
+            db=session,
+            workspace_id=test_workspace.id,
             merchant="Amazon",
         )
         
         # Refresh to get updated stats
-        await async_session.refresh(mapping)
+        await session.refresh(mapping)
         
         assert mapping.transaction_count == original_count + 1
         assert mapping.last_used_at > original_last_used
 
-    async def test_workspace_isolation(self, async_session, test_workspace, test_category, second_workspace):
+    async def test_workspace_isolation(self, session, test_workspace, test_category, second_workspace):
         """Test that merchant mappings are workspace-isolated."""
         # Learn in first workspace
         await learn_merchant_category(
-            db=async_session,
-            workspace_id=test_workspace.workspace_id,
+            db=session,
+            workspace_id=test_workspace.id,
             merchant="Amazon",
             category_id=test_category.id,
         )
         
         # Try to get from second workspace
         category_id = await get_category_for_merchant(
-            db=async_session,
-            workspace_id=second_workspace.workspace_id,
+            db=session,
+            workspace_id=second_workspace.id,
             merchant="Amazon",
         )
         
