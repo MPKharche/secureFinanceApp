@@ -41,6 +41,8 @@ class Goal(Base):
     status: Mapped[str] = mapped_column(String(20), default="active")  # active, completed, paused, archived
     icon: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
+    priority: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    template_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
     metadata_json: Mapped[Optional[Any]] = mapped_column(JSON, nullable=True)
     

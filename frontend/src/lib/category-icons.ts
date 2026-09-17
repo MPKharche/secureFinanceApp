@@ -10,7 +10,8 @@ import {
   Dumbbell, Shirt, Scissors, Wrench, Hammer,
   Music, Film, Coffee, Beer, Pizza, Salad,
   Stethoscope, Syringe, Cross,
-  PartyPopper, TreePine, Umbrella, Globe, Sparkles
+  PartyPopper, TreePine, Umbrella, Globe, Sparkles,
+  Users, School, Shield, Gem, Church, Cigarette
 } from 'lucide-react'
 
 export interface CategoryIconEntry {
@@ -88,6 +89,13 @@ export const CATEGORY_ICONS: CategoryIconEntry[] = [
   { name: 'umbrella', label: 'Seguro', icon: Umbrella },
   { name: 'globe', label: 'Internacional', icon: Globe },
   { name: 'sparkles', label: 'Especial', icon: Sparkles },
+  // Indian Categories
+  { name: 'users', label: 'House Help / Staff', icon: Users },
+  { name: 'school', label: 'School / Education', icon: School },
+  { name: 'shield', label: 'Insurance', icon: Shield },
+  { name: 'gem', label: 'Gold / Jewelry', icon: Gem },
+  { name: 'church', label: 'Religious / Temple', icon: Church },
+  { name: 'cigarette', label: 'Tobacco / Alcohol', icon: Cigarette },
   { name: 'circle-help', label: 'Outros / Indefinido', icon: CircleHelp },
 ]
 
