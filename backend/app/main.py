@@ -43,6 +43,7 @@ from app.api.user_lookup import router as user_lookup_router
 from app.api.workspaces import router as workspaces_router
 from app.api.admin import router as admin_router, check_registration_enabled
 from app.api.v1.loans import router as loans_router
+from app.api.tax import router as tax_router
 from app.core.auth import fastapi_users
 from app.core.auth_policy import require_local_auth_enabled
 from app.core.config import get_settings
@@ -194,6 +195,7 @@ app.include_router(settings_router)
 app.include_router(workspaces_router)
 app.include_router(admin_router)
 app.include_router(loans_router, prefix="/api/v1/loans", tags=["loans"])
+app.include_router(tax_router)
 app.include_router(info_router)
 
 
