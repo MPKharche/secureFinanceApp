@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { sms } from '@/lib/api'
 import { categories as categoriesApi } from '@/lib/api'
 import { toast } from 'sonner'
-import { PageHeader } from '@/components/page-header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -90,11 +89,15 @@ export default function SMSReviewPage() {
 
   return (
     <div className="space-y-6 pb-16">
-      <PageHeader
-        icon={<Smartphone className="size-8" />}
-        title="SMS Review Queue"
-        description={`${pendingCount} item${pendingCount !== 1 ? 's' : ''} need${pendingCount === 1 ? 's' : ''} your attention`}
-      />
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-foreground tracking-tight flex items-center gap-2 mb-2">
+          <Smartphone className="size-6" />
+          SMS Review Queue
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          {pendingCount} item{pendingCount !== 1 ? 's' : ''} need{pendingCount === 1 ? 's' : ''} your attention
+        </p>
+      </div>
 
       {/* Filter */}
       <div className="flex items-center gap-4">

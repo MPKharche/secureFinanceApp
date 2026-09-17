@@ -2,8 +2,6 @@ import { useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { sms } from '@/lib/api'
 import { toast } from 'sonner'
-import { Smartphone } from 'lucide-react'
-import { Link } from 'react-router-dom'
 
 /**
  * Hook to monitor SMS review queue and show toast notifications
@@ -32,21 +30,12 @@ export function useSMSNotifications() {
       const newItemsCount = currentCount - previousCount
 
       // Show toast with link to review page
-      toast(
-        <div className="flex items-center gap-3">
-          <Smartphone className="size-5" />
-          <div className="flex-1">
-            <p className="font-medium">New SMS Review Items</p>
-            <p className="text-sm text-muted-foreground">
-              {newItemsCount} {newItemsCount === 1 ? 'item needs' : 'items need'} your attention
-            </p>
-          </div>
-        </div>,
+      toast.success(
+        `${newItemsCount} new SMS ${newItemsCount === 1 ? 'item needs' : 'items need'} your attention`,
         {
           action: {
             label: 'Review',
             onClick: () => {
-              // Navigate handled by Link component
               window.location.href = '/sms/review'
             },
           },

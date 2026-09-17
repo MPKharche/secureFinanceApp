@@ -16,7 +16,7 @@ interface TaxDashboardViewProps {
 export function TaxDashboardView({
   projection,
   payment,
-  incomeSource,
+  incomeSource: _incomeSource,
   deductions,
 }: TaxDashboardViewProps) {
   const { t } = useTranslation()

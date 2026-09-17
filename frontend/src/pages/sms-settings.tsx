@@ -2,14 +2,12 @@ import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { sms } from '@/lib/api'
 import { toast } from 'sonner'
-import { PageHeader } from '@/components/page-header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import {
   Settings,
@@ -22,7 +20,6 @@ import {
   RefreshCw,
   Key,
 } from 'lucide-react'
-import { format } from 'date-fns'
 
 export default function SMSSettingsPage() {
   const [apiToken, setApiToken] = useState<string | null>(null)
@@ -64,11 +61,15 @@ export default function SMSSettingsPage() {
 
   return (
     <div className="space-y-6 pb-16">
-      <PageHeader
-        icon={<Settings className="size-8" />}
-        title="SMS Auto-Capture Settings"
-        description="Configure SMS transaction capture for your Android device"
-      />
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-foreground tracking-tight flex items-center gap-2 mb-2">
+          <Settings className="size-6" />
+          SMS Auto-Capture Settings
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Configure SMS transaction capture for your Android device
+        </p>
+      </div>
 
       {/* Stats Dashboard */}
       <Card>
