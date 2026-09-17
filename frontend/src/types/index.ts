@@ -198,6 +198,105 @@ export interface CreditCardBill {
   minimum_payment: number | null
 }
 
+// Tax types
+export interface TaxIncomeSource {
+  id: string
+  user_id: string
+  workspace_id: string
+  financial_year: string
+  salary_annual: number
+  rental_income: number
+  interest_income: number
+  dividend_income: number
+  capital_gains_short_term: number
+  capital_gains_long_term: number
+  business_income: number
+  other_income: number
+  basic_salary: number | null
+  hra_received: number | null
+  special_allowance: number | null
+  salary_auto_detected: boolean
+  interest_auto_detected: boolean
+  last_auto_detection_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface TaxDeduction {
+  id: string
+  user_id: string
+  workspace_id: string
+  financial_year: string
+  epf_employee: number
+  ppf: number
+  elss: number
+  lic_premium: number
+  nsc: number
+  tuition_fees: number
+  principal_repayment_home_loan: number
+  other_80c: number
+  nps_additional: number
+  health_insurance_self: number
+  health_insurance_parents: number
+  parents_are_senior_citizens: boolean
+  preventive_checkup: number
+  education_loan_interest: number
+  donations_100_percent: number
+  donations_50_percent: number
+  savings_interest_claimed: number
+  home_loan_interest: number
+  property_is_self_occupied: boolean
+  rent_paid_annual: number
+  city: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface TaxRegimeResult {
+  gross_income: number
+  total_deductions?: number
+  taxable_income: number
+  tax_liability: number
+  cess: number
+  total_tax: number
+}
+
+export interface TaxProjection {
+  id: string
+  user_id: string
+  workspace_id: string
+  financial_year: string
+  old_regime: TaxRegimeResult
+  new_regime: TaxRegimeResult
+  recommended_regime: 'old' | 'new'
+  savings_with_recommendation: number
+  tds_deducted: number
+  advance_tax_paid: number
+  tax_due_or_refund: number
+  calculated_at: string
+  is_stale: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface TaxPayment {
+  tds_deducted: number
+  advance_tax_paid: number
+}
+
+export interface WhatIfScenarioRequest {
+  financial_year: string
+  income: Partial<TaxIncomeSource>
+  deductions: Partial<TaxDeduction>
+}
+
+export interface WhatIfScenarioResponse {
+  old_regime: TaxRegimeResult
+  new_regime: TaxRegimeResult
+  recommended_regime: 'old' | 'new'
+  savings_with_recommendation: number
+}
+
 export interface Collection {
   id: string
   user_id: string
@@ -1710,4 +1809,64 @@ export interface ReconciliationHistoryEvent {
   user_id?: string | null
   transaction_id?: string | null
   transaction_description?: string | null
+}
+
+// SMS Auto-Capture Types
+export interface SMSReviewQueueItem {
+  id: string
+  sms_log_id: string
+  review_type: 'duplicate' | 'uncategorized' | 'failed_parse' | 'low_confidence'
+  status: 'pending' | 'approved' | 'rejected' | 'merged'
+  review_data: {
+    merchant?: string
+    amount?: string
+    transaction_type?: string
+    confidence?: number
+    duplicate_matches?: Array<{
+      transaction_id: string
+      description: string
+      amount: string
+      date: string
+      account_name?: string
+    }>
+    parse_error?: string
+    [key: string]: any
+  }
+  resolution_notes?: string | null
+  created_at: string
+  resolved_at?: string | null
+  sender?: string | null
+  body?: string | null
+  parsed_data?: {
+    merchant?: string
+    amount?: number
+    transaction_type?: 'debit' | 'credit'
+    confidence?: number
+    [key: string]: any
+  } | null
+}
+
+export interface ReviewActionRequest {
+  resolution_notes?: string
+}
+
+export interface ApproveUncategorizedRequest {
+  category_id: string
+  resolution_notes?: string
+}
+
+export interface MergeActionRequest {
+  keep_transaction_id: string
+  resolution_notes?: string
+}
+
+export interface SMSStats {
+  total_captured: number
+  auto_created: number
+  needs_review: number
+  last_30_days: {
+    captured: number
+    created: number
+    reviewed: number
+  }
 }
