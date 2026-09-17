@@ -28,6 +28,10 @@ from app.models.collection import Collection, collection_accounts, collection_as
 from app.models.loan_schedule import LoanAmortizationSchedule  # noqa: F401
 from app.models.loan_prepayment import LoanPrepayment  # noqa: F401
 from app.models.loan_plan_commitment import LoanPlanCommitment  # noqa: F401
+from app.models.sms_log import SMSLog
+from app.models.sms_review_queue import SMSReviewQueue
+from app.models.merchant_mapping import MerchantMapping
+from app.models.tax import TaxIncomeSource, TaxDeduction, TaxProjection, TaxEventLog
 
 # Side-effect import: register the before_insert listener that auto-stamps
 # workspace_id from user_id on financial entities. Imported last so all
@@ -68,4 +72,11 @@ __all__ = [
     "Collection",
     "collection_accounts",
     "collection_asset_groups",
+    "SMSLog",
+    "SMSReviewQueue",
+    "MerchantMapping",
+    "TaxIncomeSource",
+    "TaxDeduction",
+    "TaxProjection",
+    "TaxEventLog",
 ]

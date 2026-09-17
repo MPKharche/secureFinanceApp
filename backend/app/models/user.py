@@ -1,8 +1,9 @@
 import uuid
 from typing import TYPE_CHECKING, Optional
+from datetime import date
 
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import JSON, Boolean, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Date, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -12,6 +13,7 @@ if TYPE_CHECKING:
     from app.models.category_group import CategoryGroup
     from app.models.bank_connection import BankConnection
     from app.models.passkey import UserPasskey
+    from app.models.tax import TaxIncomeSource, TaxDeduction, TaxProjection
 
 
 class User(SQLAlchemyBaseUserTableUUID, Base):
@@ -47,11 +49,15 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     is_2fa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     oidc_issuer: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     oidc_subject: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    date_of_birth: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
 
     categories: Mapped[list["Category"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     category_groups: Mapped[list["CategoryGroup"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     bank_connections: Mapped[list["BankConnection"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     passkeys: Mapped[list["UserPasskey"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    tax_income_sources: Mapped[list["TaxIncomeSource"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    tax_deductions: Mapped[list["TaxDeduction"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    tax_projections: Mapped[list["TaxProjection"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
     @property
     def primary_currency(self) -> str:
