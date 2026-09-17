@@ -308,6 +308,46 @@ async def test_workspace(session: AsyncSession, test_user: User) -> Workspace:
 
 
 @pytest_asyncio.fixture
+async def second_workspace(session: AsyncSession, test_user: User) -> Workspace:
+    """Create a second workspace for the test user (for isolation tests)."""
+    workspace = Workspace(
+        id=uuid.uuid4(),
+        name="Second Test Workspace",
+    )
+    session.add(workspace)
+    await session.flush()
+    session.add(
+        WorkspaceMember(
+            id=uuid.uuid4(),
+            workspace_id=workspace.id,
+            user_id=test_user.id,
+            role="owner",
+        )
+    )
+    await session.commit()
+    await session.refresh(workspace)
+    return workspace
+
+
+@pytest_asyncio.fixture
+async def test_category(session: AsyncSession, test_user: User, test_workspace: Workspace):
+    """Create a test category for the test workspace."""
+    from app.models.category import Category
+    
+    category = Category(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        workspace_id=test_workspace.id,
+        name="Shopping",
+        icon="shopping-cart",
+    )
+    session.add(category)
+    await session.commit()
+    await session.refresh(category)
+    return category
+
+
+@pytest_asyncio.fixture
 async def auth_token(client: AsyncClient, test_user: User) -> str:
     """Get an auth token for the test user."""
     response = await client.post(
