@@ -3,8 +3,8 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import DECIMAL, Boolean, Date, ForeignKey, String, TIMESTAMP, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import DECIMAL, Boolean, Date, ForeignKey, JSON, String, TIMESTAMP, text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -194,7 +194,7 @@ class TaxEventLog(Base):
     )
     financial_year: Mapped[str] = mapped_column(String(10), nullable=False)
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    event_data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    event_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     triggered_recalculation: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true')
     
     created_at: Mapped[datetime] = mapped_column(

@@ -3,11 +3,11 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Optional
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-from sqlalchemy.types import JSON
+from sqlalchemy.types import JSON, TypeDecorator
 
 from app.core.database import Base
 
@@ -16,6 +16,34 @@ if TYPE_CHECKING:
     from app.models.asset import Asset
     from app.models.asset_group import AssetGroup
     from app.models.user import User
+
+
+class UUIDArray(TypeDecorator):
+    """Cross-database UUID array - PostgreSQL ARRAY or SQLite JSON."""
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            return dialect.type_descriptor(ARRAY(PGUUID(as_uuid=True)))
+        else:
+            return dialect.type_descriptor(JSON())
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        if dialect.name == 'postgresql':
+            return value
+        # SQLite: convert UUID list to string list
+        return [str(v) for v in value] if value else []
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return []
+        if dialect.name == 'postgresql':
+            return value
+        # SQLite: convert string list back to UUID list
+        return [uuid.UUID(v) for v in value] if value else []
 
 
 class Goal(Base):
@@ -48,7 +76,7 @@ class Goal(Base):
     
     # Budget spreadsheet linkage
     linked_category_ids: Mapped[list[uuid.UUID]] = mapped_column(
-        ARRAY(PGUUID(as_uuid=True)), server_default='{}', nullable=False
+        UUIDArray, server_default='[]', nullable=False
     )
     
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

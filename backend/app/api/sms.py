@@ -54,7 +54,7 @@ async def ingest_sms(
     # Idempotency check: same sender + body + received_at
     existing_query = select(SMSLog).where(
         and_(
-            SMSLog.workspace_id == workspace.workspace_id,
+            SMSLog.workspace_id == workspace.id,
             SMSLog.sender == request.sender,
             SMSLog.body == request.body,
             SMSLog.received_at == request.received_at,
@@ -73,7 +73,7 @@ async def ingest_sms(
     # Create SMS log entry
     sms_log = SMSLog(
         user_id=workspace.user_id,
-        workspace_id=workspace.workspace_id,
+        workspace_id=workspace.id,
         sender=request.sender,
         body=request.body,
         received_at=request.received_at,
@@ -111,7 +111,7 @@ async def get_review_queue_endpoint(
     """
     items = await get_review_queue(
         db=db,
-        workspace_id=workspace.workspace_id,
+        workspace_id=workspace.id,
         status=status,
         review_type=review_type,
         limit=limit,
@@ -161,7 +161,7 @@ async def approve_review(
     check_query = select(SMSReviewQueue).where(
         and_(
             SMSReviewQueue.id == review_id,
-            SMSReviewQueue.workspace_id == workspace.workspace_id,
+            SMSReviewQueue.workspace_id == workspace.id,
         )
     )
     result = await db.execute(check_query)
@@ -214,7 +214,7 @@ async def approve_uncategorized(
     check_query = select(SMSReviewQueue).where(
         and_(
             SMSReviewQueue.id == review_id,
-            SMSReviewQueue.workspace_id == workspace.workspace_id,
+            SMSReviewQueue.workspace_id == workspace.id,
             SMSReviewQueue.review_type == "uncategorized",
         )
     )
@@ -229,7 +229,7 @@ async def approve_uncategorized(
     if merchant:
         await learn_merchant_category(
             db=db,
-            workspace_id=workspace.workspace_id,
+            workspace_id=workspace.id,
             merchant=merchant,
             category_id=request.category_id,
         )
@@ -275,7 +275,7 @@ async def reject_review(
     check_query = select(SMSReviewQueue).where(
         and_(
             SMSReviewQueue.id == review_id,
-            SMSReviewQueue.workspace_id == workspace.workspace_id,
+            SMSReviewQueue.workspace_id == workspace.id,
         )
     )
     result = await db.execute(check_query)
@@ -328,7 +328,7 @@ async def merge_duplicate_review(
     check_query = select(SMSReviewQueue).where(
         and_(
             SMSReviewQueue.id == review_id,
-            SMSReviewQueue.workspace_id == workspace.workspace_id,
+            SMSReviewQueue.workspace_id == workspace.id,
             SMSReviewQueue.review_type == "duplicate",
         )
     )

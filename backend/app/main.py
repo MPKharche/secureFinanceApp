@@ -46,6 +46,7 @@ from app.api.v1.loans import router as loans_router
 from app.api.tax import router as tax_router
 from app.api.sms import router as sms_router
 from app.api.mutual_funds import router as mutual_funds_router
+from app.api.capital_gains import router as capital_gains_router
 from app.core.auth import fastapi_users
 from app.core.auth_policy import require_local_auth_enabled
 from app.core.config import get_settings
@@ -200,6 +201,7 @@ app.include_router(loans_router, prefix="/api/v1/loans", tags=["loans"])
 app.include_router(tax_router)
 app.include_router(sms_router)
 app.include_router(mutual_funds_router)
+app.include_router(capital_gains_router)
 app.include_router(info_router)
 
 

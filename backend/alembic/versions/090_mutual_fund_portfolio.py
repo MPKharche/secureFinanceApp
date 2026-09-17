@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = '090_mutual_fund_portfolio'
-down_revision = '089'
+down_revision = '088_add_goal_templates_fields'
 branch_labels = None
 depends_on = None
 

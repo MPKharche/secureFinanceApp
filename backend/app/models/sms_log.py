@@ -2,8 +2,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, Numeric
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import DateTime, ForeignKey, Index, JSON, String, Text, Numeric
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -28,7 +28,7 @@ class SMSLog(Base):
     processing_status: Mapped[str] = mapped_column(
         String(20), default="pending", server_default="pending", nullable=False
     )  # pending, processing, completed, failed
-    parsed_data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    parsed_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     confidence: Mapped[Optional[float]] = mapped_column(Numeric(precision=5, scale=4), nullable=True)
     transaction_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("transactions.id", ondelete="SET NULL"), nullable=True

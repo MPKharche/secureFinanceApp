@@ -6,8 +6,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
-from app.agents.providers.registry import get_provider
-from app.agents.config import get_agents_config
+from app.agents.providers.registry import build_provider
+from app.agents.config import get_agent_settings
 
 
 SMS_PARSER_PROMPT = """You are an expert at parsing Indian bank SMS messages into structured transaction data.
@@ -122,7 +122,7 @@ async def parse_sms_with_llm(sender: str, body: str, user_id: str) -> SMSParseRe
     Returns:
         SMSParseResult with parsed data and confidence score
     """
-    config = get_agents_config()
+    config = get_agent_settings()
     
     if not config.enabled:
         return SMSParseResult(
@@ -132,8 +132,13 @@ async def parse_sms_with_llm(sender: str, body: str, user_id: str) -> SMSParseRe
         )
 
     try:
-        # Get AI provider
-        provider = await get_provider(user_id)
+        # Get AI provider - build a default provider for SMS parsing
+        config = get_agent_settings()
+        provider = build_provider(
+            name=config.default_provider if hasattr(config, 'default_provider') else "ollama",
+            api_key="",
+            model=config.default_model if hasattr(config, 'default_model') else None,
+        )
         
         # Format prompt
         prompt = SMS_PARSER_PROMPT.format(sms_body=body)

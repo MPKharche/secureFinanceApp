@@ -2,8 +2,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, String
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import DateTime, ForeignKey, Index, JSON, String
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -31,7 +31,7 @@ class SMSReviewQueue(Base):
     status: Mapped[str] = mapped_column(
         String(20), default="pending", server_default="pending", nullable=False
     )  # pending, approved, rejected, merged
-    review_data: Mapped[dict] = mapped_column(JSONB, nullable=False)  # Context for review (e.g., duplicate candidates)
+    review_data: Mapped[dict] = mapped_column(JSON, nullable=False)  # Context for review (e.g., duplicate candidates)
     resolution_notes: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     resolved_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
