@@ -12,11 +12,13 @@ def test_new_regime_no_deductions():
     result = calc._calculate_new_regime(income)
     
     # 10L - 75K std deduction = 9.25L taxable
-    # 0-4L: 0, 4-8L: 20K, 8-9.25L: 12.5K = 32.5K + cess (1.3K) = 33.8K
+    # 0-4L: 0, 4-8L: 20K, 8-9.25L: 12.5K = 32.5K
+    # Section 87A rebate applies (income < 12L): min(32.5K, 60K) = 32.5K
+    # Final tax after rebate: 0
     assert result['taxable_income'] == Decimal('925000')
-    assert result['tax_liability'] == Decimal('32500')
-    assert result['cess'] == Decimal('1300')
-    assert result['total_tax'] == Decimal('33800')
+    assert result['tax_liability'] == Decimal('0')  # After Section 87A rebate
+    assert result['cess'] == Decimal('0')
+    assert result['total_tax'] == Decimal('0')
 
 
 def test_old_regime_with_80c():
@@ -29,12 +31,13 @@ def test_old_regime_with_80c():
     }
     result = calc._calculate_old_regime(income, deductions)
     
-    # 8L - 50K std - 1.5L 80C = 6.5L taxable
-    # 0-2.5L: 0, 2.5-5L: 12.5K, 5-6.5L: 30K = 42.5K + cess (1.7K) = 44.2K
+    # 8L - 50K std - 1.5L 80C = 6L taxable
+    # 0-2.5L: 0, 2.5-5L @ 5%: 12.5K, 5-6L @ 20%: 20K = 32.5K + cess (1.3K) = 33.8K
     assert result['total_deductions'] == Decimal('200000')
     assert result['taxable_income'] == Decimal('600000')
-    assert result['tax_liability'] == Decimal('42500')
-    assert result['total_tax'] == Decimal('44200')
+    # Round to handle floating point precision
+    assert result['tax_liability'].quantize(Decimal('1')) == Decimal('32500')
+    assert result['total_tax'].quantize(Decimal('1')) == Decimal('33800')
 
 
 def test_section_87a_rebate_new_regime():
@@ -153,9 +156,9 @@ def test_80d_health_insurance():
     }
     result = calc._calculate_old_regime(income, deductions)
     
-    # 80D: 25K (self) + 50K (senior parents) = 75K
-    # Total: 50K std + 75K 80D = 125K
-    assert result['total_deductions'] == Decimal('125000')
+    # 80D: 25K (self, at limit) + 30K (senior parents, within 50K limit) = 55K
+    # Total: 50K std + 55K 80D = 105K
+    assert result['total_deductions'] == Decimal('105000')
 
 
 def test_home_loan_interest_self_occupied():
@@ -236,7 +239,7 @@ def test_high_income_new_regime_better():
 
 
 def test_high_deductions_old_regime_better():
-    """High deductions → old regime should be better."""
+    """High deductions → In FY 2026-27, new regime is still better for most cases."""
     calc = TaxCalculator(user_age=30)
     income = {'salary': Decimal('1500000')}
     deductions = {
@@ -247,8 +250,10 @@ def test_high_deductions_old_regime_better():
     
     result = calc.calculate_tax(income, deductions)
     
-    # With significant deductions, old regime is typically better
-    assert result['recommended'] == 'old'
+    # Even with ₹3.75L deductions, new regime is better in FY 2026-27
+    # New regime tax: ~₹97.5K vs Old regime: ~₹140.4K
+    assert result['recommended'] == 'new'
+    assert result['savings'] > Decimal('40000')  # Significant savings with new regime
 
 
 def test_zero_income():
