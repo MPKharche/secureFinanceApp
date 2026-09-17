@@ -25,6 +25,10 @@ from app.models.workspace import Workspace
 from app.services.sms_parser import SMSParseResult
 
 
+# Mark all tests in this module as integration tests (uses PostgreSQL)
+pytestmark = pytest.mark.integration
+
+
 # ============================================================================
 # Fixtures
 # ============================================================================
@@ -41,7 +45,7 @@ async def sms_test_account(
         external_id="acc-sms-test",
         name="HDFC Bank Account",
         type="checking",
-        number="XXXXXXXXXXXX1234",  # Last 4 digits: 1234
+        masked_number="1234",  # Last 4 digits: 1234
         balance=Decimal("50000.00"),
         currency="INR",
     )

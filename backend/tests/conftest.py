@@ -84,15 +84,81 @@ from app.agents.models import (  # noqa: E402,F401
 # session-scoped event loop see the same in-memory schema state.
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+# PostgreSQL support for integration tests via testcontainers
+try:
+    from testcontainers.postgres import PostgresContainer
+    TESTCONTAINERS_AVAILABLE = True
+except ImportError:
+    TESTCONTAINERS_AVAILABLE = False
+    PostgresContainer = None  # type: ignore
 
-engine = create_async_engine(
-    TEST_DATABASE_URL,
-    echo=False,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+# Dual database strategy: SQLite (fast) for unit tests, PostgreSQL (accurate) for integration tests
+def _is_integration_test(request):
+    """Check if current test is marked as integration."""
+    return request.node.get_closest_marker("integration") is not None
+
+
+@pytest.fixture(scope="session")
+def postgres_container(request):
+    """PostgreSQL container for integration tests (session-scoped)."""
+    # Only start PostgreSQL if we have integration tests in this session
+    if not TESTCONTAINERS_AVAILABLE:
+        yield None
+        return
+    
+    # Check if any test in this session is marked as integration
+    has_integration_tests = any(
+        item.get_closest_marker("integration") 
+        for item in request.session.items
+    )
+    
+    if not has_integration_tests:
+        yield None
+        return
+    
+    # Start PostgreSQL container
+    with PostgresContainer("postgres:16-alpine") as postgres:
+        yield postgres
+
+
+@pytest.fixture(scope="session")
+def database_url(postgres_container):
+    """Return appropriate database URL based on test session."""
+    if postgres_container:
+        # Convert psycopg2 URL to asyncpg for SQLAlchemy async
+        return postgres_container.get_connection_url().replace("psycopg2", "asyncpg")
+    return "sqlite+aiosqlite:///:memory:"
+
+
+@pytest.fixture(scope="session")
+def test_engine(database_url):
+    """Create engine with appropriate database (session-scoped)."""
+    if "postgres" in database_url:
+        # PostgreSQL - standard async engine
+        engine = create_async_engine(database_url, echo=False)
+    else:
+        # SQLite - needs StaticPool for in-memory sharing
+        engine = create_async_engine(
+            database_url,
+            echo=False,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+    return engine
+
+
+# Keep legacy name for compatibility
+TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+engine = None  # Will be set dynamically per test
+TestSessionLocal = None  # Will be set dynamically per test
+
+
+def pytest_configure(config):
+    """Register custom markers."""
+    config.addinivalue_line(
+        "markers", "integration: mark test as integration test (uses PostgreSQL)"
+    )
 
 
 # SQLite doesn't support PostgreSQL UUID type natively — SQLAlchemy handles the
@@ -102,14 +168,18 @@ TestSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_com
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session", autouse=True)
-async def setup_database():
+async def setup_database(test_engine):
     """Create all tables once for the test session."""
+    global engine, TestSessionLocal
+    engine = test_engine
+    TestSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    # Clean up test db file
+    # Clean up test db file (SQLite only)
     import os
     try:
         os.remove("/tmp/securo_test.db")

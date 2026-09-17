@@ -37,7 +37,8 @@ from app.tax.constants import (
 )
 
 
-pytestmark = pytest.mark.asyncio
+# Mark all tests in this module as integration tests (uses PostgreSQL)
+pytestmark = [pytest.mark.asyncio, pytest.mark.integration]
 
 
 # ============================================================================
