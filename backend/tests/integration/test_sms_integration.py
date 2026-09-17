@@ -206,6 +206,9 @@ async def test_sms_end_to_end_success(
         
         sms_log_id = uuid.UUID(data["sms_log_id"])
         
+        # Ensure SMS log is committed to database before async task reads it
+        await session.commit()
+        
         # Step 2: Process SMS (simulate Celery task)
         from app.tasks.sms_tasks import _process_sms_async
         await _process_sms_async(sms_log_id)
@@ -297,6 +300,9 @@ async def test_sms_duplicate_detection(
         sms_log_id = uuid.UUID(response.json()["sms_log_id"])
         
         # Step 4: Process SMS
+        # Ensure SMS log is committed to database before async task reads it
+        await session.commit()
+
         from app.tasks.sms_tasks import _process_sms_async
         await _process_sms_async(sms_log_id)
         
@@ -356,6 +362,9 @@ async def test_category_learning_workflow(
         sms_log_id_1 = uuid.UUID(response1.json()["sms_log_id"])
         
         # Process first SMS
+        # Ensure SMS log is committed to database before async task reads it
+        await session.commit()
+
         from app.tasks.sms_tasks import _process_sms_async
         await _process_sms_async(sms_log_id_1)
         
@@ -558,6 +567,9 @@ async def test_low_confidence_review_queue(
         sms_log_id = uuid.UUID(response.json()["sms_log_id"])
         
         # Process SMS
+        # Ensure SMS log is committed to database before async task reads it
+        await session.commit()
+
         from app.tasks.sms_tasks import _process_sms_async
         await _process_sms_async(sms_log_id)
         
@@ -600,6 +612,9 @@ async def test_failed_parse_non_financial_sms(
         sms_log_id = uuid.UUID(response.json()["sms_log_id"])
         
         # Process SMS
+        # Ensure SMS log is committed to database before async task reads it
+        await session.commit()
+
         from app.tasks.sms_tasks import _process_sms_async
         await _process_sms_async(sms_log_id)
         
@@ -748,6 +763,9 @@ async def test_sms_missing_account(
         sms_log_id = uuid.UUID(response.json()["sms_log_id"])
         
         # Process SMS
+        # Ensure SMS log is committed to database before async task reads it
+        await session.commit()
+
         from app.tasks.sms_tasks import _process_sms_async
         await _process_sms_async(sms_log_id)
         
