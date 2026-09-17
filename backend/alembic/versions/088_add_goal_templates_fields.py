@@ -1,7 +1,7 @@
 """add goal templates fields
 
-Revision ID: 088
-Revises: 087
+Revision ID: 088_add_goal_templates_fields
+Revises: 087_sms_auto_capture
 Create Date: 2026-09-17 15:35:00.000000
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '088'
-down_revision = '087'
+revision = '088_add_goal_templates_fields'
+down_revision = '087_sms_auto_capture'
 branch_labels = None
 depends_on = None
 
