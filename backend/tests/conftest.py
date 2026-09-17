@@ -86,7 +86,7 @@ from sqlalchemy.pool import StaticPool  # noqa: E402
 
 # PostgreSQL support for integration tests via testcontainers
 try:
-    from testcontainers.postgres import PostgresContainer
+    from testcontainers.community.postgres import PostgresContainer
     TESTCONTAINERS_AVAILABLE = True
 except ImportError:
     TESTCONTAINERS_AVAILABLE = False
