@@ -48,6 +48,7 @@ const OIDCCallbackPage = lazy(() => import('@/pages/oidc-callback'))
 const SMSReviewPage = lazy(() => import('@/pages/sms-review'))
 const SMSSettingsPage = lazy(() => import('@/pages/sms-settings'))
 const TaxDashboardPage = lazy(() => import('@/pages/tax-dashboard'))
+const CapitalGainsPage = lazy(() => import('@/pages/capital-gains'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -121,6 +122,7 @@ function App() {
                   <Route path="/groups/:id" element={<ModuleRoute module="split_groups"><GroupDetailPage /></ModuleRoute>} />
                   <Route path="/invoices" element={<ModuleRoute module="invoices"><InvoicesPage /></ModuleRoute>} />
                   <Route path="/tax" element={<TaxDashboardPage />} />
+                  <Route path="/tax/capital-gains" element={<CapitalGainsPage />} />
                   <Route path="/sms/review" element={<SMSReviewPage />} />
                   <Route path="/sms/settings" element={<SMSSettingsPage />} />
                   <Route path="/workspace/settings" element={<WorkspaceSettingsPage />} />

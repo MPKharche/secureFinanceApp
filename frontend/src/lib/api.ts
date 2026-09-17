@@ -1913,6 +1913,20 @@ export const tax = {
     const { data } = await api.post('/tax/auto-detect', { financial_year: financialYear })
     return data
   },
+  capitalGains: {
+    summary: async (financialYear: string) => {
+      const { data } = await api.get('/tax/capital-gains/summary', { params: { financial_year: financialYear } })
+      return data
+    },
+    positions: async () => {
+      const { data } = await api.get('/tax/capital-gains/positions')
+      return data
+    },
+    taxHarvesting: async (financialYear: string) => {
+      const { data } = await api.get('/tax/capital-gains/tax-harvesting', { params: { financial_year: financialYear } })
+      return data
+    },
+  },
 }
 
 // SMS Auto-Capture API
