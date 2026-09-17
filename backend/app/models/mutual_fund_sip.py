@@ -11,10 +11,7 @@ from app.core.database import Base
 
 
 class MutualFundSIP(Base):
-    """Track recurring mutual fund investments (SIPs)."""
-    
     __tablename__ = "mutual_fund_sips"
-
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     asset_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("assets.id", ondelete="CASCADE"), nullable=False, index=True)

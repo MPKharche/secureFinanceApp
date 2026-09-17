@@ -9,10 +9,7 @@ from app.core.database import Base
 
 
 class GoalAsset(Base):
-    """Many-to-many relationship between goals and assets (for MF scheme linking)."""
-    
     __tablename__ = "goal_assets"
-
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     goal_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("goals.id", ondelete="CASCADE"), nullable=False, index=True)
     asset_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("assets.id", ondelete="CASCADE"), nullable=False, index=True)

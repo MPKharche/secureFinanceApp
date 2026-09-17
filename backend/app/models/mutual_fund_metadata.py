@@ -11,10 +11,7 @@ from app.core.database import Base
 
 
 class MutualFundMetadata(Base):
-    """Reference data for Indian mutual fund schemes."""
-    
     __tablename__ = "mutual_fund_metadata"
-
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     isin: Mapped[str] = mapped_column(String(12), unique=True, nullable=False, index=True)
     scheme_name: Mapped[str] = mapped_column(String(200), nullable=False)

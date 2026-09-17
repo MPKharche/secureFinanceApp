@@ -1,15 +1,8 @@
-"""XIRR (Extended Internal Rate of Return) calculator for mutual fund returns.
-
-Uses Newton-Raphson method for accurate IRR calculation with multiple cash flows.
-"""
 from datetime import date
 from decimal import Decimal
 from typing import List, Optional
 
-
 class XIRRCalculator:
-    """Calculate XIRR for mutual fund investments using Newton-Raphson method."""
-    
     MAX_ITERATIONS = 100
     PRECISION = Decimal("0.0001")
     MIN_DAYS = 180
@@ -24,7 +17,6 @@ class XIRRCalculator:
         all_negative = all(cf <= 0 for cf in cash_flows)
         if all_positive or all_negative:
             return None
-        
         rate = guess
         for _ in range(XIRRCalculator.MAX_ITERATIONS):
             npv = XIRRCalculator._calculate_npv(cash_flows, dates, rate)

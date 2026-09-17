@@ -72,6 +72,12 @@ import type {
   TransactionEditPayload,
   InstallmentSeriesInput,
   TransactionApplyScope,
+  TaxIncomeSource,
+  TaxDeduction,
+  TaxProjection,
+  TaxPayment,
+  WhatIfScenarioRequest,
+  WhatIfScenarioResponse,
 } from '@/types'
 
 const api = axios.create({
@@ -1846,6 +1852,124 @@ export const agents = {
       const { data } = await api.post(`/agents/connections/${id}/test`)
       return data
     },
+  },
+}
+
+// Tax API
+export const tax = {
+  incomeSource: {
+    get: async (financialYear: string): Promise<TaxIncomeSource | null> => {
+      const { data } = await api.get(`/tax/income-sources/${financialYear}`)
+      return data
+    },
+    create: async (payload: Partial<TaxIncomeSource>): Promise<TaxIncomeSource> => {
+      const { data } = await api.post('/tax/income-sources', payload)
+      return data
+    },
+    update: async (financialYear: string, payload: Partial<TaxIncomeSource>): Promise<TaxIncomeSource> => {
+      const { data } = await api.patch(`/tax/income-sources/${financialYear}`, payload)
+      return data
+    },
+  },
+  deductions: {
+    get: async (financialYear: string): Promise<TaxDeduction | null> => {
+      const { data } = await api.get(`/tax/deductions/${financialYear}`)
+      return data
+    },
+    create: async (payload: Partial<TaxDeduction>): Promise<TaxDeduction> => {
+      const { data } = await api.post('/tax/deductions', payload)
+      return data
+    },
+    update: async (financialYear: string, payload: Partial<TaxDeduction>): Promise<TaxDeduction> => {
+      const { data } = await api.patch(`/tax/deductions/${financialYear}`, payload)
+      return data
+    },
+  },
+  projection: {
+    get: async (financialYear: string): Promise<TaxProjection | null> => {
+      const { data } = await api.get(`/tax/projections/${financialYear}`)
+      return data
+    },
+    calculate: async (financialYear: string): Promise<TaxProjection> => {
+      const { data } = await api.post('/tax/projections/calculate', { financial_year: financialYear })
+      return data
+    },
+  },
+  whatIf: async (scenario: WhatIfScenarioRequest): Promise<WhatIfScenarioResponse> => {
+    const { data } = await api.post('/tax/what-if', scenario)
+    return data
+  },
+  payment: {
+    get: async (financialYear: string): Promise<TaxPayment> => {
+      const { data } = await api.get(`/tax/payments/${financialYear}`)
+      return data
+    },
+    update: async (financialYear: string, payload: TaxPayment): Promise<TaxPayment> => {
+      const { data } = await api.patch(`/tax/payments/${financialYear}`, payload)
+      return data
+    },
+  },
+  autoDetect: async (financialYear: string): Promise<{ detected_salary: number; detected_interest: number }> => {
+    const { data } = await api.post('/tax/auto-detect', { financial_year: financialYear })
+    return data
+  },
+  capitalGains: {
+    summary: async (financialYear: string) => {
+      const { data } = await api.get('/tax/capital-gains/summary', { params: { financial_year: financialYear } })
+      return data
+    },
+    positions: async () => {
+      const { data } = await api.get('/tax/capital-gains/positions')
+      return data
+    },
+    taxHarvesting: async (financialYear: string) => {
+      const { data } = await api.get('/tax/capital-gains/tax-harvesting', { params: { financial_year: financialYear } })
+      return data
+    },
+  },
+}
+
+// SMS Auto-Capture API
+export const sms = {
+  reviewQueue: {
+    list: async (params?: {
+      status?: 'pending' | 'approved' | 'rejected' | 'merged'
+      review_type?: 'duplicate' | 'uncategorized' | 'failed_parse' | 'low_confidence'
+      limit?: number
+      offset?: number
+    }): Promise<import('@/types').SMSReviewQueueItem[]> => {
+      const { data } = await api.get('/sms/review-queue', { params })
+      return data
+    },
+    approve: async (reviewId: string, request: import('@/types').ReviewActionRequest): Promise<import('@/types').SMSReviewQueueItem> => {
+      const { data } = await api.post(`/sms/review/${reviewId}/approve`, request)
+      return data
+    },
+    approveUncategorized: async (reviewId: string, request: import('@/types').ApproveUncategorizedRequest): Promise<import('@/types').SMSReviewQueueItem> => {
+      const { data } = await api.post(`/sms/review/${reviewId}/approve-uncategorized`, request)
+      return data
+    },
+    reject: async (reviewId: string, request: import('@/types').ReviewActionRequest): Promise<import('@/types').SMSReviewQueueItem> => {
+      const { data } = await api.post(`/sms/review/${reviewId}/reject`, request)
+      return data
+    },
+    merge: async (reviewId: string, request: import('@/types').MergeActionRequest): Promise<import('@/types').SMSReviewQueueItem> => {
+      const { data } = await api.post(`/sms/review/${reviewId}/merge`, request)
+      return data
+    },
+  },
+  stats: async (): Promise<import('@/types').SMSStats> => {
+    // This endpoint would need to be implemented in backend
+    // For now, return mock data structure
+    const { data } = await api.get('/sms/stats').catch(() => ({
+      data: {
+        total_captured: 0,
+        auto_created: 0,
+        needs_review: 0,
+        last_30_days: { captured: 0, created: 0, reviewed: 0 }
+      }
+    }))
+    return data
   },
 }
 

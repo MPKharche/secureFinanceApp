@@ -1,1 +1,1 @@
-"""Tax calculation module for Indian tax regime."""
+"""Tax calculation module for Indian income tax."""

@@ -107,6 +107,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "transactions": "Transactions",
+    "smsReview": "SMS Review",
     "invoices": "Invoices",
     "accounts": "Accounts",
     "loans": "Loans",
