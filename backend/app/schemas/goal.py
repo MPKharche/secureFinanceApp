@@ -18,6 +18,8 @@ class GoalCreate(BaseModel):
     asset_group_id: Optional[uuid.UUID] = None
     icon: Optional[str] = None
     color: Optional[str] = None
+    priority: Optional[int] = None
+    template_type: Optional[str] = None  # Reference to goal template
     metadata_json: Optional[Any] = None
 
     @field_validator("tracking_type")
@@ -41,6 +43,8 @@ class GoalUpdate(BaseModel):
     status: Optional[str] = None
     icon: Optional[str] = None
     color: Optional[str] = None
+    priority: Optional[int] = None
+    template_type: Optional[str] = None
     position: Optional[int] = None
     metadata_json: Optional[Any] = None
 
@@ -76,6 +80,8 @@ class GoalRead(BaseModel):
     status: str
     icon: Optional[str] = None
     color: Optional[str] = None
+    priority: Optional[int] = None
+    template_type: Optional[str] = None
     position: int
     metadata_json: Optional[Any] = None
     created_at: datetime
@@ -107,3 +113,22 @@ class GoalSummary(BaseModel):
     percentage: float = 0
     monthly_contribution: Optional[float] = None
     on_track: Optional[str] = None
+
+
+class GoalTemplate(BaseModel):
+    """Goal template information for frontend."""
+    type: str
+    name: str
+    description: str
+    icon: str
+    color: str
+    priority: int
+
+
+class GoalTemplateCalculation(BaseModel):
+    """Request for calculating recommended amount from template."""
+    template_type: str
+    monthly_expenses: Optional[Decimal] = None
+    age: Optional[int] = None
+    retirement_age: int = 60
+    currency: str = "INR"

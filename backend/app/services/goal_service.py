@@ -241,6 +241,8 @@ async def _enrich_goal(
         status=goal.status,
         icon=goal.icon,
         color=goal.color,
+        priority=goal.priority,
+        template_type=goal.template_type,
         position=goal.position,
         metadata_json=goal.metadata_json,
         created_at=goal.created_at,
@@ -260,7 +262,9 @@ async def get_goals(
     user_id: uuid.UUID,
     status: Optional[str] = None,
 ) -> list[GoalRead]:
-    query = select(Goal).where(Goal.workspace_id == workspace_id).order_by(Goal.position, Goal.created_at)
+    query = select(Goal).where(Goal.workspace_id == workspace_id).order_by(
+        Goal.priority.asc().nullslast(), Goal.position, Goal.created_at
+    )
     if status:
         query = query.where(Goal.status == status)
     result = await session.execute(query)
@@ -304,6 +308,8 @@ async def create_goal(
         asset_group_id=data.asset_group_id,
         icon=data.icon,
         color=data.color,
+        priority=data.priority,
+        template_type=data.template_type,
         metadata_json=data.metadata_json,
     )
     _clear_inactive_tracking_links(goal)

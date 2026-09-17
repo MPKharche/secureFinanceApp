@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -10,8 +11,16 @@ from app.core.workspace_context import (
     current_workspace,
     current_writable_workspace,
 )
-from app.schemas.goal import GoalCreate, GoalRead, GoalSummary, GoalUpdate
+from app.schemas.goal import (
+    GoalCreate,
+    GoalRead,
+    GoalSummary,
+    GoalTemplate,
+    GoalTemplateCalculation,
+    GoalUpdate,
+)
 from app.services import goal_service
+from app.data.goal_templates import list_templates, calculate_recommended_amount
 
 router = APIRouter(prefix="/api/goals", tags=["goals"])
 
@@ -83,3 +92,36 @@ async def delete_goal(
     deleted = await goal_service.delete_goal(session, goal_id, ctx.workspace.id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goal not found")
+
+
+@router.get("/templates", response_model=list[GoalTemplate])
+async def get_goal_templates(
+    language: str = Query("en", regex="^(en|hi)$"),
+):
+    """Get list of India-specific goal templates."""
+    return list_templates(language)
+
+
+@router.post("/templates/calculate", response_model=dict)
+async def calculate_template_amount(
+    data: GoalTemplateCalculation,
+):
+    """Calculate recommended amount for a goal template."""
+    try:
+        amount = calculate_recommended_amount(
+            template_type=data.template_type,
+            monthly_expenses=data.monthly_expenses,
+            age=data.age,
+            retirement_age=data.retirement_age,
+            currency=data.currency,
+        )
+        return {
+            "template_type": data.template_type,
+            "recommended_amount": float(amount),
+            "currency": data.currency,
+        }
+    except KeyError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid template_type: {data.template_type}"
+        )
