@@ -47,6 +47,7 @@ pytestmark = [pytest.mark.asyncio, pytest.mark.integration]
 
 async def test_e2e_create_income_add_deductions_calculate_projection(
     client: AsyncClient,
+    auth_headers: dict,
     test_user: User,
     db_session: AsyncSession,
 ):
@@ -68,7 +69,7 @@ async def test_e2e_create_income_add_deductions_calculate_projection(
         "other_income": 0,
     }
     
-    response = await client.post("/api/tax/income-sources", json=income_data)
+    response = await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     assert response.status_code == 201
     income_result = response.json()
     assert income_result["salary_annual"] == "1200000.00"
@@ -99,7 +100,7 @@ async def test_e2e_create_income_add_deductions_calculate_projection(
         "property_is_self_occupied": True,
     }
     
-    response = await client.post("/api/tax/deductions", json=deduction_data)
+    response = await client.post("/api/tax/deductions", json=deduction_data, headers=auth_headers)
     assert response.status_code == 201
     deduction_result = response.json()
     assert deduction_result["epf_employee"] == "100000.00"
@@ -108,7 +109,7 @@ async def test_e2e_create_income_add_deductions_calculate_projection(
     response = await client.post(
         "/api/tax/projections/calculate",
         json={"financial_year": "2026-27"}
-    )
+    , headers=auth_headers)
     assert response.status_code == 200
     projection = response.json()
     
@@ -150,7 +151,7 @@ async def test_section_87a_old_regime_threshold_5L(
         "interest_income": 0,
     }
     
-    await client.post("/api/tax/income-sources", json=income_data)
+    await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     
     # Minimal deductions
     deduction_data = {
@@ -159,10 +160,10 @@ async def test_section_87a_old_regime_threshold_5L(
         "ppf": 0,
     }
     
-    await client.post("/api/tax/deductions", json=deduction_data)
+    await client.post("/api/tax/deductions", json=deduction_data, headers=auth_headers)
     
     # Calculate projection
-    response = await client.get("/api/tax/projections/2026-27")
+    response = await client.get("/api/tax/projections/2026-27", headers=auth_headers)
     assert response.status_code == 200
     projection = response.json()
     
@@ -192,9 +193,9 @@ async def test_section_87a_new_regime_threshold_12L(
         "interest_income": 0,
     }
     
-    await client.post("/api/tax/income-sources", json=income_data)
+    await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     
-    response = await client.get("/api/tax/projections/2026-27")
+    response = await client.get("/api/tax/projections/2026-27", headers=auth_headers)
     assert response.status_code == 200
     projection = response.json()
     
@@ -218,6 +219,7 @@ async def test_section_87a_new_regime_threshold_12L(
 
 async def test_what_if_calculator_without_saving(
     client: AsyncClient,
+    auth_headers: dict,
     test_user: User,
     db_session: AsyncSession,
 ):
@@ -229,13 +231,13 @@ async def test_what_if_calculator_without_saving(
         "financial_year": "2026-27",
         "salary_annual": 1000000,
     }
-    await client.post("/api/tax/income-sources", json=income_data)
+    await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     
     deduction_data = {
         "financial_year": "2026-27",
         "epf_employee": 100000,
     }
-    await client.post("/api/tax/deductions", json=deduction_data)
+    await client.post("/api/tax/deductions", json=deduction_data, headers=auth_headers)
     
     # Now test what-if scenario with higher income
     whatif_data = {
@@ -277,7 +279,7 @@ async def test_what_if_calculator_without_saving(
         },
     }
     
-    response = await client.post("/api/tax/what-if", json=whatif_data)
+    response = await client.post("/api/tax/what-if", json=whatif_data, headers=auth_headers)
     assert response.status_code == 200
     whatif_result = response.json()
     
@@ -360,6 +362,7 @@ async def test_auto_detect_income_from_transactions(
 
 async def test_event_driven_projection_staleness(
     client: AsyncClient,
+    auth_headers: dict,
     test_user: User,
     db_session: AsyncSession,
 ):
@@ -371,16 +374,16 @@ async def test_event_driven_projection_staleness(
         "financial_year": "2026-27",
         "salary_annual": 1000000,
     }
-    await client.post("/api/tax/income-sources", json=income_data)
+    await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     
-    response = await client.get("/api/tax/projections/2026-27")
+    response = await client.get("/api/tax/projections/2026-27", headers=auth_headers)
     assert response.status_code == 200
     projection = response.json()
     assert projection["is_stale"] is False
     
     # Step 2: Update income
     update_data = {"salary_annual": 1200000}
-    response = await client.put("/api/tax/income-sources/2026-27", json=update_data)
+    response = await client.put("/api/tax/income-sources/2026-27", json=update_data, headers=auth_headers)
     assert response.status_code == 200
     
     # Step 3: Verify projection marked stale
@@ -390,7 +393,7 @@ async def test_event_driven_projection_staleness(
     assert projection_model.is_stale is True
     
     # Step 4: Recalculate
-    response = await client.get("/api/tax/projections/2026-27?force_recalculate=true")
+    response = await client.get("/api/tax/projections/2026-27?force_recalculate=true", headers=auth_headers)
     assert response.status_code == 200
     fresh_projection = response.json()
     assert fresh_projection["is_stale"] is False
@@ -424,9 +427,9 @@ async def test_senior_citizen_age_60_plus_slabs(
         "financial_year": "2026-27",
         "salary_annual": 400000,
     }
-    await client.post("/api/tax/income-sources", json=income_data)
+    await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     
-    response = await client.get("/api/tax/projections/2026-27")
+    response = await client.get("/api/tax/projections/2026-27", headers=auth_headers)
     assert response.status_code == 200
     projection = response.json()
     
@@ -460,9 +463,9 @@ async def test_super_senior_citizen_age_80_plus_slabs(
         "financial_year": "2026-27",
         "salary_annual": 600000,
     }
-    await client.post("/api/tax/income-sources", json=income_data)
+    await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     
-    response = await client.get("/api/tax/projections/2026-27")
+    response = await client.get("/api/tax/projections/2026-27", headers=auth_headers)
     assert response.status_code == 200
     projection = response.json()
     
@@ -494,7 +497,7 @@ async def test_section_80c_limit_capping_at_150k(
         "financial_year": "2026-27",
         "salary_annual": 1500000,
     }
-    await client.post("/api/tax/income-sources", json=income_data)
+    await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     
     # Contribute more than ₹1.5L across 80C
     deduction_data = {
@@ -504,9 +507,9 @@ async def test_section_80c_limit_capping_at_150k(
         "elss": 50000,
         # Total: ₹2.5L, should be capped at ₹1.5L
     }
-    await client.post("/api/tax/deductions", json=deduction_data)
+    await client.post("/api/tax/deductions", json=deduction_data, headers=auth_headers)
     
-    response = await client.get("/api/tax/projections/2026-27")
+    response = await client.get("/api/tax/projections/2026-27", headers=auth_headers)
     assert response.status_code == 200
     projection = response.json()
     
@@ -530,7 +533,7 @@ async def test_section_80d_self_and_parent_limits(
         "financial_year": "2026-27",
         "salary_annual": 1000000,
     }
-    await client.post("/api/tax/income-sources", json=income_data)
+    await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     
     # Test with senior citizen parents
     deduction_data = {
@@ -540,9 +543,9 @@ async def test_section_80d_self_and_parent_limits(
         "parents_are_senior_citizens": True,
         "preventive_checkup": 5000,  # Within self limit
     }
-    await client.post("/api/tax/deductions", json=deduction_data)
+    await client.post("/api/tax/deductions", json=deduction_data, headers=auth_headers)
     
-    response = await client.get("/api/tax/projections/2026-27")
+    response = await client.get("/api/tax/projections/2026-27", headers=auth_headers)
     assert response.status_code == 200
     projection = response.json()
     
@@ -561,6 +564,7 @@ async def test_section_80d_self_and_parent_limits(
 
 async def test_hra_calculation_metro_vs_non_metro(
     client: AsyncClient,
+    auth_headers: dict,
     test_user: User,
     db_session: AsyncSession,
 ):
@@ -573,7 +577,7 @@ async def test_hra_calculation_metro_vs_non_metro(
         "basic_salary": 600000,
         "hra_received": 300000,
     }
-    await client.post("/api/tax/income-sources", json=income_data)
+    await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     
     # Test Metro city (Mumbai)
     deduction_metro = {
@@ -581,9 +585,9 @@ async def test_hra_calculation_metro_vs_non_metro(
         "rent_paid_annual": 360000,  # ₹30K/month
         "city": "Mumbai",
     }
-    await client.post("/api/tax/deductions", json=deduction_metro)
+    await client.post("/api/tax/deductions", json=deduction_metro, headers=auth_headers)
     
-    response_metro = await client.get("/api/tax/projections/2026-27")
+    response_metro = await client.get("/api/tax/projections/2026-27", headers=auth_headers)
     assert response_metro.status_code == 200
     projection_metro = response_metro.json()
     
@@ -595,9 +599,9 @@ async def test_hra_calculation_metro_vs_non_metro(
     await client.put(
         "/api/tax/deductions/2026-27",
         json={"city": "Pune"}  # Assuming Pune is non-metro in constants
-    )
+    , headers=auth_headers)
     
-    response_non_metro = await client.get("/api/tax/projections/2026-27?force_recalculate=true")
+    response_non_metro = await client.get("/api/tax/projections/2026-27?force_recalculate=true", headers=auth_headers)
     assert response_non_metro.status_code == 200
     projection_non_metro = response_non_metro.json()
     
@@ -611,6 +615,7 @@ async def test_hra_calculation_metro_vs_non_metro(
 
 async def test_hra_no_exemption_without_rent(
     client: AsyncClient,
+    auth_headers: dict,
     test_user: User,
     db_session: AsyncSession,
 ):
@@ -623,7 +628,7 @@ async def test_hra_no_exemption_without_rent(
         "basic_salary": 600000,
         "hra_received": 300000,
     }
-    await client.post("/api/tax/income-sources", json=income_data)
+    await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     
     # No rent paid
     deduction_data = {
@@ -631,9 +636,9 @@ async def test_hra_no_exemption_without_rent(
         "rent_paid_annual": 0,
         "city": "Mumbai",
     }
-    await client.post("/api/tax/deductions", json=deduction_data)
+    await client.post("/api/tax/deductions", json=deduction_data, headers=auth_headers)
     
-    response = await client.get("/api/tax/projections/2026-27")
+    response = await client.get("/api/tax/projections/2026-27", headers=auth_headers)
     assert response.status_code == 200
     projection = response.json()
     
@@ -658,12 +663,13 @@ async def test_api_validation_negative_amounts(
         "salary_annual": -100000,  # Invalid
     }
     
-    response = await client.post("/api/tax/income-sources", json=income_data)
+    response = await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     assert response.status_code == 422  # Validation error
 
 
 async def test_api_validation_missing_dob_for_calculation(
     client: AsyncClient,
+    auth_headers: dict,
     test_user: User,
     db_session: AsyncSession,
 ):
@@ -678,9 +684,9 @@ async def test_api_validation_missing_dob_for_calculation(
         "financial_year": "2026-27",
         "salary_annual": 1000000,
     }
-    await client.post("/api/tax/income-sources", json=income_data)
+    await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     
-    response = await client.get("/api/tax/projections/2026-27")
+    response = await client.get("/api/tax/projections/2026-27", headers=auth_headers)
     assert response.status_code == 400
     assert "date_of_birth" in response.json()["detail"].lower()
 
@@ -697,7 +703,7 @@ async def test_api_validation_invalid_financial_year_format(
         "salary_annual": 1000000,
     }
     
-    response = await client.post("/api/tax/income-sources", json=income_data)
+    response = await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     assert response.status_code == 422
 
 
@@ -714,11 +720,11 @@ async def test_api_duplicate_income_source_error(
     }
     
     # First creation should succeed
-    response1 = await client.post("/api/tax/income-sources", json=income_data)
+    response1 = await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     assert response1.status_code == 201
     
     # Second creation should fail
-    response2 = await client.post("/api/tax/income-sources", json=income_data)
+    response2 = await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     assert response2.status_code == 400
     assert "already exists" in response2.json()["detail"]
 
@@ -729,6 +735,7 @@ async def test_api_duplicate_income_source_error(
 
 async def test_multi_user_workspace_isolation(
     client: AsyncClient,
+    auth_headers: dict,
     test_user: User,
     db_session: AsyncSession,
 ):
@@ -740,7 +747,7 @@ async def test_multi_user_workspace_isolation(
         "financial_year": "2026-27",
         "salary_annual": 1000000,
     }
-    await client.post("/api/tax/income-sources", json=income_data)
+    await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     
     # Create second user
     user2 = User(
@@ -769,6 +776,7 @@ async def test_multi_user_workspace_isolation(
 
 async def test_projection_calculation_isolated_per_user(
     client: AsyncClient,
+    auth_headers: dict,
     test_user: User,
     db_session: AsyncSession,
 ):
@@ -780,9 +788,9 @@ async def test_projection_calculation_isolated_per_user(
         "financial_year": "2026-27",
         "salary_annual": 1000000,
     }
-    await client.post("/api/tax/income-sources", json=income_data_user1)
+    await client.post("/api/tax/income-sources", json=income_data_user1, headers=auth_headers)
     
-    response1 = await client.get("/api/tax/projections/2026-27")
+    response1 = await client.get("/api/tax/projections/2026-27", headers=auth_headers)
     assert response1.status_code == 200
     projection1 = response1.json()
     
@@ -819,6 +827,7 @@ async def test_projection_calculation_isolated_per_user(
 
 async def test_tds_and_advance_tax_tracking(
     client: AsyncClient,
+    auth_headers: dict,
     test_user: User,
     db_session: AsyncSession,
 ):
@@ -830,8 +839,8 @@ async def test_tds_and_advance_tax_tracking(
         "financial_year": "2026-27",
         "salary_annual": 1500000,
     }
-    await client.post("/api/tax/income-sources", json=income_data)
-    await client.get("/api/tax/projections/2026-27")
+    await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
+    await client.get("/api/tax/projections/2026-27", headers=auth_headers)
     
     # Update TDS and advance tax
     payment_data = {
@@ -839,7 +848,7 @@ async def test_tds_and_advance_tax_tracking(
         "advance_tax_paid": 30000,
     }
     
-    response = await client.put("/api/tax/payments/2026-27", json=payment_data)
+    response = await client.put("/api/tax/payments/2026-27", json=payment_data, headers=auth_headers)
     assert response.status_code == 200
     payment_status = response.json()
     
@@ -850,6 +859,7 @@ async def test_tds_and_advance_tax_tracking(
 
 async def test_zero_income_calculation(
     client: AsyncClient,
+    auth_headers: dict,
     test_user: User,
     db_session: AsyncSession,
 ):
@@ -860,9 +870,9 @@ async def test_zero_income_calculation(
         "financial_year": "2026-27",
         "salary_annual": 0,
     }
-    await client.post("/api/tax/income-sources", json=income_data)
+    await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     
-    response = await client.get("/api/tax/projections/2026-27")
+    response = await client.get("/api/tax/projections/2026-27", headers=auth_headers)
     assert response.status_code == 200
     projection = response.json()
     
@@ -873,6 +883,7 @@ async def test_zero_income_calculation(
 
 async def test_projection_recalculation_on_deduction_update(
     client: AsyncClient,
+    auth_headers: dict,
     test_user: User,
     db_session: AsyncSession,
 ):
@@ -884,20 +895,20 @@ async def test_projection_recalculation_on_deduction_update(
         "financial_year": "2026-27",
         "salary_annual": 1000000,
     }
-    await client.post("/api/tax/income-sources", json=income_data)
+    await client.post("/api/tax/income-sources", json=income_data, headers=auth_headers)
     
     deduction_data = {
         "financial_year": "2026-27",
         "epf_employee": 50000,
     }
-    await client.post("/api/tax/deductions", json=deduction_data)
+    await client.post("/api/tax/deductions", json=deduction_data, headers=auth_headers)
     
     # Calculate initial projection
-    await client.get("/api/tax/projections/2026-27")
+    await client.get("/api/tax/projections/2026-27", headers=auth_headers)
     
     # Update deduction
     update_data = {"epf_employee": 100000}
-    await client.put("/api/tax/deductions/2026-27", json=update_data)
+    await client.put("/api/tax/deductions/2026-27", json=update_data, headers=auth_headers)
     
     # Verify projection marked stale
     stmt = select(TaxProjection).where(TaxProjection.user_id == test_user.id)
