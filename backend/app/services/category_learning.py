@@ -1,46 +1,57 @@
-"""Category learning service for SMS merchant categorization."""
+"""Category learning service for merchant mappings."""
 
+import re
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.category import Category
+from app.models.merchant_mapping import MerchantMapping
 
 
-# In-memory store for learned merchant-category mappings
-# In production, this should be a database table
-_MERCHANT_CATEGORY_MAP: dict[tuple[uuid.UUID, str], uuid.UUID] = {}
-
-
-async def learn_merchant_category(
-    db: AsyncSession,
-    workspace_id: uuid.UUID,
-    merchant: str,
-    category_id: uuid.UUID,
-) -> None:
+def normalize_merchant_name(merchant: str) -> str:
     """
-    Learn merchant-category mapping for future auto-categorization.
+    Normalize merchant name for consistent matching.
+    
+    - Lowercase
+    - Remove special characters
+    - Remove extra whitespace
+    - Common abbreviations (Pvt Ltd, Private Limited, etc.)
     
     Args:
-        db: Database session
-        workspace_id: Workspace ID
-        merchant: Merchant name (normalized)
-        category_id: Category ID to associate
+        merchant: Raw merchant name
+        
+    Returns:
+        Normalized merchant name
     """
-    # Verify category exists and belongs to workspace
-    result = await db.execute(
-        select(Category).where(Category.id == category_id).limit(1)
-    )
-    category = result.scalar_one_or_none()
+    if not merchant:
+        return ""
     
-    if not category:
-        raise ValueError(f"Category {category_id} not found or not accessible")
+    # Lowercase
+    normalized = merchant.lower()
     
-    # Store the mapping
-    key = (workspace_id, merchant.lower().strip())
-    _MERCHANT_CATEGORY_MAP[key] = category_id
+    # Remove common suffixes
+    suffixes = [
+        r'\s+pvt\.?\s+ltd\.?',
+        r'\s+private\s+limited',
+        r'\s+ltd\.?',
+        r'\s+inc\.?',
+        r'\s+llc\.?',
+        r'\s+corporation',
+        r'\s+corp\.?',
+    ]
+    for suffix in suffixes:
+        normalized = re.sub(suffix, '', normalized, flags=re.IGNORECASE)
+    
+    # Remove special characters except spaces and hyphens
+    normalized = re.sub(r'[^a-z0-9\s\-]', '', normalized)
+    
+    # Normalize whitespace
+    normalized = re.sub(r'\s+', ' ', normalized).strip()
+    
+    return normalized
 
 
 async def get_category_for_merchant(
@@ -49,59 +60,100 @@ async def get_category_for_merchant(
     merchant: str,
 ) -> Optional[uuid.UUID]:
     """
-    Get learned category for merchant.
+    Look up category for a merchant based on learned mappings.
     
     Args:
         db: Database session
         workspace_id: Workspace ID
-        merchant: Merchant name
-    
+        merchant: Merchant name (will be normalized)
+        
     Returns:
-        Category ID if learned, None otherwise
+        Category ID if mapping exists, None otherwise
     """
-    key = (workspace_id, merchant.lower().strip())
-    return _MERCHANT_CATEGORY_MAP.get(key)
+    normalized = normalize_merchant_name(merchant)
+    
+    if not normalized:
+        return None
+    
+    query = select(MerchantMapping).where(
+        and_(
+            MerchantMapping.workspace_id == workspace_id,
+            MerchantMapping.merchant_name_normalized == normalized,
+        )
+    )
+    
+    result = await db.execute(query)
+    mapping = result.scalar_one_or_none()
+    
+    if mapping:
+        # Update usage stats
+        await db.execute(
+            update(MerchantMapping)
+            .where(MerchantMapping.id == mapping.id)
+            .values(
+                transaction_count=MerchantMapping.transaction_count + 1,
+                last_used_at=datetime.now(timezone.utc),
+            )
+        )
+        await db.commit()
+        
+        return mapping.category_id
+    
+    return None
 
 
-async def forget_merchant_category(
+async def learn_merchant_category(
     db: AsyncSession,
     workspace_id: uuid.UUID,
     merchant: str,
-) -> bool:
+    category_id: uuid.UUID,
+) -> MerchantMapping:
     """
-    Remove learned merchant-category mapping.
+    Create or update merchant-category mapping.
+    
+    If mapping exists, updates the category and increments usage count.
+    If new, creates a new mapping.
     
     Args:
         db: Database session
         workspace_id: Workspace ID
-        merchant: Merchant name
-    
+        merchant: Merchant name (will be normalized)
+        category_id: Category ID to map to
+        
     Returns:
-        True if mapping existed and was removed
+        MerchantMapping instance
     """
-    key = (workspace_id, merchant.lower().strip())
-    if key in _MERCHANT_CATEGORY_MAP:
-        del _MERCHANT_CATEGORY_MAP[key]
-        return True
-    return False
-
-
-async def get_all_learned_merchants(
-    db: AsyncSession,
-    workspace_id: uuid.UUID,
-) -> dict[str, uuid.UUID]:
-    """
-    Get all learned merchant-category mappings for workspace.
+    normalized = normalize_merchant_name(merchant)
     
-    Args:
-        db: Database session
-        workspace_id: Workspace ID
+    # Check if mapping exists
+    query = select(MerchantMapping).where(
+        and_(
+            MerchantMapping.workspace_id == workspace_id,
+            MerchantMapping.merchant_name_normalized == normalized,
+        )
+    )
+    result = await db.execute(query)
+    mapping = result.scalar_one_or_none()
     
-    Returns:
-        Dictionary of merchant -> category_id
-    """
-    return {
-        merchant: category_id
-        for (ws_id, merchant), category_id in _MERCHANT_CATEGORY_MAP.items()
-        if ws_id == workspace_id
-    }
+    now = datetime.now(timezone.utc)
+    
+    if mapping:
+        # Update existing mapping
+        mapping.category_id = category_id
+        mapping.transaction_count += 1
+        mapping.last_used_at = now
+    else:
+        # Create new mapping
+        mapping = MerchantMapping(
+            workspace_id=workspace_id,
+            merchant_name_normalized=normalized,
+            category_id=category_id,
+            transaction_count=1,
+            last_used_at=now,
+        )
+        db.add(mapping)
+    
+    await db.commit()
+    await db.refresh(mapping)
+    
+    return mapping

@@ -16,6 +16,8 @@ import {
   Target,
   Upload,
   Users,
+  Smartphone,
+  Calculator,
 } from 'lucide-react'
 // Relative, not aliased: this file is pulled into the test project,
 // which compiles without the `@/*` path mapping (see tsconfig.node.json).
@@ -40,6 +42,7 @@ export const navItems: NavItem[] = [
   // ACCOUNTS section since it's account-scoped data.
   { type: 'separator', labelKey: 'nav.groupAccounts' },
   { type: 'link', key: 'transactions', path: '/transactions', icon: ArrowLeftRight, module: 'transactions' },
+  { type: 'link', key: 'smsReview', path: '/sms/review', icon: Smartphone, module: 'transactions' },
   { type: 'link', key: 'invoices', path: '/invoices', icon: Receipt, module: 'invoices' },
   { type: 'link', key: 'accounts', path: '/accounts', icon: Building2, module: 'accounts' },
   { type: 'link', key: 'loans', path: '/loans', icon: Banknote, module: 'loans' },
@@ -50,6 +53,7 @@ export const navItems: NavItem[] = [
   { type: 'link', key: 'profitLoss', path: '/reports/profit-loss', icon: LineChart, module: 'reports' },
   { type: 'link', key: 'forecast', path: '/reports/forecast', icon: CalendarRange, module: 'reports' },
   { type: 'link', key: 'assets', path: '/investments', icon: Landmark, module: 'assets' },
+  { type: 'link', key: 'tax', path: '/tax', icon: Calculator, module: 'reports' },
   { type: 'separator', labelKey: 'nav.groupSetup' },
   { type: 'link', key: 'budgets', path: '/budgets', icon: PiggyBank, module: 'budgets' },
   { type: 'link', key: 'goals', path: '/goals', icon: Target, module: 'goals' },

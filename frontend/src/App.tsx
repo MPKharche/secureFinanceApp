@@ -45,6 +45,9 @@ const InvoicesPage = lazy(() => import('@/pages/invoices'))
 const WorkspaceSettingsPage = lazy(() => import('@/pages/workspace-settings'))
 const OAuthCallbackPage = lazy(() => import('@/pages/oauth-callback'))
 const OIDCCallbackPage = lazy(() => import('@/pages/oidc-callback'))
+const SMSReviewPage = lazy(() => import('@/pages/sms-review'))
+const SMSSettingsPage = lazy(() => import('@/pages/sms-settings'))
+const TaxDashboardPage = lazy(() => import('@/pages/tax-dashboard'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -117,6 +120,9 @@ function App() {
                   <Route path="/groups" element={<ModuleRoute module="split_groups"><GroupsPage /></ModuleRoute>} />
                   <Route path="/groups/:id" element={<ModuleRoute module="split_groups"><GroupDetailPage /></ModuleRoute>} />
                   <Route path="/invoices" element={<ModuleRoute module="invoices"><InvoicesPage /></ModuleRoute>} />
+                  <Route path="/tax" element={<TaxDashboardPage />} />
+                  <Route path="/sms/review" element={<SMSReviewPage />} />
+                  <Route path="/sms/settings" element={<SMSSettingsPage />} />
                   <Route path="/workspace/settings" element={<WorkspaceSettingsPage />} />
                   <Route path="/admin" element={<AdminRoute><AdminSettingsPage /></AdminRoute>} />
                   <Route path="/agents" element={<AgentsRoute><AgentsListPage /></AgentsRoute>} />

@@ -62,6 +62,8 @@ import { Bot, Search, Sparkles } from 'lucide-react'
 import { setThemeBasedOnSystem } from '@/lib/theme-utils'
 import { useLocalAuthEnabled } from '@/hooks/use-local-auth'
 import { formatCurrency } from '@/lib/format'
+import { useSMSNotifications } from '@/hooks/use-sms-notifications'
+import { Badge } from '@/components/ui/badge'
 
 /** Placeholder rows shown while the workspace's module list is in flight. */
 function NavSkeleton() {
@@ -121,6 +123,7 @@ export function AppLayout() {
   // `agentsEnabled` again.
   const chatAvailable = agentsEnabled && canWrite
   const localAuthEnabled = useLocalAuthEnabled()
+  const { pendingCount } = useSMSNotifications()
 
   // ⌘J / Ctrl+J toggles the global slide-over chat from anywhere.
   // Distinct from ⌘K (command palette) so users can have both open.
@@ -391,6 +394,7 @@ export function AppLayout() {
                   ? location.pathname === '/'
                   : location.pathname.startsWith(item.path)
               const Icon = item.icon
+              const showBadge = item.key === 'smsReview' && pendingCount > 0
               return (
                 <Link
                   key={item.key}
@@ -411,7 +415,12 @@ export function AppLayout() {
                       isActive ? 'text-primary' : 'text-sidebar-muted',
                     )}
                   />
-                  <span>{t(`nav.${item.key}`)}</span>
+                  <span className="flex-1">{t(`nav.${item.key}`)}</span>
+                  {showBadge && (
+                    <Badge variant="destructive" className="ml-auto text-xs px-1.5 py-0 min-w-[20px] h-5 flex items-center justify-center">
+                      {pendingCount}
+                    </Badge>
+                  )}
                 </Link>
               )
             })}

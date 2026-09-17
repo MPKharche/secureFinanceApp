@@ -1,13 +1,18 @@
-"""Review queue service for SMS transaction manual review."""
+"""Review queue service for manual SMS transaction review."""
 
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Literal, Optional
 
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.sms_review_queue import SMSReviewQueue
+from app.models.sms_log import SMSLog
+
+
+ReviewType = Literal["duplicate", "uncategorized", "failed_parse", "low_confidence"]
+ReviewStatus = Literal["pending", "approved", "rejected", "merged"]
 
 
 async def add_to_review_queue(
@@ -15,7 +20,7 @@ async def add_to_review_queue(
     workspace_id: uuid.UUID,
     user_id: uuid.UUID,
     sms_log_id: uuid.UUID,
-    review_type: str,
+    review_type: ReviewType,
     review_data: dict,
 ) -> SMSReviewQueue:
     """
@@ -26,14 +31,13 @@ async def add_to_review_queue(
         workspace_id: Workspace ID
         user_id: User ID
         sms_log_id: SMS log ID
-        review_type: Type of review (duplicate, uncategorized, failed_parse, low_confidence)
-        review_data: Additional data for review
-    
+        review_type: Type of review needed
+        review_data: Context data for the review (e.g., duplicate candidates, parse errors)
+        
     Returns:
-        Created review queue item
+        Created SMSReviewQueue instance
     """
     review_item = SMSReviewQueue(
-        id=uuid.uuid4(),
         workspace_id=workspace_id,
         user_id=user_id,
         sms_log_id=sms_log_id,
@@ -52,39 +56,48 @@ async def add_to_review_queue(
 async def get_review_queue(
     db: AsyncSession,
     workspace_id: uuid.UUID,
-    status: Optional[str] = "pending",
-    review_type: Optional[str] = None,
+    status: Optional[ReviewStatus] = None,
+    review_type: Optional[ReviewType] = None,
     limit: int = 50,
     offset: int = 0,
 ) -> List[SMSReviewQueue]:
     """
-    Get review queue items for workspace.
+    Get review queue items.
     
     Args:
         db: Database session
         workspace_id: Workspace ID
-        status: Filter by status
-        review_type: Filter by review type
-        limit: Max results
-        offset: Pagination offset
-    
+        status: Optional filter by status (default: pending)
+        review_type: Optional filter by review type
+        limit: Maximum items to return
+        offset: Offset for pagination
+        
     Returns:
         List of review queue items
     """
-    query = select(SMSReviewQueue).where(
-        SMSReviewQueue.workspace_id == workspace_id
-    )
+    conditions = [SMSReviewQueue.workspace_id == workspace_id]
     
     if status:
-        query = query.where(SMSReviewQueue.status == status)
+        conditions.append(SMSReviewQueue.status == status)
+    else:
+        # Default to pending items
+        conditions.append(SMSReviewQueue.status == "pending")
     
     if review_type:
-        query = query.where(SMSReviewQueue.review_type == review_type)
+        conditions.append(SMSReviewQueue.review_type == review_type)
     
-    query = query.order_by(SMSReviewQueue.created_at.desc()).limit(limit).offset(offset)
+    query = (
+        select(SMSReviewQueue)
+        .where(and_(*conditions))
+        .order_by(SMSReviewQueue.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
     
     result = await db.execute(query)
-    return result.scalars().all()
+    items = result.scalars().all()
+    
+    return list(items)
 
 
 async def approve_review_item(
@@ -99,26 +112,34 @@ async def approve_review_item(
     Args:
         db: Database session
         review_id: Review queue item ID
-        resolved_by: User ID resolving the review
-        resolution_notes: Optional notes
-    
+        resolved_by: User ID who resolved it
+        resolution_notes: Optional notes about the resolution
+        
     Returns:
-        Updated review queue item
+        Updated SMSReviewQueue instance
     """
+    now = datetime.now(timezone.utc)
+    
+    await db.execute(
+        update(SMSReviewQueue)
+        .where(SMSReviewQueue.id == review_id)
+        .values(
+            status="approved",
+            resolved_by=resolved_by,
+            resolved_at=now,
+            resolution_notes=resolution_notes,
+        )
+    )
+    
+    await db.commit()
+    
+    # Fetch updated item
     result = await db.execute(
         select(SMSReviewQueue).where(SMSReviewQueue.id == review_id)
     )
-    review_item = result.scalar_one()
+    item = result.scalar_one()
     
-    review_item.status = "approved"
-    review_item.resolved_by = resolved_by
-    review_item.resolution_notes = resolution_notes
-    review_item.resolved_at = datetime.now(timezone.utc)
-    
-    await db.commit()
-    await db.refresh(review_item)
-    
-    return review_item
+    return item
 
 
 async def reject_review_item(
@@ -133,26 +154,34 @@ async def reject_review_item(
     Args:
         db: Database session
         review_id: Review queue item ID
-        resolved_by: User ID resolving the review
-        resolution_notes: Optional notes
-    
+        resolved_by: User ID who resolved it
+        resolution_notes: Optional notes about the rejection
+        
     Returns:
-        Updated review queue item
+        Updated SMSReviewQueue instance
     """
+    now = datetime.now(timezone.utc)
+    
+    await db.execute(
+        update(SMSReviewQueue)
+        .where(SMSReviewQueue.id == review_id)
+        .values(
+            status="rejected",
+            resolved_by=resolved_by,
+            resolved_at=now,
+            resolution_notes=resolution_notes,
+        )
+    )
+    
+    await db.commit()
+    
+    # Fetch updated item
     result = await db.execute(
         select(SMSReviewQueue).where(SMSReviewQueue.id == review_id)
     )
-    review_item = result.scalar_one()
+    item = result.scalar_one()
     
-    review_item.status = "rejected"
-    review_item.resolved_by = resolved_by
-    review_item.resolution_notes = resolution_notes
-    review_item.resolved_at = datetime.now(timezone.utc)
-    
-    await db.commit()
-    await db.refresh(review_item)
-    
-    return review_item
+    return item
 
 
 async def merge_duplicate(
@@ -163,38 +192,53 @@ async def merge_duplicate(
     resolution_notes: Optional[str] = None,
 ) -> SMSReviewQueue:
     """
-    Merge duplicate transaction - link SMS to existing transaction.
+    Mark a duplicate as merged.
     
     Args:
         db: Database session
         review_id: Review queue item ID
-        resolved_by: User ID resolving the review
+        resolved_by: User ID who resolved it
         keep_transaction_id: Transaction ID to keep
-        resolution_notes: Optional notes
-    
+        resolution_notes: Optional notes about the merge
+        
     Returns:
-        Updated review queue item
+        Updated SMSReviewQueue instance
     """
+    now = datetime.now(timezone.utc)
+    
+    # Update review item
+    await db.execute(
+        update(SMSReviewQueue)
+        .where(SMSReviewQueue.id == review_id)
+        .values(
+            status="merged",
+            resolved_by=resolved_by,
+            resolved_at=now,
+            resolution_notes=resolution_notes or f"Merged with transaction {keep_transaction_id}",
+        )
+    )
+    
+    # Update SMS log to link to the kept transaction
+    review = await db.execute(
+        select(SMSReviewQueue).where(SMSReviewQueue.id == review_id)
+    )
+    review_item = review.scalar_one()
+    
+    await db.execute(
+        update(SMSLog)
+        .where(SMSLog.id == review_item.sms_log_id)
+        .values(
+            transaction_id=keep_transaction_id,
+            processing_status="completed",
+        )
+    )
+    
+    await db.commit()
+    
+    # Fetch updated review item
     result = await db.execute(
         select(SMSReviewQueue).where(SMSReviewQueue.id == review_id)
     )
-    review_item = result.scalar_one()
+    item = result.scalar_one()
     
-    # Link SMS log to the kept transaction
-    from app.models.sms_log import SMSLog
-    sms_result = await db.execute(
-        select(SMSLog).where(SMSLog.id == review_item.sms_log_id)
-    )
-    sms_log = sms_result.scalar_one()
-    sms_log.transaction_id = keep_transaction_id
-    
-    # Mark review as merged
-    review_item.status = "merged"
-    review_item.resolved_by = resolved_by
-    review_item.resolution_notes = resolution_notes or f"Merged with transaction {keep_transaction_id}"
-    review_item.resolved_at = datetime.now(timezone.utc)
-    
-    await db.commit()
-    await db.refresh(review_item)
-    
-    return review_item
+    return item

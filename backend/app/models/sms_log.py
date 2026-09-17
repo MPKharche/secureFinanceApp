@@ -1,59 +1,41 @@
-"""SMS Log model for tracking ingested SMS messages."""
-
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import String, Text, Boolean, DateTime, JSON, Numeric, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, Numeric
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
+if TYPE_CHECKING:
+    from app.models.user import User
+    from app.models.workspace import Workspace
+
 
 class SMSLog(Base):
-    """
-    Log of SMS messages ingested from mobile app.
-    
-    Tracks processing status and links to created transactions.
-    """
-    
     __tablename__ = "sms_logs"
-    
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
-    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False, index=True)
-    
-    # SMS data
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     sender: Mapped[str] = mapped_column(String(50), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    
-    # Processing status
-    processed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    processed: Mapped[bool] = mapped_column(default=False, server_default="false", nullable=False)
     processing_status: Mapped[str] = mapped_column(
-        String(20), 
-        default="pending",
-        nullable=False,
+        String(20), default="pending", server_default="pending", nullable=False
     )  # pending, processing, completed, failed
-    
-    # Parsed data and results
-    parsed_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    confidence: Mapped[Optional[float]] = mapped_column(Numeric(3, 2), nullable=True)
-    
-    # Link to created transaction (if successful)
+    parsed_data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    confidence: Mapped[Optional[float]] = mapped_column(Numeric(precision=5, scale=4), nullable=True)
     transaction_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("transactions.id"),
-        nullable=True,
+        UUID(as_uuid=True), ForeignKey("transactions.id", ondelete="SET NULL"), nullable=True
     )
-    
-    # Error tracking
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    
-    # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False,
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -61,6 +43,13 @@ class SMSLog(Base):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
-    
-    def __repr__(self):
-        return f"<SMSLog {self.id} from {self.sender} - {self.processing_status}>"
+
+    # Relationships
+    user: Mapped["User"] = relationship()
+    workspace: Mapped["Workspace"] = relationship()
+
+    __table_args__ = (
+        Index("idx_sms_logs_workspace_status", "workspace_id", "processing_status"),
+        Index("idx_sms_logs_user_received", "user_id", "received_at"),
+        Index("idx_sms_logs_sender_body_received", "sender", "body", "received_at"),  # For idempotency
+    )
