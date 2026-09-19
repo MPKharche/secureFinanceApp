@@ -22,3 +22,23 @@ docker-compose.override.yml
 # — never commit.
 backend/data/
 /.worktrees/
+
+# User-specific data and documents - NEVER commit
+data/user-docs/
+scripts/seed_*_result.json
+scripts/*_result.json
+*_extracted_data.md
+*_schedule_partial.json
+
+# Implementation/planning docs with user info
+LOAN_*_QUICKREF.md
+scripts/IMPLEMENTATION_PLAN_*.md
+scripts/IMPLEMENTATION_SUMMARY_*.md
+
+# Any files containing real user data
+**/LPMUM*.md
+**/LPMUM*.json
+**/LPMUM*.pdf
+
+# Exclude all result JSON files from seed scripts
+*_result.json
