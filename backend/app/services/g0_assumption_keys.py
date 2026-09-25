@@ -159,7 +159,8 @@ def posting_amount_inr(
         return schedule_emi_amount.quantize(Decimal("0.01"))
     if kind == "principal_repayment" and loan_original_principal is not None:
         return loan_original_principal.quantize(Decimal("0.01"))
-    # Optional seeded INR helpers (migration); recurring row is source of truth when set
+    if recurring_amount is not None and recurring_amount > 0:
+        return recurring_amount.quantize(Decimal("0.01"))
     helper_key = {
         "premium": "pru_premium_monthly_inr",
         "interest_half_yearly": "pru_interest_half_yearly_inr",
@@ -167,7 +168,7 @@ def posting_amount_inr(
     }.get(kind)
     if helper_key and helper_key in assumptions:
         return Decimal(str(assumptions[helper_key])).quantize(Decimal("0.01"))
-    return recurring_amount.quantize(Decimal("0.01"))
+    return Decimal("0.00")
 
 
 # Back-compat aliases used by earlier G0 PR code
