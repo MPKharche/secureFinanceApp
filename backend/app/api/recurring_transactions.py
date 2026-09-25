@@ -10,11 +10,14 @@ from app.core.workspace_context import (
     current_writable_workspace,
 )
 from app.schemas.recurring_transaction import (
+    RecurringPostOccurrenceRequest,
+    RecurringPostOccurrenceResponse,
     RecurringTransactionCreate,
     RecurringTransactionRead,
     RecurringTransactionUpdate,
 )
 from app.services import recurring_transaction_service
+from app.services.scheduled_post_service import ScheduledPostError, post_recurring_occurrence
 
 router = APIRouter(prefix="/api/recurring-transactions", tags=["recurring-transactions"])
 
@@ -79,3 +82,30 @@ async def generate_recurring_transactions(
 ):
     count = await recurring_transaction_service.generate_pending(session, ctx.user_id)
     return {"generated": count}
+
+
+@router.post(
+    "/{recurring_id}/post-occurrence",
+    response_model=RecurringPostOccurrenceResponse,
+)
+async def post_recurring_occurrence_endpoint(
+    recurring_id: uuid.UUID,
+    body: RecurringPostOccurrenceRequest,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Materialize one due occurrence (guided post). Keeps auto_generate=false safe."""
+    try:
+        result = await post_recurring_occurrence(
+            session,
+            ctx.workspace.id,
+            ctx.user_id,
+            recurring_id,
+            payment_date=body.payment_date,
+            transfer_to_account_id=body.transfer_to_account_id,
+            link_loan_schedule=body.link_loan_schedule,
+            loan_account_id=body.loan_account_id,
+        )
+    except ScheduledPostError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return RecurringPostOccurrenceResponse(**result)

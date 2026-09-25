@@ -185,38 +185,59 @@ async def main() -> dict:
         repay.is_active = False
         await session.commit()
 
+        # G4 Assumptions Glossary v1 — one map; keys stable, values refresh from KM.
         assumptions = {
-            "premium_amount": float(PREMIUM_AMOUNT),
-            "loan_rate_percent": float(RATE),
-            "interest_cadence": "half_yearly",
-            "interest_amount_half_yearly": float(HALF_YEAR_INTEREST),
-            "principal": float(PRINCIPAL),
-            "accrued_interest_asof": 14805.0,
-            "outstanding_total_asof": 174805.0,
-            "statement_as_of": "2026-05-18",
-            "drawn_on": "2025-03-25",
-            "no_emi": True,
-            "repayment": "voluntary_or_foreclosure_vs_sv",
-            "do_not_flatten": True,
-            "sv_source": "CoS benefit illustration in policy PDF — NOT live ICICI quote",
+            "reporting_currency": "INR",
+            "insurance_value_basis": "sv",
+            "include_policy_loan": True,
+            "pru_policy_id": "A8884526",
+            "pru_loan_outstanding": 174805.0,
+            "pru_loan_has_emi": False,
+            "pru_sv_illustrative": 389495.0,
+            "pru_loan_cap_pct_of_sv": 0.80,
+            # Seed migration helpers (INR / pct) — posting prefers recurring + schedule rows
+            "pru_premium_monthly_inr": float(PREMIUM_AMOUNT),
+            "pru_loan_principal_inr": float(PRINCIPAL),
+            "pru_loan_rate_pct": float(RATE / Decimal("100")),
+            "pru_interest_half_yearly_inr": float(HALF_YEAR_INTEREST),
+        }
+        assumption_meta = {
+            "pru_loan_outstanding": {
+                "status": "placeholder",
+                "label": "Due ~18-May-2026 figure on file — refresh from statement",
+            },
+            "pru_sv_illustrative": {
+                "status": "placeholder",
+                "label": "Yr5 benefit illustration (~Nov 2026) — not live ICICI quote",
+            },
+            "pru_premium_monthly_inr": {
+                "status": "placeholder",
+                "label": "Premium from policy schedule — confirm against debit",
+            },
+            "pru_interest_half_yearly_inr": {
+                "status": "placeholder",
+                "label": "Half-yearly interest from rate × principal — confirm vs schedule",
+            },
+        }
+        g0_wiring = {
+            "loan_account_id": str(LOAN_ID),
+            "cash_account_id": str(SAVINGS_ID),
             "linked_premium_recurring_id": str(premium.id),
             "linked_interest_recurring_id": str(interest.id),
             "linked_repayment_recurring_id": str(repay.id),
             "loan_schedule_version": entries[0].schedule_version if entries else None,
             "coherence_notes": (
-                "Celery generate-recurring-daily materializes auto_generate=true bills. "
-                "These Pru templates are reminder-only (auto_generate=false). "
-                "Pay interest as transfer savings→loan so loan current_balance drops; "
-                "mark matching loan schedule interest row paid and link the cash leg."
+                "Reminder-only recurrings (auto_generate=false). "
+                "POST /api/recurring-transactions/{id}/post-occurrence or loan schedule Post pay."
             ),
         }
 
         if asset is not None:
             meta = dict(asset.external_metadata or {})
-            meta["g0_assumptions"] = assumptions
+            meta["assumptions"] = assumptions
+            meta["assumption_meta"] = assumption_meta
+            meta["g0_wiring"] = g0_wiring
             meta["premium_monthly"] = float(PREMIUM_AMOUNT)
-            meta["linked_premium_recurring_id"] = str(premium.id)
-            meta["linked_interest_recurring_id"] = str(interest.id)
             asset.external_metadata = meta
             asset.sip_amount = PREMIUM_AMOUNT
             asset.sip_day = 17
@@ -224,9 +245,8 @@ async def main() -> dict:
 
         if goal is not None:
             gmeta = dict(goal.metadata_json or {})
-            gmeta["g0_assumptions"] = assumptions
-            gmeta["interest_cadence"] = "half_yearly"
-            gmeta["rate_percent"] = float(RATE)
+            gmeta["assumptions"] = assumptions
+            gmeta["assumption_meta"] = assumption_meta
             goal.metadata_json = gmeta
             flag_modified(goal, "metadata_json")
 
@@ -244,6 +264,7 @@ async def main() -> dict:
             "repayment_recurring_id": str(repay.id),
             "repayment_created": repay_created,
             "assumptions": assumptions,
+            "g0_wiring": g0_wiring,
         }
         print(json.dumps(out, indent=2))
         return out

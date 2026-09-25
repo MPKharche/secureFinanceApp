@@ -2431,23 +2431,30 @@ async def get_forecast(
     derived_principal = loans
     for a in insurance_assets:
         meta = a.external_metadata or {}
+        from app.services.g0_assumption_keys import assumptions_from_metadata
+
+        assumptions = assumptions_from_metadata(meta)
         pm = meta.get("premium_monthly")
         if pm is None:
-            pm = (meta.get("g0_assumptions") or {}).get("premium_amount")
+            pm = assumptions.get("pru_premium_monthly_inr")
         try:
             if pm is not None:
                 derived_premium += float(pm) * 12.0
         except (TypeError, ValueError):
             pass
-        g0 = meta.get("g0_assumptions") or {}
-        if derived_rate is None and g0.get("loan_rate_percent") is not None:
+        if derived_rate is None and assumptions.get("pru_loan_rate_pct") is not None:
             try:
-                derived_rate = float(g0["loan_rate_percent"])
+                derived_rate = float(assumptions["pru_loan_rate_pct"]) * 100.0
             except (TypeError, ValueError):
                 pass
-        if g0.get("principal") is not None:
+        if assumptions.get("pru_loan_principal_inr") is not None:
             try:
-                derived_principal = float(g0["principal"])
+                derived_principal = float(assumptions["pru_loan_principal_inr"])
+            except (TypeError, ValueError):
+                pass
+        elif assumptions.get("pru_loan_outstanding") is not None:
+            try:
+                derived_principal = float(assumptions["pru_loan_outstanding"])
             except (TypeError, ValueError):
                 pass
 
