@@ -14,6 +14,7 @@ from app.models.asset import Asset
 from app.models.asset_value import AssetValue
 from app.models.transaction import Transaction
 from app.models.category import Category
+from app.models.goal import Goal
 from app.models.user import User
 from app.services._query_filters import (
     counts_as_pnl,
@@ -24,6 +25,23 @@ from app.services._query_filters import (
 from app.services.admin_service import get_credit_card_accounting_mode
 from app.services.account_service import get_account_name
 from app.services.fx_rate_service import convert
+from app.services.g0_assumption_keys import (
+    KEY_AS_OF_FIDELITY,
+    KEY_INCLUDE_POLICY_LOAN,
+    KEY_INSURANCE_VALUE_BASIS,
+    KEY_LAS_OUTSTANDING,
+    KEY_NRP_LOAN_ID_LABEL,
+    KEY_NRP_OUTSTANDING,
+    KEY_PERSONAL_LOAN_EMI,
+    KEY_PRU_SV_ILLUSTRATIVE,
+    KEY_REPORTING_CURRENCY,
+    DEFAULT_PLACEHOLDER_LABELS,
+    assumption_meta_from_metadata,
+    assumptions_from_metadata,
+    is_placeholder_key,
+    placeholder_label_for_key,
+    wiring_from_metadata,
+)
 from app.schemas.report import (
     BalanceSheetAssumption,
     BalanceSheetLine,
@@ -1646,33 +1664,198 @@ async def get_cash_flow_report(
     )
 
 
+def _float_or_none(val) -> float | None:
+    if val is None:
+        return None
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
 def _insurance_amounts(meta: dict | None) -> dict[str, float | None]:
-    """Extract SAD / illustrative SV from asset external_metadata when present."""
+    """SAD / illustrative SV from G4 assumptions map + legacy metadata fields."""
     meta = meta or {}
+    assumptions = assumptions_from_metadata(meta)
     sad = meta.get("sum_assured_on_death")
     sv = meta.get("illus_sv_year5")
     if sv is None:
+        sv = assumptions.get(KEY_PRU_SV_ILLUSTRATIVE)
+    if sv is None:
         year5 = (meta.get("cos_illustration") or {}).get("year_5") or {}
         sv = year5.get("sv_approx") or year5.get("ssv")
-    try:
-        sad_f = float(sad) if sad is not None else None
-    except (TypeError, ValueError):
-        sad_f = None
-    try:
-        sv_f = float(sv) if sv is not None else None
-    except (TypeError, ValueError):
-        sv_f = None
-    return {"sad": sad_f, "sv": sv_f}
+    return {"sad": _float_or_none(sad), "sv": _float_or_none(sv)}
 
 
 def _is_insurance_asset(asset: Asset) -> bool:
     meta = asset.external_metadata or {}
+    assumptions = assumptions_from_metadata(meta)
     return bool(
         meta.get("policy_number")
+        or assumptions.get("pru_policy_id")
         or meta.get("sum_assured_on_death")
         or meta.get("illus_sv_year5")
+        or assumptions.get(KEY_PRU_SV_ILLUSTRATIVE)
         or (meta.get("cos_illustration") or {}).get("year_5")
     )
+
+
+async def _collect_workspace_g4(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+) -> tuple[dict, dict, set[str]]:
+    """Merge G4 assumption maps from assets; return policy-loan account ids from wiring."""
+    merged: dict = {}
+    meta_sidecar: dict = {}
+    policy_loan_ids: set[str] = set()
+    result = await session.execute(
+        select(Asset).where(
+            Asset.workspace_id == workspace_id,
+            Asset.is_archived == False,
+        )
+    )
+    for asset in result.scalars().all():
+        meta = asset.external_metadata or {}
+        for key, val in assumptions_from_metadata(meta).items():
+            merged.setdefault(key, val)
+        for key, val in assumption_meta_from_metadata(meta).items():
+            meta_sidecar.setdefault(key, val)
+        wiring = wiring_from_metadata(meta)
+        loan_id = wiring.get("loan_account_id")
+        if loan_id:
+            policy_loan_ids.add(str(loan_id))
+
+    goal_result = await session.execute(
+        select(Goal).where(Goal.workspace_id == workspace_id)
+    )
+    for goal in goal_result.scalars().all():
+        gmeta = goal.metadata_json or {}
+        for key, val in assumptions_from_metadata(gmeta).items():
+            merged.setdefault(key, val)
+        for key, val in assumption_meta_from_metadata(gmeta).items():
+            meta_sidecar.setdefault(key, val)
+    return merged, meta_sidecar, policy_loan_ids
+
+
+def _loan_line_exists(lines: list[BalanceSheetLine], *needles: str) -> bool:
+    needles_l = [n.lower() for n in needles if n]
+    for ln in lines:
+        if ln.section != "liabilities" or ln.group != "loans":
+            continue
+        label = ln.label.lower()
+        if any(n in label for n in needles_l):
+            return True
+    return False
+
+
+def _derive_as_of_fidelity_label(
+    lines: list[BalanceSheetLine],
+    cutoff: date,
+    today: date,
+) -> str:
+    fidelities = {ln.fidelity for ln in lines}
+    if "reconstructed" in fidelities:
+        return "reconstructed"
+    if cutoff >= today and any(
+        ln.fidelity == "as_of" and "Provider" in (ln.fidelity_note or "")
+        for ln in lines
+    ):
+        return "provider"
+    if any(ln.fidelity == "approx_current" for ln in lines):
+        return "provider" if cutoff >= today else "manual"
+    return "manual"
+
+
+def _glossary_debt_placeholder_lines(
+    *,
+    workspace_assumptions: dict,
+    assumption_meta: dict,
+    primary_currency: str,
+    existing_lines: list[BalanceSheetLine],
+) -> list[BalanceSheetLine]:
+    """NRP / PL / LAS lines from glossary when ledger does not already cover them."""
+    out: list[BalanceSheetLine] = []
+    specs: list[tuple[str, str, list[str]]] = [
+        (
+            KEY_NRP_OUTSTANDING,
+            workspace_assumptions.get(KEY_NRP_LOAN_ID_LABEL) or "NRP home loan",
+            ["nrp", "tbpun", "emerald", "godrej"],
+        ),
+        (
+            KEY_LAS_OUTSTANDING,
+            "Loan against securities (LAS)",
+            ["las", "loan against"],
+        ),
+    ]
+    for key, default_label, match_needles in specs:
+        if key not in workspace_assumptions and key not in assumption_meta:
+            continue
+        if _loan_line_exists(existing_lines, *match_needles):
+            continue
+        raw = workspace_assumptions.get(key)
+        label = placeholder_label_for_key(key, assumption_meta)
+        is_ph = raw is None or is_placeholder_key(key, assumption_meta)
+        amount = _float_or_none(raw) or 0.0
+        if not is_ph and amount <= 0:
+            continue
+        if is_ph and amount <= 0 and label is None:
+            continue
+        if is_ph and label is None:
+            label = DEFAULT_PLACEHOLDER_LABELS.get(key, key)
+        line_label = default_label
+        if key == KEY_NRP_OUTSTANDING and workspace_assumptions.get(KEY_NRP_LOAN_ID_LABEL):
+            line_label = f"NRP · {workspace_assumptions[KEY_NRP_LOAN_ID_LABEL]}"
+        out.append(
+            BalanceSheetLine(
+                key=f"glossary:{key}",
+                label=line_label,
+                value=round(amount, 2),
+                currency=primary_currency,
+                group="loans",
+                section="liabilities",
+                fidelity="approx_current" if is_ph else "as_of",
+                fidelity_note=(
+                    label
+                    if is_ph
+                    else f"Glossary key `{key}` — confirm against live statement."
+                ),
+                account_type="loan",
+                href="/loans",
+                meta={
+                    "glossary_key": key,
+                    "placeholder": is_ph,
+                    "placeholder_label": label if is_ph else None,
+                },
+            )
+        )
+
+    pl_key = KEY_PERSONAL_LOAN_EMI
+    if pl_key in workspace_assumptions or pl_key in assumption_meta:
+        if not _loan_line_exists(existing_lines, "personal loan", "pl "):
+            raw = workspace_assumptions.get(pl_key)
+            label = placeholder_label_for_key(pl_key, assumption_meta)
+            is_ph = raw is None or is_placeholder_key(pl_key, assumption_meta)
+            if is_ph and label:
+                out.append(
+                    BalanceSheetLine(
+                        key=f"glossary:{pl_key}",
+                        label="Personal loan",
+                        value=0.0,
+                        currency=primary_currency,
+                        group="loans",
+                        section="liabilities",
+                        fidelity="approx_current",
+                        fidelity_note=label,
+                        account_type="loan",
+                        href="/loans",
+                        meta={
+                            "glossary_key": pl_key,
+                            "placeholder": True,
+                            "placeholder_label": label,
+                        },
+                    )
+                )
+    return out
 
 
 async def get_balance_sheet(
@@ -1681,7 +1864,8 @@ async def get_balance_sheet(
     user_id: uuid.UUID,
     as_of: date | None = None,
     *,
-    insurance_value_basis: str = "recorded",
+    insurance_value_basis: str = "sv",
+    include_policy_loan: bool | None = None,
     account_ids: Optional[list[uuid.UUID]] = None,
     asset_group_ids: Optional[list[uuid.UUID]] = None,
 ) -> BalanceSheetResponse:
@@ -1689,8 +1873,8 @@ async def get_balance_sheet(
 
     Prefer reconstructed as-of balances from transaction / asset-value history.
     Connected-account history is reconstructed from the provider snapshot and
-    labeled accordingly. Insurance holdings can optionally revalue using SAD or
-    illustrative SV from asset metadata (G4-lite).
+    labeled accordingly. Insurance and debt anchors read G4 assumption keys on
+    asset.external_metadata (never hard-coded rates).
     """
     if asset_group_ids is not None and account_ids is None:
         account_ids = []
@@ -1700,12 +1884,28 @@ async def get_balance_sheet(
     if cutoff > today:
         cutoff = today
 
-    basis = (insurance_value_basis or "recorded").lower()
+    workspace_assumptions, workspace_meta, policy_loan_ids = await _collect_workspace_g4(
+        session, workspace_id
+    )
+
+    basis = (insurance_value_basis or "sv").lower()
     if basis not in {"recorded", "sad", "sv"}:
-        basis = "recorded"
+        basis = "sv"
+    glossary_basis = workspace_assumptions.get(KEY_INSURANCE_VALUE_BASIS)
+    if glossary_basis in {"recorded", "sad", "sv"} and insurance_value_basis in (None, ""):
+        basis = str(glossary_basis).lower()
+
+    include_policy = include_policy_loan
+    if include_policy is None:
+        raw_include = workspace_assumptions.get(KEY_INCLUDE_POLICY_LOAN, True)
+        if isinstance(raw_include, str):
+            include_policy = raw_include.lower() in {"1", "true", "yes"}
+        else:
+            include_policy = bool(raw_include)
 
     user = await session.get(User, user_id)
     primary_currency = user.primary_currency if user else get_settings().default_currency
+    reporting_currency = workspace_assumptions.get(KEY_REPORTING_CURRENCY) or primary_currency
 
     accounts = await _get_open_accounts(session, workspace_id, account_ids)
     lines: list[BalanceSheetLine] = []
@@ -1739,6 +1939,12 @@ async def get_balance_sheet(
 
         if is_liability:
             if converted_val <= 0:
+                continue
+            if (
+                account.type == "loan"
+                and not include_policy
+                and str(account.id) in policy_loan_ids
+            ):
                 continue
             if account.type == "loan":
                 group = "loans"
@@ -1818,10 +2024,15 @@ async def get_balance_sheet(
         line_meta: dict | None = None
 
         if _is_insurance_asset(asset):
-            amounts = _insurance_amounts(asset.external_metadata)
+            asset_meta = asset.external_metadata or {}
+            asset_sidecar = assumption_meta_from_metadata(asset_meta)
+            amounts = _insurance_amounts(asset_meta)
+            policy_no = asset_meta.get("policy_number") or assumptions_from_metadata(
+                asset_meta
+            ).get("pru_policy_id")
             line_meta = {
                 "insurance": True,
-                "policy_number": (asset.external_metadata or {}).get("policy_number"),
+                "policy_number": policy_no,
                 "sad": amounts["sad"],
                 "sv_illustrative": amounts["sv"],
                 "recorded": recorded_amount,
@@ -1835,20 +2046,34 @@ async def get_balance_sheet(
             elif basis == "sv" and amounts["sv"] is not None:
                 amount = amounts["sv"]
                 fidelity = "approx_current"
-                fidelity_note = (
+                sv_label = placeholder_label_for_key(
+                    KEY_PRU_SV_ILLUSTRATIVE, asset_sidecar
+                )
+                fidelity_note = sv_label or (
                     "Insurance valued at illustrative surrender value (CoS/benefit "
                     "illustration — NOT a live ICICI quote)."
                 )
+                if sv_label:
+                    line_meta["assumption_meta_label"] = sv_label
+            elif basis == "sv":
+                ph_label = placeholder_label_for_key(
+                    KEY_PRU_SV_ILLUSTRATIVE, asset_sidecar
+                ) or DEFAULT_PLACEHOLDER_LABELS.get(KEY_PRU_SV_ILLUSTRATIVE)
+                line_meta["placeholder"] = True
+                line_meta["placeholder_label"] = ph_label
+                amount = 0.0
+                fidelity = "approx_current"
+                fidelity_note = ph_label
+                gaps.append(f"{asset.name}: {ph_label}")
             else:
                 fidelity_note = (
                     "Insurance using recorded asset value as-of date"
                     + (f" ({value_date.isoformat()})" if value_date else "")
                     + ". Toggle Assumptions → insurance_value_basis for SAD/SV."
                 )
-                if basis in {"sad", "sv"}:
+                if basis in {"sad", "sv"} and amounts.get(basis if basis != "sv" else "sv") is None:
                     gaps.append(
-                        f"{asset.name}: requested {basis.upper()} unavailable in metadata; "
-                        "fell back to recorded value."
+                        f"{asset.name}: requested {basis.upper()} unavailable in glossary/metadata."
                     )
         else:
             if value_date is None and recorded_amount > 0:
@@ -1862,14 +2087,17 @@ async def get_balance_sheet(
             else:
                 fidelity_note = "Asset value as-of selected date."
 
-        if amount <= 0:
+        is_placeholder_line = bool(line_meta and line_meta.get("placeholder"))
+        if amount <= 0 and not is_placeholder_line:
             continue
 
-        converted, _ = await convert(
-            session, Decimal(str(amount)), asset.currency, primary_currency, cutoff
-        )
-        converted_val = round(float(converted), 2)
-        assets_total += converted_val
+        converted_val = 0.0
+        if amount > 0:
+            converted, _ = await convert(
+                session, Decimal(str(amount)), asset.currency, primary_currency, cutoff
+            )
+            converted_val = round(float(converted), 2)
+            assets_total += converted_val
         lines.append(BalanceSheetLine(
             key=str(asset.id),
             label=asset.name,
@@ -1884,21 +2112,40 @@ async def get_balance_sheet(
             meta=line_meta,
         ))
 
+    if not filtered:
+        glossary_liab = _glossary_debt_placeholder_lines(
+            workspace_assumptions=workspace_assumptions,
+            assumption_meta=workspace_meta,
+            primary_currency=primary_currency,
+            existing_lines=lines,
+            cutoff=cutoff,
+        )
+        for gl in glossary_liab:
+            lines.append(gl)
+            if gl.meta and gl.meta.get("placeholder") and gl.value <= 0:
+                continue
+            loans_total += gl.value
+
     investments_total = round(invest_acct_total + assets_total, 2)
     assets_sum = round(cash_total + investments_total, 2)
     liabilities_sum = round(loans_total + other_liab_total, 2)
     net_worth = round(assets_sum - liabilities_sum, 2)
 
+    fidelity_label = _derive_as_of_fidelity_label(lines, cutoff, today)
+
     assumptions = [
         BalanceSheetAssumption(
-            key="reporting_currency",
+            key=KEY_REPORTING_CURRENCY,
             label="Reporting currency",
-            value=primary_currency,
-            description="All lines converted to the workspace primary currency at as-of FX.",
+            value=str(reporting_currency),
+            description=(
+                f"Glossary reporting currency ({reporting_currency}). "
+                f"Lines converted to workspace primary ({primary_currency}) at as-of FX."
+            ),
             options=None,
         ),
         BalanceSheetAssumption(
-            key="insurance_value_basis",
+            key=KEY_INSURANCE_VALUE_BASIS,
             label="Insurance value basis",
             value=basis,
             description=(
@@ -1909,21 +2156,23 @@ async def get_balance_sheet(
             options=["recorded", "sad", "sv"],
         ),
         BalanceSheetAssumption(
-            key="include_policy_loan",
+            key=KEY_INCLUDE_POLICY_LOAN,
             label="Include policy loan as liability",
-            value="true",
-            description="Policy loans appear under Liabilities when the linked loan account is open.",
-            options=["true"],
+            value="true" if include_policy else "false",
+            description=(
+                "When true, Pru/policy loan accounts linked via g0_wiring appear under Liabilities."
+            ),
+            options=["true", "false"],
         ),
         BalanceSheetAssumption(
-            key="as_of_fidelity",
+            key=KEY_AS_OF_FIDELITY,
             label="As-of fidelity",
-            value="prefer_real",
+            value=fidelity_label,
             description=(
-                "Manual accounts and asset values use real as-of reconstruction. "
-                "Connected accounts use provider snapshot reconstruction for past dates."
+                "manual = txn/asset history; reconstructed = connected past dates; "
+                "provider = live provider snapshot for today."
             ),
-            options=None,
+            options=["manual", "reconstructed", "provider"],
         ),
     ]
 

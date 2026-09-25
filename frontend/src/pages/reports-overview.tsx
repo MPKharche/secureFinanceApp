@@ -314,7 +314,13 @@ export default function ReportsOverviewPage() {
   const bsQuery = useQuery<BalanceSheetResponse>({
     queryKey: ['balance-sheet', asOf, prefs.insurance_value_basis, activeAccountIds, activeWalletIds],
     queryFn: () =>
-      reports.balanceSheet(asOf, prefs.insurance_value_basis, accountIds, walletIds),
+      reports.balanceSheet(
+        asOf,
+        prefs.insurance_value_basis,
+        undefined,
+        accountIds,
+        walletIds,
+      ),
   })
 
   const plQuery = useQuery<ProfitLossResponse>({

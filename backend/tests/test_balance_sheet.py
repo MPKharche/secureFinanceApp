@@ -113,3 +113,146 @@ async def test_balance_sheet_insurance_sv_vs_sad(session: AsyncSession, test_use
     assert inv_sv[0].fidelity == "approx_current"
     assert any(a.key == "insurance_value_basis" and a.value == "sv" for a in sv.assumptions)
     assert "G2" in " ".join(sv.gaps)
+
+
+@pytest.mark.asyncio
+async def test_balance_sheet_sv_from_g4_assumptions_map(session: AsyncSession, test_user, test_workspace):
+    asset = Asset(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        workspace_id=test_workspace.id,
+        name="ICICI Pru GIFT",
+        type="other",
+        currency="INR",
+        external_metadata={
+            "assumptions": {
+                "pru_policy_id": "A8884526",
+                "pru_sv_illustrative": 389495,
+                "insurance_value_basis": "sv",
+            },
+            "assumption_meta": {
+                "pru_sv_illustrative": {
+                    "status": "placeholder",
+                    "label": "SV illustrative — not live quote",
+                }
+            },
+        },
+    )
+    session.add(asset)
+    await session.commit()
+
+    report = await get_balance_sheet(
+        session, test_workspace.id, test_user.id, date.today(), insurance_value_basis="sv"
+    )
+    inv = [l for l in report.lines if l.group == "investments"]
+    assert len(inv) == 1
+    assert inv[0].value == 389495.0
+    assert inv[0].meta["sv_illustrative"] == 389495.0
+
+
+@pytest.mark.asyncio
+async def test_balance_sheet_sv_placeholder_not_silent_zero(
+    session: AsyncSession, test_user, test_workspace
+):
+    asset = Asset(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        workspace_id=test_workspace.id,
+        name="ICICI Pru GIFT",
+        type="other",
+        currency="INR",
+        external_metadata={
+            "assumptions": {"pru_policy_id": "A8884526", "insurance_value_basis": "sv"},
+            "assumption_meta": {
+                "pru_sv_illustrative": {
+                    "status": "placeholder",
+                    "label": "Awaiting live SV quote",
+                }
+            },
+        },
+    )
+    session.add(asset)
+    await session.commit()
+
+    report = await get_balance_sheet(
+        session, test_workspace.id, test_user.id, date.today(), insurance_value_basis="sv"
+    )
+    inv = [l for l in report.lines if l.group == "investments"]
+    assert len(inv) == 1
+    assert inv[0].value == 0.0
+    assert inv[0].meta["placeholder"] is True
+    assert "Awaiting" in inv[0].fidelity_note
+
+
+@pytest.mark.asyncio
+async def test_balance_sheet_exclude_policy_loan_via_wiring(
+    session: AsyncSession, test_user, test_workspace
+):
+    loan = Account(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        workspace_id=test_workspace.id,
+        name="Pru policy loan",
+        type="loan",
+        balance=Decimal("174805"),
+        currency="INR",
+        is_closed=False,
+    )
+    session.add(loan)
+    await session.flush()
+    await _txn(session, test_user.id, loan.id, 174805, "debit", date.today())
+    asset = Asset(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        workspace_id=test_workspace.id,
+        name="Pru asset",
+        type="other",
+        currency="INR",
+        external_metadata={
+            "assumptions": {"include_policy_loan": False},
+            "g0_wiring": {"loan_account_id": str(loan.id)},
+        },
+    )
+    session.add(asset)
+    await session.commit()
+
+    included = await get_balance_sheet(
+        session, test_workspace.id, test_user.id, date.today(), include_policy_loan=True
+    )
+    excluded = await get_balance_sheet(
+        session, test_workspace.id, test_user.id, date.today(), include_policy_loan=False
+    )
+    assert included.totals.loans >= 174805.0
+    assert excluded.totals.loans == 0.0
+
+
+@pytest.mark.asyncio
+async def test_balance_sheet_nrp_glossary_placeholder(session: AsyncSession, test_user, test_workspace):
+    asset = Asset(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        workspace_id=test_workspace.id,
+        name="Finance assumptions",
+        type="other",
+        currency="INR",
+        external_metadata={
+            "assumptions": {
+                "nrp_loan_id_label": "TBPUN00006895113",
+                "las_outstanding": None,
+            },
+            "assumption_meta": {
+                "las_outstanding": {
+                    "status": "placeholder",
+                    "label": "LAS O/S — awaiting statement",
+                }
+            },
+        },
+    )
+    session.add(asset)
+    await session.commit()
+
+    report = await get_balance_sheet(session, test_workspace.id, test_user.id, date.today())
+    las = [l for l in report.lines if l.key == "glossary:las_outstanding"]
+    assert len(las) == 1
+    assert las[0].meta["placeholder"] is True
+    assert "LAS" in las[0].fidelity_note

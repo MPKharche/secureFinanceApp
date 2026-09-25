@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { Scale, Settings2 } from 'lucide-react'
 import { reports } from '@/lib/api'
-import { localDateString } from '@/lib/date-utils'
+import { istDateString } from '@/lib/date-utils'
 import { PageHeader } from '@/components/page-header'
 import { DatePickerInput } from '@/components/ui/date-picker-input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -34,21 +34,24 @@ type InsuranceBasis = 'recorded' | 'sad' | 'sv'
 
 type BsPrefs = {
   insurance_value_basis: InsuranceBasis
+  include_policy_loan: boolean
 }
 
 function loadPrefs(): BsPrefs {
   try {
     const raw = localStorage.getItem(PREFS_KEY)
-    if (!raw) return { insurance_value_basis: 'recorded' }
+    if (!raw) return { insurance_value_basis: 'sv', include_policy_loan: true }
     const parsed = JSON.parse(raw) as Partial<BsPrefs>
     const basis = parsed.insurance_value_basis
+    const includePolicy =
+      parsed.include_policy_loan === undefined ? true : Boolean(parsed.include_policy_loan)
     if (basis === 'sad' || basis === 'sv' || basis === 'recorded') {
-      return { insurance_value_basis: basis }
+      return { insurance_value_basis: basis, include_policy_loan: includePolicy }
     }
   } catch {
     /* ignore */
   }
-  return { insurance_value_basis: 'recorded' }
+  return { insurance_value_basis: 'sv', include_policy_loan: true }
 }
 
 function savePrefs(prefs: BsPrefs) {
@@ -63,7 +66,7 @@ export default function BalanceSheetPage() {
   const userCurrency = user?.preferences?.currency_display ?? 'USD'
   const { activeAccountIds, activeWalletIds } = useCollectionFilter()
 
-  const [asOf, setAsOf] = useState(localDateString())
+  const [asOf, setAsOf] = useState(istDateString())
   const [prefs, setPrefs] = useState<BsPrefs>(() => loadPrefs())
   const [assumptionsOpen, setAssumptionsOpen] = useState(false)
 
@@ -76,6 +79,7 @@ export default function BalanceSheetPage() {
       'balance-sheet',
       asOf,
       prefs.insurance_value_basis,
+      prefs.include_policy_loan,
       activeAccountIds,
       activeWalletIds,
     ],
@@ -83,15 +87,17 @@ export default function BalanceSheetPage() {
       reports.balanceSheet(
         asOf,
         prefs.insurance_value_basis,
+        prefs.include_policy_loan,
         activeAccountIds ?? undefined,
         activeWalletIds ?? undefined,
       ),
   })
 
   const currency = data?.currency ?? userCurrency
-  const isToday = asOf === localDateString()
+  const isToday = asOf === istDateString()
   const hasApprox = (data?.lines ?? []).some((l) => l.fidelity !== 'as_of')
   const hasLines = (data?.lines?.length ?? 0) > 0
+  const fidelityLabel = (data?.assumptions ?? []).find((a) => a.key === 'as_of_fidelity')?.value
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-16">
@@ -110,7 +116,7 @@ export default function BalanceSheetPage() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => setAsOf(localDateString())}
+                  onClick={() => setAsOf(istDateString())}
                 >
                   {t('balanceSheet.today')}
                 </Button>
@@ -150,6 +156,21 @@ export default function BalanceSheetPage() {
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
                     {t('balanceSheet.insuranceBasisHelp')}
                   </p>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs">{t('balanceSheet.includePolicyLoan')}</Label>
+                  <Button
+                    type="button"
+                    variant={prefs.include_policy_loan ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() =>
+                      setPrefs((p) => ({ ...p, include_policy_loan: !p.include_policy_loan }))
+                    }
+                  >
+                    {prefs.include_policy_loan
+                      ? t('balanceSheet.policyLoanOn')
+                      : t('balanceSheet.policyLoanOff')}
+                  </Button>
                 </div>
                 <div className="rounded-lg bg-muted/50 p-3 space-y-2">
                   {(data?.assumptions ?? []).map((a) => (
@@ -192,6 +213,7 @@ export default function BalanceSheetPage() {
         <>
           <p className="text-xs text-muted-foreground mb-3">
             {t('balanceSheet.asOfDate', { date: data.as_of })}
+            {fidelityLabel ? ` · ${t('balanceSheet.fidelitySummary', { fidelity: fidelityLabel })}` : ''}
             {hasApprox ? ` · ${t('balanceSheet.someApprox')}` : ''}
             {' · '}
             {t('balanceSheet.tHint')}

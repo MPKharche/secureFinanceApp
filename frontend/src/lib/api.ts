@@ -1463,7 +1463,8 @@ export const reports = {
   },
   balanceSheet: async (
     asOf?: string,
-    insuranceValueBasis: 'recorded' | 'sad' | 'sv' = 'recorded',
+    insuranceValueBasis: 'recorded' | 'sad' | 'sv' = 'sv',
+    includePolicyLoan?: boolean,
     accountIds?: string[],
     assetGroupIds?: string[],
   ): Promise<import('@/types').BalanceSheetResponse> => {
@@ -1472,6 +1473,7 @@ export const reports = {
       params: {
         as_of: asOf,
         insurance_value_basis: insuranceValueBasis,
+        ...(includePolicyLoan !== undefined ? { include_policy_loan: includePolicyLoan } : {}),
         ...(accountIds && accountIds.length > 0 ? { account_ids: accountIds } : {}),
         ...(assetGroupIds && assetGroupIds.length > 0 ? { asset_group_ids: assetGroupIds } : {}),
       },

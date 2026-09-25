@@ -64,9 +64,13 @@ async def get_cash_flow(
 async def get_balance_sheet(
     as_of: Optional[str] = Query(None, description="ISO date YYYY-MM-DD; default today"),
     insurance_value_basis: str = Query(
-        "recorded",
+        "sv",
         pattern="^(recorded|sad|sv)$",
         description="Insurance valuation: recorded AssetValue, SAD, or illustrative SV",
+    ),
+    include_policy_loan: Optional[bool] = Query(
+        None,
+        description="Include Pru/policy loan liabilities (default from G4 assumptions)",
     ),
     account_ids: Optional[list[uuid.UUID]] = Query(None),
     asset_group_ids: Optional[list[uuid.UUID]] = Query(None),
@@ -88,6 +92,7 @@ async def get_balance_sheet(
         ctx.user_id,
         cutoff,
         insurance_value_basis=insurance_value_basis,
+        include_policy_loan=include_policy_loan,
         account_ids=account_ids,
         asset_group_ids=asset_group_ids,
     )

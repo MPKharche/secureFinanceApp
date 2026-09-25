@@ -2,6 +2,11 @@ export function localDateString(date = new Date()) {
   return date.toISOString().slice(0, 10)
 }
 
+/** Calendar date in India Standard Time (default as-of for money reports). */
+export function istDateString(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(date)
+}
+
 // Short weekday names for a Sunday-start calendar header. The reference week is
 // anchored in UTC, so it has to be formatted in UTC as well — otherwise a viewer
 // behind UTC reads each instant as the previous day and every label shifts one
