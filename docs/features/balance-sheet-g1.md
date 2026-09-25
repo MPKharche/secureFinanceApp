@@ -3,7 +3,9 @@
 ## What shipped
 - Route: `/reports/balance-sheet` (alias `/statements/balance-sheet`)
 - **Reports overview** (`/reports`): Screener-inspired one-pager with glossary KPIs, expandable P&L (FY·YTD), T-format BS, forecast; assumption chips; deep links. Charts at `/reports/charts`.
-- API: `GET /api/reports/balance-sheet?as_of=YYYY-MM-DD&insurance_value_basis=recorded|sad|sv` (unchanged)
+- API: `GET /api/reports/balance-sheet?as_of=YYYY-MM-DD&insurance_value_basis=recorded|sad|sv&include_policy_loan=true|false`
+- G4 keys on `asset.external_metadata.assumptions` + `assumption_meta` (Pru SV, NRP/LAS/PL placeholders)
+- Default as-of: today **IST**; default insurance basis: **sv**
 - UI: **T-format** — left **owe** (Loans (policy + others), Credit cards / dues), right **own** (Bank/cash, Property, MF/stocks, Insurance value); Net worth + savings buffer below
 - As-of date picker; G4-lite assumptions: `reporting_currency`, `insurance_value_basis`, `include_policy_loan`, `as_of_fidelity`
 - Fidelity badges: `as_of` | `reconstructed` | `≈ current`

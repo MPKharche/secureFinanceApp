@@ -48,7 +48,13 @@ export function BsLineRow({
   compact?: boolean
 }) {
   const { t } = useTranslation()
-  const amount = mask(formatCurrency(line.value, currency, locale))
+  const meta = line.meta as Record<string, unknown> | null | undefined
+  const isPlaceholder = meta?.placeholder === true
+  const placeholderLabel =
+    (meta?.placeholder_label as string | undefined) ?? line.fidelity_note ?? ''
+  const amount = isPlaceholder
+    ? '—'
+    : mask(formatCurrency(line.value, currency, locale))
   const body = (
     <div
       className={cn(
@@ -61,6 +67,11 @@ export function BsLineRow({
           <span className={cn('text-foreground truncate', compact ? 'text-xs' : 'text-sm')}>
             {line.label}
           </span>
+          {isPlaceholder && placeholderLabel && (
+            <span className="text-[10px] text-muted-foreground italic max-w-[14rem] truncate">
+              {placeholderLabel}
+            </span>
+          )}
           {!compact && (
             <>
               <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
@@ -123,7 +134,11 @@ export function BsSubGroup({
   defaultExpanded?: boolean
 }) {
   const [open, setOpen] = useState(defaultExpanded)
-  const subtotal = lines.reduce((s, l) => s + l.value, 0)
+  const subtotal = lines.reduce((s, l) => {
+    const meta = l.meta as Record<string, unknown> | undefined
+    if (meta?.placeholder === true && l.value <= 0) return s
+    return s + l.value
+  }, 0)
   return (
     <div className={cn(compact ? 'mb-3 last:mb-0' : 'mb-4 last:mb-0')}>
       <div className="flex items-baseline justify-between gap-2 mb-1">

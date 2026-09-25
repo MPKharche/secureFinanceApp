@@ -12,6 +12,13 @@ from typing import Any, Optional
 KEY_REPORTING_CURRENCY = "reporting_currency"
 KEY_INSURANCE_VALUE_BASIS = "insurance_value_basis"
 KEY_INCLUDE_POLICY_LOAN = "include_policy_loan"
+KEY_AS_OF_FIDELITY = "as_of_fidelity"
+
+# --- Debt anchors (G1 liability placeholders / seeds) ---
+KEY_NRP_LOAN_ID_LABEL = "nrp_loan_id_label"
+KEY_NRP_OUTSTANDING = "nrp_outstanding"
+KEY_PERSONAL_LOAN_EMI = "personal_loan_emi"
+KEY_LAS_OUTSTANDING = "las_outstanding"
 
 # --- Pru G0 anchors (ledger seeds) ---
 KEY_PRU_POLICY_ID = "pru_policy_id"
@@ -40,9 +47,34 @@ _LEGACY_G0_FIELD_MAP: dict[str, str] = {
 DEFAULT_PLACEHOLDER_LABELS: dict[str, str] = {
     KEY_PRU_LOAN_OUTSTANDING: "Pru loan O/S — placeholder (refresh from statement)",
     KEY_PRU_SV_ILLUSTRATIVE: "Pru SV — illustrative only, not live ICICI quote",
+    KEY_NRP_OUTSTANDING: "NRP O/S — refresh from live schedule",
+    KEY_PERSONAL_LOAN_EMI: "PL EMI — awaiting statement",
+    KEY_LAS_OUTSTANDING: "LAS O/S — awaiting statement",
     "pru_premium_monthly_inr": "Premium — seeded; confirm against policy debit",
     "pru_interest_half_yearly_inr": "Half-yearly interest — seeded; confirm against schedule",
 }
+
+
+def placeholder_label_for_key(
+    key: str,
+    assumption_meta: dict[str, Any],
+) -> str | None:
+    """Return UI label when key is a placeholder; None if not placeholder/disclosed."""
+    spec = assumption_meta.get(key)
+    if isinstance(spec, dict):
+        if spec.get("status") != "placeholder":
+            return None
+        return spec.get("label") or DEFAULT_PLACEHOLDER_LABELS.get(key, key)
+    if spec == "placeholder":
+        return DEFAULT_PLACEHOLDER_LABELS.get(key, key)
+    return None
+
+
+def is_placeholder_key(key: str, assumption_meta: dict[str, Any]) -> bool:
+    spec = assumption_meta.get(key)
+    if isinstance(spec, dict):
+        return spec.get("status") == "placeholder"
+    return spec == "placeholder"
 
 
 def assumptions_from_metadata(meta: Optional[dict[str, Any]]) -> dict[str, Any]:
