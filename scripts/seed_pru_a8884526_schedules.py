@@ -186,6 +186,8 @@ async def main() -> dict:
         await session.commit()
 
         assumptions = {
+            "loan_account_id": str(LOAN_ID),
+            "cash_account_id": str(SAVINGS_ID),
             "premium_amount": float(PREMIUM_AMOUNT),
             "loan_rate_percent": float(RATE),
             "interest_cadence": "half_yearly",
@@ -206,8 +208,11 @@ async def main() -> dict:
             "coherence_notes": (
                 "Celery generate-recurring-daily materializes auto_generate=true bills. "
                 "These Pru templates are reminder-only (auto_generate=false). "
-                "Pay interest as transfer savings→loan so loan current_balance drops; "
-                "mark matching loan schedule interest row paid and link the cash leg."
+                "Use POST /api/recurring-transactions/{id}/post-occurrence or loan "
+                "schedule Post pay — transfer savings→loan for interest, debit savings "
+                "for premium; marks schedule paid and links the cash leg. "
+                "Principal repayment stub: activate recurring then post-occurrence "
+                "(transfer full principal when foreclosing/voluntary repay)."
             ),
         }
 

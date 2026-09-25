@@ -40,6 +40,26 @@ class RecurringTransactionUpdate(BaseModel):
     auto_generate: Optional[bool] = None
 
 
+class RecurringPostOccurrenceRequest(BaseModel):
+    """Guided post for reminder-only (auto_generate=false) bills."""
+
+    payment_date: Optional[_Date] = None
+    transfer_to_account_id: Optional[uuid.UUID] = None
+    link_loan_schedule: bool = False
+    loan_account_id: Optional[uuid.UUID] = None
+
+
+class RecurringPostOccurrenceResponse(BaseModel):
+    already_posted: bool
+    transaction_ids: list[str]
+    cash_leg_id: Optional[str] = None
+    credit_leg_id: Optional[str] = None
+    schedule_entry_id: Optional[str] = None
+    recurring_id: str
+    next_occurrence: _Date
+    post_kind: Optional[str] = None
+
+
 class RecurringTransactionRead(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID

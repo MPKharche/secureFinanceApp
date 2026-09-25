@@ -1,7 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { formatCurrency } from '@/lib/format'
+import { accounts as accountsApi } from '@/lib/api'
+import { invalidateFinancialQueries } from '@/lib/invalidate-queries'
 import {
   FrozenScrollTable,
   FrozenTd,
@@ -46,8 +48,22 @@ export function LoanScheduleTable({
   locale?: string
 }) {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [linkDialogOpen, setLinkDialogOpen] = useState(false)
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
+  const [postingEntryId, setPostingEntryId] = useState<string | null>(null)
+
+  const { data: accountsList } = useQuery({
+    queryKey: ['accounts'],
+    queryFn: () => accountsApi.list(),
+  })
+
+  const defaultCashAccountId = useMemo(() => {
+    const candidates = (accountsList ?? []).filter(
+      (a) => a.type !== 'loan' && a.type !== 'credit_card' && a.currency === currency,
+    )
+    return candidates[0]?.id
+  }, [accountsList, currency])
   
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['loan-schedule', accountId],
@@ -88,6 +104,37 @@ export function LoanScheduleTable({
     }
   }
   
+  const handlePostPayment = async (entry: Entry) => {
+    if (!defaultCashAccountId) {
+      toast.error('Add a cash/savings account in the same currency to post payments')
+      return
+    }
+    setPostingEntryId(entry.id)
+    try {
+      const response = await fetch(`/api/v1/loans/schedule/${entry.id}/post-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'X-Workspace-Id': localStorage.getItem('workspace_id') || '',
+        },
+        body: JSON.stringify({ from_account_id: defaultCashAccountId }),
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.detail || 'Failed to post payment')
+      }
+      toast.success('Payment posted to ledger and schedule marked paid')
+      invalidateFinancialQueries(queryClient)
+      queryClient.invalidateQueries({ queryKey: ['recurring'] })
+      refetch()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to post payment')
+    } finally {
+      setPostingEntryId(null)
+    }
+  }
+
   const handleStatusClick = (e: Entry) => {
     if (e.payment_status === 'paid' && e.linked_transaction_ids) {
       navigateToTransactions(e.linked_transaction_ids)
@@ -179,16 +226,23 @@ export function LoanScheduleTable({
                     </svg>
                   </div>
                 ) : e.payment_status === 'scheduled' ? (
-                  <button
-                    onClick={() => handleStatusClick(e)}
-                    className="text-muted-foreground hover:text-primary hover:underline inline-flex items-center gap-1"
-                    title="Link to transaction(s)"
-                  >
-                    Scheduled
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                    </svg>
-                  </button>
+                  <div className="flex flex-col items-start gap-1">
+                    <button
+                      onClick={() => handlePostPayment(e)}
+                      disabled={postingEntryId === e.id}
+                      className="text-primary hover:underline text-xs font-medium"
+                      title="Post transfer from cash account and mark paid"
+                    >
+                      {postingEntryId === e.id ? 'Posting…' : 'Post pay'}
+                    </button>
+                    <button
+                      onClick={() => handleStatusClick(e)}
+                      className="text-muted-foreground hover:text-primary hover:underline inline-flex items-center gap-1 text-[11px]"
+                      title="Link existing transaction(s)"
+                    >
+                      Link
+                    </button>
+                  </div>
                 ) : e.payment_status === 'missed' ? (
                   <span className="text-rose-600 dark:text-rose-400 font-medium">Missed</span>
                 ) : (

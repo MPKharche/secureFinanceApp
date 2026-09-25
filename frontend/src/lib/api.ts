@@ -1028,6 +1028,23 @@ export const recurring = {
     const { data } = await api.post('/recurring-transactions/generate')
     return data
   },
+  postOccurrence: async (
+    id: string,
+    body?: {
+      payment_date?: string
+      transfer_to_account_id?: string
+      link_loan_schedule?: boolean
+      loan_account_id?: string
+    },
+  ): Promise<{
+    already_posted: boolean
+    transaction_ids: string[]
+    next_occurrence: string
+    schedule_entry_id?: string | null
+  }> => {
+    const { data } = await api.post(`/recurring-transactions/${id}/post-occurrence`, body ?? {})
+    return data
+  },
 }
 
 // Budgets

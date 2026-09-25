@@ -20,7 +20,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import type { Category, CategoryGroup, RecurringTransaction } from '@/types'
-import { Pencil, Trash2, Plus, RefreshCw, Info } from 'lucide-react'
+import { Pencil, Trash2, Plus, RefreshCw, Info, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/page-header'
 import { CategorySelect } from '@/components/category-select'
@@ -146,6 +146,18 @@ function RecurringTab() {
     onError: () => toast.error(t('common.error')),
   })
 
+  const postDueMutation = useMutation({
+    mutationFn: (id: string) => recurringApi.postOccurrence(id),
+    onSuccess: (data) => {
+      invalidateFinancialQueries(queryClient)
+      queryClient.invalidateQueries({ queryKey: ['recurring'] })
+      queryClient.invalidateQueries({ queryKey: ['loan-schedule'] })
+      const next = new Date(data.next_occurrence + 'T00:00:00').toLocaleDateString(dateLocale)
+      toast.success(t('recurring.postDueSuccess', { date: next }))
+    },
+    onError: (err: unknown) => toast.error(extractApiError(err, t('common.error'))),
+  })
+
   const frequencyLabel = (f: string) => {
     const map: Record<string, string> = { monthly: t('recurring.monthly'), quarterly: t('recurring.quarterly'), semiannual: t('recurring.semiannual'), weekly: t('recurring.weekly'), biweekly: t('recurring.biweekly'), yearly: t('recurring.yearly') }
     return map[f] ?? f
@@ -212,18 +224,38 @@ function RecurringTab() {
                     {new Date(rt.next_occurrence + 'T00:00:00').toLocaleDateString(dateLocale)}
                   </td>
                   <td className="py-3 hidden sm:table-cell">
-                    <span className={cn(
-                      'text-[11px] font-semibold px-2 py-0.5 rounded-full border',
-                      rt.is_active
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                        : 'bg-muted text-muted-foreground border-border'
-                    )}>
-                      {rt.is_active ? t('recurring.active') : t('recurring.inactive')}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className={cn(
+                        'text-[11px] font-semibold px-2 py-0.5 rounded-full border w-fit',
+                        rt.is_active
+                          ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                          : 'bg-muted text-muted-foreground border-border'
+                      )}>
+                        {rt.is_active ? t('recurring.active') : t('recurring.inactive')}
+                      </span>
+                      {rt.is_active && rt.auto_generate === false && (
+                        <span className="text-[10px] text-muted-foreground" title={t('recurring.postDueReminderOnly')}>
+                          {t('recurring.postDueReminderOnly')}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   {canWrite && (
                     <td className="py-3 pr-4 sm:pr-5">
                       <div className="flex items-center justify-end gap-1">
+                        {rt.is_active && rt.auto_generate === false && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-[11px] gap-1"
+                            disabled={postDueMutation.isPending}
+                            onClick={() => postDueMutation.mutate(rt.id)}
+                            title={t('recurring.postDue')}
+                          >
+                            <CheckCircle2 size={12} />
+                            <span className="hidden sm:inline">{t('recurring.postDue')}</span>
+                          </Button>
+                        )}
                         <button
                           className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors"
                           onClick={() => { setEditing(rt); setDialogOpen(true) }}

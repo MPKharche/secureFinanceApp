@@ -292,6 +292,36 @@ async def auto_link_transactions(
     }
 
 
+@router.post("/schedule/{entry_id}/post-payment")
+async def post_schedule_payment(
+    entry_id: uuid.UUID,
+    body: dict,
+    db: AsyncSession = Depends(get_async_session),
+    workspace: WorkspaceContext = Depends(current_writable_workspace),
+):
+    """Guided post: transfer cash→loan, mark schedule paid, link cash leg (G0)."""
+    from datetime import date as date_type
+
+    from app.services.scheduled_post_service import ScheduledPostError, post_loan_schedule_payment
+
+    from_account_id = body.get("from_account_id")
+    if not from_account_id:
+        raise HTTPException(status_code=400, detail="from_account_id is required")
+    payment_date = body.get("payment_date")
+    pay_dt = date_type.fromisoformat(payment_date) if payment_date else None
+    try:
+        return await post_loan_schedule_payment(
+            db,
+            workspace.id,
+            workspace.user_id,
+            entry_id,
+            from_account_id=uuid.UUID(str(from_account_id)),
+            payment_date=pay_dt,
+        )
+    except ScheduledPostError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.post("/schedule/{entry_id}/link", response_model=LoanScheduleEntryRead)
 async def manual_link_transaction(
     entry_id: uuid.UUID,
