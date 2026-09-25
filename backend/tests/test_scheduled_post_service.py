@@ -120,13 +120,16 @@ async def test_post_interest_transfer_links_schedule(
         type="insurance",
         currency="INR",
         external_metadata={
-            "g0_assumptions": {
+            "assumptions": {
+                "pru_policy_id": "A8884526",
+                "pru_loan_has_emi": False,
+                "pru_interest_half_yearly_inr": float(entries[0].emi_amount),
+            },
+            "g0_wiring": {
                 "loan_account_id": str(loan.id),
                 "cash_account_id": str(cash.id),
                 "linked_interest_recurring_id": str(rec.id),
-                "interest_amount_half_yearly": float(entries[0].emi_amount),
-                "loan_rate_percent": 7.96,
-            }
+            },
         },
     )
     session.add(asset)

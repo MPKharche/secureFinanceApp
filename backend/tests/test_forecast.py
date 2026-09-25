@@ -109,7 +109,11 @@ async def test_forecast_illus_sv_path(session: AsyncSession, test_user, test_wor
                 "year_5": {"sv_approx": 389495, "ssv": 389495},
                 "year_6": {"sv_approx": 420000, "ssv": 420000},
             },
-            "g0_assumptions": {"loan_rate_percent": 7.96, "principal": 160000, "premium_amount": 10000},
+            "assumptions": {
+                "pru_loan_rate_pct": 0.0796,
+                "pru_loan_principal_inr": 160000,
+                "pru_premium_monthly_inr": 10000,
+            },
         },
     )
     session.add(asset)

@@ -21,7 +21,18 @@ from app.models.transaction import Transaction
 from app.schemas.transaction import TransferCreate
 from app.services import recurring_match_service
 from app.services.credit_card_service import apply_effective_date
-from app.services.g0_assumption_keys import amount_from_g0_assumption, assumption_refs_from_g0
+from app.services.g0_assumption_keys import (
+    WIRING_LINKED_INTEREST_RECURRING_ID,
+    WIRING_LINKED_PREMIUM_RECURRING_ID,
+    WIRING_LINKED_REPAYMENT_RECURRING_ID,
+    WIRING_LOAN_ACCOUNT_ID,
+    assumption_meta_from_metadata,
+    assumption_refs_for_post,
+    assumptions_from_metadata,
+    disclosure_labels_for_post,
+    posting_amount_inr,
+    wiring_from_metadata,
+)
 from app.services.recurring_transaction_service import adjust_weekend_date
 from app.services import transaction_service
 
@@ -30,31 +41,35 @@ class ScheduledPostError(ValueError):
     """User-visible validation failure for guided posting."""
 
 
-async def _load_g0_for_recurring(
+async def _load_asset_context_for_recurring(
     session: AsyncSession, workspace_id: uuid.UUID, recurring_id: uuid.UUID
-) -> tuple[Optional[dict[str, Any]], Optional[Asset]]:
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], Optional[Asset]]:
     result = await session.execute(select(Asset).where(Asset.workspace_id == workspace_id))
     rid = str(recurring_id)
     for asset in result.scalars().all():
-        g0 = (asset.external_metadata or {}).get("g0_assumptions") or {}
+        meta = asset.external_metadata or {}
+        wiring = wiring_from_metadata(meta)
         if rid in (
-            g0.get("linked_premium_recurring_id"),
-            g0.get("linked_interest_recurring_id"),
-            g0.get("linked_repayment_recurring_id"),
+            wiring.get(WIRING_LINKED_PREMIUM_RECURRING_ID),
+            wiring.get(WIRING_LINKED_INTEREST_RECURRING_ID),
+            wiring.get(WIRING_LINKED_REPAYMENT_RECURRING_ID),
         ):
-            return g0, asset
-    return None, None
+            return (
+                assumptions_from_metadata(meta),
+                wiring,
+                assumption_meta_from_metadata(meta),
+                asset,
+            )
+    return {}, {}, {}, None
 
 
-def _post_kind_from_g0(g0: Optional[dict], recurring_id: uuid.UUID) -> str:
-    if not g0:
-        return "generic"
+def _post_kind_from_wiring(wiring: dict[str, Any], recurring_id: uuid.UUID) -> str:
     rid = str(recurring_id)
-    if g0.get("linked_premium_recurring_id") == rid:
+    if wiring.get(WIRING_LINKED_PREMIUM_RECURRING_ID) == rid:
         return "premium"
-    if g0.get("linked_interest_recurring_id") == rid:
+    if wiring.get(WIRING_LINKED_INTEREST_RECURRING_ID) == rid:
         return "interest_half_yearly"
-    if g0.get("linked_repayment_recurring_id") == rid:
+    if wiring.get(WIRING_LINKED_REPAYMENT_RECURRING_ID) == rid:
         return "principal_repayment"
     return "generic"
 
@@ -120,13 +135,13 @@ async def _stamp_recurring_on_transfer_debit(
     session: AsyncSession,
     debit_tx: Transaction,
     recurring: RecurringTransaction,
-    g0: Optional[dict],
+    assumptions: dict[str, Any],
     kind: str,
 ) -> None:
     debit_tx.recurring_transaction_id = recurring.id
     if recurring.category_id:
         debit_tx.category_id = recurring.category_id
-    refs = assumption_refs_from_g0(g0)
+    refs = assumption_refs_for_post(assumptions)
     debit_tx.raw_data = {
         **(debit_tx.raw_data or {}),
         "kind": "g0_scheduled_post",
@@ -161,8 +176,11 @@ async def post_recurring_occurrence(
     if recurring.account_id is None:
         raise ScheduledPostError("Recurring bill has no account")
 
-    g0, _asset = await _load_g0_for_recurring(session, workspace_id, recurring_id)
-    kind = _post_kind_from_g0(g0, recurring_id)
+    assumptions, wiring, assumption_meta, _asset = await _load_asset_context_for_recurring(
+        session, workspace_id, recurring_id
+    )
+    kind = _post_kind_from_wiring(wiring, recurring_id)
+    disclosures = disclosure_labels_for_post(assumptions, assumption_meta)
 
     nominal = recurring.next_occurrence
     effective = payment_date or adjust_weekend_date(nominal, recurring.weekend_adjustment)
@@ -180,14 +198,26 @@ async def post_recurring_occurrence(
             "transaction_ids": [str(existing.id)],
             "recurring_id": str(recurring.id),
             "next_occurrence": recurring.next_occurrence,
+            "assumption_disclosures": disclosures,
         }
 
-    amount = amount_from_g0_assumption(g0, kind=kind, fallback=recurring.amount)
+    loan_original: Optional[Decimal] = None
+    if kind == "principal_repayment" and wiring.get(WIRING_LOAN_ACCOUNT_ID):
+        loan_acct = await session.get(Account, uuid.UUID(str(wiring[WIRING_LOAN_ACCOUNT_ID])))
+        if loan_acct and loan_acct.original_principal is not None:
+            loan_original = loan_acct.original_principal
+
+    amount = posting_amount_inr(
+        kind=kind,
+        recurring_amount=recurring.amount,
+        assumptions=assumptions,
+        loan_original_principal=loan_original,
+    )
     if amount != recurring.amount:
         recurring.amount = amount
 
-    if g0 and not transfer_to_account_id:
-        loan_hint = g0.get("loan_account_id")
+    if wiring and not transfer_to_account_id:
+        loan_hint = wiring.get(WIRING_LOAN_ACCOUNT_ID)
         if loan_hint and kind in ("interest_half_yearly", "principal_repayment"):
             transfer_to_account_id = uuid.UUID(str(loan_hint))
             link_loan_schedule = True
@@ -213,14 +243,14 @@ async def post_recurring_occurrence(
         cash_leg, credit_leg = await transaction_service.create_transfer(
             session, workspace_id, user_id, transfer
         )
-        await _stamp_recurring_on_transfer_debit(session, cash_leg, recurring, g0, kind)
+        await _stamp_recurring_on_transfer_debit(session, cash_leg, recurring, assumptions, kind)
         if credit_leg.raw_data is None:
             credit_leg.raw_data = {}
         credit_leg.raw_data = {
             **credit_leg.raw_data,
             "kind": "g0_scheduled_post",
             "post_kind": kind,
-            "assumption_refs": assumption_refs_from_g0(g0),
+            "assumption_refs": assumption_refs_for_post(assumptions),
             "paired_cash_leg_id": str(cash_leg.id),
         }
         await session.commit()
@@ -252,7 +282,7 @@ async def post_recurring_occurrence(
         cash_leg.raw_data = {
             "kind": "g0_scheduled_post",
             "post_kind": kind,
-            "assumption_refs": assumption_refs_from_g0(g0),
+            "assumption_refs": assumption_refs_for_post(assumptions),
         }
         await session.commit()
         await session.refresh(cash_leg)
@@ -299,8 +329,9 @@ async def post_recurring_occurrence(
         "credit_leg_id": str(credit_leg.id) if credit_leg else None,
         "schedule_entry_id": schedule_entry_id,
         "recurring_id": str(recurring.id),
-        "next_occurrence": recurring.next_occurrence.isoformat(),
+        "next_occurrence": recurring.next_occurrence,
         "post_kind": kind,
+        "assumption_disclosures": disclosures,
     }
 
 
@@ -324,7 +355,7 @@ async def post_loan_schedule_payment(
         raise ScheduledPostError("Schedule entry is already paid")
 
     pay_date = payment_date or entry.due_date
-    amount = entry.emi_amount
+    amount = entry.emi_amount.quantize(Decimal("0.01"))
 
     transfer = TransferCreate(
         from_account_id=from_account_id,
@@ -348,21 +379,29 @@ async def post_loan_schedule_payment(
         "loan_schedule_entry_id": str(entry.id),
     }
     recurring_advanced: Optional[str] = None
+    disclosures: list[dict[str, str]] = []
 
-    # Try to advance matching G0 recurring from asset metadata
     result_assets = await session.execute(select(Asset).where(Asset.workspace_id == workspace_id))
     for asset in result_assets.scalars().all():
-        g0 = (asset.external_metadata or {}).get("g0_assumptions") or {}
-        loan_hint = g0.get("loan_account_id")
+        meta = asset.external_metadata or {}
+        wiring = wiring_from_metadata(meta)
+        assumptions = assumptions_from_metadata(meta)
+        assumption_meta = assumption_meta_from_metadata(meta)
+        disclosures = disclosure_labels_for_post(assumptions, assumption_meta)
+        loan_hint = wiring.get(WIRING_LOAN_ACCOUNT_ID)
         if loan_hint and str(entry.account_id) != str(loan_hint):
             continue
-        linked_rid: Optional[str]
         if entry.principal_component == Decimal("0.00"):
-            linked_rid = g0.get("linked_interest_recurring_id")
+            linked_rid = wiring.get(WIRING_LINKED_INTEREST_RECURRING_ID)
         else:
-            linked_rid = g0.get("linked_repayment_recurring_id")
+            linked_rid = wiring.get(WIRING_LINKED_REPAYMENT_RECURRING_ID)
         if not linked_rid:
             continue
+        refs = assumption_refs_for_post(assumptions)
+        cash_leg.raw_data = {
+            **(cash_leg.raw_data or {}),
+            "assumption_refs": refs,
+        }
         rec_result = await session.execute(
             select(RecurringTransaction).where(
                 RecurringTransaction.id == uuid.UUID(str(linked_rid)),
@@ -382,4 +421,5 @@ async def post_loan_schedule_payment(
         "transaction_ids": [str(cash_leg.id), str(credit_leg.id)],
         "schedule_entry_id": str(entry.id),
         "recurring_id": recurring_advanced,
+        "assumption_disclosures": disclosures,
     }

@@ -49,6 +49,11 @@ class RecurringPostOccurrenceRequest(BaseModel):
     loan_account_id: Optional[uuid.UUID] = None
 
 
+class AssumptionDisclosure(BaseModel):
+    key: str
+    label: str
+
+
 class RecurringPostOccurrenceResponse(BaseModel):
     already_posted: bool
     transaction_ids: list[str]
@@ -58,6 +63,7 @@ class RecurringPostOccurrenceResponse(BaseModel):
     recurring_id: str
     next_occurrence: _Date
     post_kind: Optional[str] = None
+    assumption_disclosures: list[AssumptionDisclosure] = []
 
 
 class RecurringTransactionRead(BaseModel):

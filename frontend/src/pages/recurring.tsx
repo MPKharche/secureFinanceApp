@@ -154,6 +154,9 @@ function RecurringTab() {
       queryClient.invalidateQueries({ queryKey: ['loan-schedule'] })
       const next = new Date(data.next_occurrence + 'T00:00:00').toLocaleDateString(dateLocale)
       toast.success(t('recurring.postDueSuccess', { date: next }))
+      const disclosures = (data as { assumption_disclosures?: { key: string; label: string }[] })
+        .assumption_disclosures
+      disclosures?.forEach((d) => toast.info(d.label, { duration: 6000 }))
     },
     onError: (err: unknown) => toast.error(extractApiError(err, t('common.error'))),
   })

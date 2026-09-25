@@ -1041,6 +1041,7 @@ export const recurring = {
     transaction_ids: string[]
     next_occurrence: string
     schedule_entry_id?: string | null
+    assumption_disclosures?: { key: string; label: string }[]
   }> => {
     const { data } = await api.post(`/recurring-transactions/${id}/post-occurrence`, body ?? {})
     return data
