@@ -4,14 +4,16 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import String, select, desc, func, case
+from sqlalchemy import String, select, desc, func, case, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.account_types import is_liability_account_type
 from app.models.account import Account
 from app.models.asset import Asset
+from app.models.asset_group import AssetGroup
 from app.models.asset_value import AssetValue
+from app.models.bank_connection import BankConnection
 from app.models.transaction import Transaction
 from app.models.category import Category
 from app.models.user import User
@@ -1675,6 +1677,97 @@ def _is_insurance_asset(asset: Asset) -> bool:
     )
 
 
+async def _asset_recorded_amount_at(
+    session: AsyncSession, asset: Asset, cutoff: date
+) -> float:
+    """Latest recorded asset value on or before cutoff (balance-sheet basis)."""
+    val_result = await session.execute(
+        select(AssetValue.amount)
+        .where(AssetValue.asset_id == asset.id, AssetValue.date <= cutoff)
+        .order_by(desc(AssetValue.date), desc(AssetValue.id))
+        .limit(1)
+    )
+    val = val_result.scalar_one_or_none()
+    if val is not None:
+        return float(val)
+    if asset.purchase_price is not None and (
+        asset.purchase_date is None or asset.purchase_date <= cutoff
+    ):
+        return float(asset.purchase_price)
+    return 0.0
+
+
+async def _investment_account_ids_superseded_by_holdings(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    cutoff: date,
+) -> set[uuid.UUID]:
+    """Investment accounts whose balance is already represented by synced holdings.
+
+    Provider sync stores positions as Assets while also updating the brokerage
+    account balance. Counting both on the balance sheet double-counts the same
+    money — keep the holdings and omit the parent investment account.
+    """
+    holding_rows = await session.execute(
+        select(Asset, AssetGroup, BankConnection)
+        .outerjoin(AssetGroup, Asset.group_id == AssetGroup.id)
+        .join(BankConnection, Asset.connection_id == BankConnection.id)
+        .where(
+            Asset.workspace_id == workspace_id,
+            Asset.is_archived == False,
+            Asset.sell_date.is_(None),
+            Asset.connection_id.isnot(None),
+            Asset.source != "manual",
+        )
+    )
+
+    connection_level_holdings: set[uuid.UUID] = set()
+    per_account_wallet_keys: dict[uuid.UUID, set[str]] = {}
+
+    for asset, group, conn in holding_rows.all():
+        if await _asset_recorded_amount_at(session, asset, cutoff) <= 0:
+            continue
+        wallet_external_id = group.external_id if group else None
+        conn_external = conn.external_id
+        if not wallet_external_id or wallet_external_id == conn_external:
+            connection_level_holdings.add(conn.id)
+            continue
+        per_account_wallet_keys.setdefault(conn.id, set()).add(wallet_external_id)
+
+    if not connection_level_holdings and not per_account_wallet_keys:
+        return set()
+
+    invest_accounts = await session.execute(
+        select(Account)
+        .outerjoin(BankConnection)
+        .where(
+            or_(
+                Account.workspace_id == workspace_id,
+                BankConnection.workspace_id == workspace_id,
+            ),
+            Account.is_closed == False,
+            Account.type == "investment",
+            Account.connection_id.isnot(None),
+        )
+    )
+
+    excluded: set[uuid.UUID] = set()
+    for account in invest_accounts.scalars().all():
+        conn_id = account.connection_id
+        if conn_id in connection_level_holdings:
+            excluded.add(account.id)
+            continue
+        ext = account.external_id
+        if not ext:
+            continue
+        for wallet_key in per_account_wallet_keys.get(conn_id, set()):
+            if wallet_key.endswith(f"::{ext}"):
+                excluded.add(account.id)
+                break
+
+    return excluded
+
+
 async def get_balance_sheet(
     session: AsyncSession,
     workspace_id: uuid.UUID,
@@ -1708,6 +1801,9 @@ async def get_balance_sheet(
     primary_currency = user.primary_currency if user else get_settings().default_currency
 
     accounts = await _get_open_accounts(session, workspace_id, account_ids)
+    superseded_investment_accounts = await _investment_account_ids_superseded_by_holdings(
+        session, workspace_id, cutoff
+    )
     lines: list[BalanceSheetLine] = []
     cash_total = 0.0
     invest_acct_total = 0.0
@@ -1716,6 +1812,8 @@ async def get_balance_sheet(
     gaps: list[str] = []
 
     for account in accounts:
+        if account.id in superseded_investment_accounts:
+            continue
         bal = await _account_balance_at(session, account, cutoff)
         converted, _ = await convert(
             session, Decimal(str(abs(bal))), account.currency, primary_currency, cutoff

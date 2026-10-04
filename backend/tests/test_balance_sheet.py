@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
 from app.models.asset import Asset
+from app.models.asset_group import AssetGroup
 from app.models.asset_value import AssetValue
+from app.models.bank_connection import BankConnection
 from app.models.transaction import Transaction
 from app.services.report_service import get_balance_sheet
 
@@ -113,3 +115,99 @@ async def test_balance_sheet_insurance_sv_vs_sad(session: AsyncSession, test_use
     assert inv_sv[0].fidelity == "approx_current"
     assert any(a.key == "insurance_value_basis" and a.value == "sv" for a in sv.assumptions)
     assert "G2" in " ".join(sv.gaps)
+
+
+@pytest.mark.asyncio
+async def test_balance_sheet_excludes_investment_account_when_holdings_present(
+    session: AsyncSession, test_user, test_workspace,
+):
+    """Brokerage account balance and synced holdings must not both land on the BS."""
+    today = date.today()
+    conn = BankConnection(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        workspace_id=test_workspace.id,
+        provider="mock",
+        external_id="conn-ext-1",
+        institution_name="Test Broker",
+        status="active",
+    )
+    session.add(conn)
+    await session.flush()
+
+    brokerage = Account(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        workspace_id=test_workspace.id,
+        connection_id=conn.id,
+        external_id="acc-broker",
+        name="Brokerage",
+        type="investment",
+        balance=Decimal("100000"),
+        currency="BRL",
+        is_closed=False,
+    )
+    session.add(brokerage)
+
+    wallet = AssetGroup(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        workspace_id=test_workspace.id,
+        name="Brokerage",
+        source="mock",
+        connection_id=conn.id,
+        external_id="conn-ext-1::acc-broker",
+    )
+    session.add(wallet)
+    await session.flush()
+
+    fund_a = Asset(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        workspace_id=test_workspace.id,
+        connection_id=conn.id,
+        source="mock",
+        external_id="holding-a",
+        name="Fund A",
+        type="investment",
+        currency="BRL",
+        group_id=wallet.id,
+    )
+    fund_b = Asset(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        workspace_id=test_workspace.id,
+        connection_id=conn.id,
+        source="mock",
+        external_id="holding-b",
+        name="Fund B",
+        type="investment",
+        currency="BRL",
+        group_id=wallet.id,
+    )
+    session.add_all([fund_a, fund_b])
+    await session.flush()
+    session.add_all([
+        AssetValue(
+            id=uuid.uuid4(),
+            asset_id=fund_a.id,
+            amount=Decimal("60000"),
+            date=today,
+        ),
+        AssetValue(
+            id=uuid.uuid4(),
+            asset_id=fund_b.id,
+            amount=Decimal("40000"),
+            date=today,
+        ),
+    ])
+    await session.commit()
+
+    sheet = await get_balance_sheet(
+        session, test_workspace.id, test_user.id, today, insurance_value_basis="recorded"
+    )
+    invest_lines = [l for l in sheet.lines if l.group == "investments"]
+    assert len(invest_lines) == 2
+    assert {l.label for l in invest_lines} == {"Fund A", "Fund B"}
+    assert sheet.totals.investments == 100000.0
+    assert sheet.totals.net_worth == 100000.0
